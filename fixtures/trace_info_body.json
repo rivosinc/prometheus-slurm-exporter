@@ -1,0 +1,12 @@
+{
+    "pid": 35642,
+    "cpus": 0.0,
+    "threads": 1,
+    "mem": 1032192,
+    "read_bytes": 20,
+    "write_bytes": 10,
+    "username": "abdh",
+    "io_wait": 0,
+    "hostname": "somehost",
+    "job_id": 10
+}

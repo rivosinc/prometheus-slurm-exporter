@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+    <body>
+        <table>
+            <tr>
+                <th> Job Id </th>
+                <th> Process Id </th>
+                <th> Cpu % </th>
+                <th> I/O Wait  </th>
+                <th> Memory Usage </th>
+                <th> Username </th>
+                <th> Hostname </th>
+            </tr>
+            {{ range . }}
+                <tr>
+                    <td> {{ .JobId  }} </td>
+                    <td> {{ .Pid}} </td>
+                    <td> {{ .Cpus }} </td>
+                    <td> {{ .WriteBytes }}  </td>
+                    <td> {{ .ReadBytes }}  </td>
+                    <td> {{ .Mem }} </td>
+                    <td> {{ .Username }} </td>
+                    <td> {{ .Hostname }} </td>
+                </tr>
+            {{ end }}
+        </table>
+    </body>
+</html>
