@@ -20,3 +20,10 @@ jobs:
     - uses: actions/setup-go@v4
     - run: pip install psutil requests
     - run: go test
+
+  compliance:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: reuse Compliance Check
+      uses: fsfe/reuse-action@v1

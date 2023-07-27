@@ -13,3 +13,8 @@ repos:
       - id: go-fmt
         # - id: go-unit-tests
       - id: go-mod-tidy
+  - repo: https://github.com/rivosinc/reuse-tool
+    rev: '3a95909a30d51467575a95b8cabdc7949bb8e7bd'
+    hooks:
+      # Check compliance
+      - id: reuse
