@@ -135,10 +135,10 @@ type JobsController struct {
 	jobScrapeError prometheus.Counter
 }
 
-func NewJobsController() *JobsController {
+func NewJobsController(fetcher SlurmFetcher) *JobsController {
 	return &JobsController{
 		cache:   NewAtomicThrottledCache(),
-		fetcher: NewCliFetcher("squeue", "--json"),
+		fetcher: fetcher,
 		// individual job metrics
 		jobAllocCpus:           prometheus.NewDesc("slurm_job_alloc_cpus", "amount of cpus allocated per job", []string{"jobid"}, nil),
 		jobAllocMem:            prometheus.NewDesc("slurm_job_alloc_mem", "amount of mem allocated per job", []string{"jobid"}, nil),
@@ -164,16 +164,13 @@ func (jc *JobsController) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.jobScrapeError.Desc()
 }
 
-func (jc *JobsController) fetchJobMetrics() ([]JobMetrics, error) {
-	squeue, err := jc.cache.Fetch(jc.fetcher)
-	if err != nil {
-		return nil, err
-	}
-	return parseJobMetrics(squeue)
-}
-
 func (jc *JobsController) Collect(ch chan<- prometheus.Metric) {
-	jobMetrics, err := jc.fetchJobMetrics()
+	squeue, err := jc.fetcher.Fetch()
+	if err != nil {
+		slog.Error(fmt.Sprintf("fetch error %q", err))
+		return
+	}
+	jobMetrics, err := parseJobMetrics(squeue)
 	if err != nil {
 		jc.jobScrapeError.Inc()
 		slog.Error(fmt.Sprintf("job failed to parse with %q", err))

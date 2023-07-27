@@ -11,7 +11,7 @@ var MockJobInfoFetcher = &MockFetcher{fixture: "fixtures/squeue_out.json"}
 
 func TestNewJobsController(t *testing.T) {
 	assert := assert.New(t)
-	jc := NewJobsController()
+	jc := NewJobsController(MockJobInfoFetcher)
 	assert.NotNil(jc)
 }
 
@@ -51,7 +51,7 @@ func TestUserJobMetric(t *testing.T) {
 
 func TestJobCollect(t *testing.T) {
 	assert := assert.New(t)
-	jc := NewJobsController()
+	jc := NewJobsController(MockJobInfoFetcher)
 	jc.fetcher = MockJobInfoFetcher
 	jobChan := make(chan prometheus.Metric)
 	go func() {
@@ -81,7 +81,7 @@ func TestParsePartitionJobMetrics(t *testing.T) {
 func TestJobDescribe(t *testing.T) {
 	assert := assert.New(t)
 	ch := make(chan *prometheus.Desc)
-	jc := NewJobsController()
+	jc := NewJobsController(MockJobInfoFetcher)
 	jc.fetcher = MockJobInfoFetcher
 	go func() {
 		jc.Describe(ch)

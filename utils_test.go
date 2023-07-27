@@ -22,9 +22,9 @@ func init() {
 }
 
 func generateRandString(n uint) string {
-	randBytes := make([]byte, 0)
-	for i := uint(0); i < n; i++ {
-		randBytes = append(randBytes, chars[seededRand.Int()%len(chars)])
+	randBytes := make([]byte, n)
+	for i := 0; i < int(n); i++ {
+		randBytes[i] = chars[seededRand.Int()%len(chars)]
 	}
 	return string(randBytes)
 }
@@ -88,7 +88,7 @@ func TestAtomicThrottledCache_CompMiss(t *testing.T) {
 	cache := NewAtomicThrottledCache()
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
-	info, err := cache.Fetch(fetcher)
+	info, err := cache.fetchOrThrottle(fetcher.Fetch)
 	assert.Nil(err)
 	assert.Equal(info, fetcher.msg)
 	// assert no cache hit
@@ -104,7 +104,7 @@ func TestAtomicThrottledCache_Hit(t *testing.T) {
 	cache.limit = math.MaxFloat64
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
-	info, err := cache.Fetch(fetcher)
+	info, err := cache.fetchOrThrottle(fetcher.Fetch)
 	assert.Nil(err)
 	assert.Equal(info, cache.cache)
 	// assert fetch not called
@@ -120,7 +120,7 @@ func TestAtomicThrottledCache_Stale(t *testing.T) {
 	cache.limit = 0
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
-	info, err := cache.Fetch(fetcher)
+	info, err := cache.fetchOrThrottle(fetcher.Fetch)
 	assert.Nil(err)
 	assert.Equal(info, fetcher.msg)
 	// assert fetch not called

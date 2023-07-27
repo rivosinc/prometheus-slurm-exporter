@@ -91,9 +91,7 @@ func TestUploadTraceGet(t *testing.T) {
 
 func TestTraceControllerCollect(t *testing.T) {
 	assert := assert.New(t)
-	jc := NewJobsController()
-	jc.fetcher = MockJobInfoFetcher
-	c := NewTraceController(10000, jc)
+	c := NewTraceController(10000, MockJobInfoFetcher)
 	c.ProcessFetcher.Add(&TraceInfo{JobId: 26515966})
 	assert.Positive(len(c.ProcessFetcher.Info))
 	metricChan := make(chan prometheus.Metric)
@@ -111,7 +109,7 @@ func TestTraceControllerCollect(t *testing.T) {
 
 func TestTraceControllerDescribe(t *testing.T) {
 	assert := assert.New(t)
-	c := NewTraceController(10000, NewJobsController())
+	c := NewTraceController(10000, NewCliFetcher())
 	c.ProcessFetcher.Add(&TraceInfo{JobId: 26515966})
 	assert.Positive(len(c.ProcessFetcher.Info))
 	metricChan := make(chan *prometheus.Desc)
@@ -134,9 +132,8 @@ func TestPython3Wrapper(t *testing.T) {
 		t.Skip()
 	}
 	assert := assert.New(t)
-	args := []string{"python3", "wrappers/proctrac.py", "--cmd", "sleep", "100", "--jobid=10", "--validate"}
-	fetcher := NewCliFetcher(args...)
-	t.Logf("cmd: %+v", args)
+	fetcher := NewCliFetcher("python3", "wrappers/proctrac.py", "--cmd", "sleep", "100", "--jobid=10", "--validate")
+	t.Logf("cmd: %+v", fetcher.args)
 	wrapperOut, err := fetcher.Fetch()
 	assert.Nil(err)
 	var info TraceInfo
