@@ -39,11 +39,12 @@ func main() {
 	textHandler := slog.NewTextHandler(os.Stdout, &opts)
 	slog.SetDefault(slog.New(textHandler))
 	flag.Parse()
-	jobsCollector := NewJobsController()
+	cliFetcher := NewCliFetcher("squeue", "--json")
+	jobsCollector := NewJobsController(cliFetcher)
 	prometheus.MustRegister(NewNodeCollecter(), jobsCollector)
 	if *traceEnabled {
 		slog.Info("trace path enabled at path: " + *listenAddress + *tracePath)
-		traceController := NewTraceController(*traceRate, jobsCollector)
+		traceController := NewTraceController(*traceRate, cliFetcher)
 		http.HandleFunc(*tracePath, traceController.uploadTrace)
 		prometheus.MustRegister(traceController)
 	}

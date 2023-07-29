@@ -29,13 +29,13 @@ type AtomicThrottledCache struct {
 
 // atomic fetch of either the cache or the collector
 // reset & hydrate as neccesary
-func (atc *AtomicThrottledCache) Fetch(slurmFetcher SlurmFetcher) ([]byte, error) {
+func (atc *AtomicThrottledCache) fetchOrThrottle(fetchFunc func() ([]byte, error)) ([]byte, error) {
 	atc.Lock()
 	defer atc.Unlock()
 	if len(atc.cache) > 0 && time.Since(atc.t).Seconds() < atc.limit {
 		return atc.cache, nil
 	}
-	slurmData, err := slurmFetcher.Fetch()
+	slurmData, err := fetchFunc()
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +72,14 @@ func duration(msg string, start time.Time) {
 type CliFetcher struct {
 	args    []string
 	timeout time.Duration
+	cache   *AtomicThrottledCache
 }
 
 func (cf *CliFetcher) Fetch() ([]byte, error) {
+	return cf.cache.fetchOrThrottle(cf.captureCli)
+}
+
+func (cf *CliFetcher) captureCli() ([]byte, error) {
 	if len(cf.args) == 0 {
 		return nil, errors.New("need at least 1 args")
 	}
@@ -86,11 +91,12 @@ func (cf *CliFetcher) Fetch() ([]byte, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	time.AfterFunc(cf.timeout, func() {
+	timer := time.AfterFunc(cf.timeout, func() {
 		if err := cmd.Process.Kill(); err != nil {
-			slog.Error("failed to cancel cmd: %v", cf.args)
+			slog.Error(fmt.Sprintf("failed to cancel cmd: %v", cf.args))
 		}
 	})
+	defer timer.Stop()
 	if err := cmd.Wait(); err != nil {
 		return nil, err
 	}
@@ -104,6 +110,7 @@ func NewCliFetcher(args ...string) *CliFetcher {
 	return &CliFetcher{
 		args:    args,
 		timeout: 10 * time.Second,
+		cache:   NewAtomicThrottledCache(),
 	}
 }
 

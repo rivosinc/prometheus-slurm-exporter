@@ -83,7 +83,7 @@ func (m *AtomicProcFetcher) Fetch() map[int64]*TraceInfo {
 
 type TraceController struct {
 	ProcessFetcher *AtomicProcFetcher
-	squeueFetcher  *JobsController
+	squeueFetcher  SlurmFetcher
 	// actual proc monitoring
 	jobAllocMem  *prometheus.Desc
 	jobAllocCpus *prometheus.Desc
@@ -95,12 +95,12 @@ type TraceController struct {
 	readBytes    *prometheus.Desc
 }
 
-func NewTraceController(sampleRate uint64, controller *JobsController) *TraceController {
+func NewTraceController(sampleRate uint64, squeueFetcher SlurmFetcher) *TraceController {
 	fetcher := NewAtomicProFetcher(sampleRate)
 	return &TraceController{
 		ProcessFetcher: fetcher,
 		// add for job id correlation
-		squeueFetcher: controller,
+		squeueFetcher: squeueFetcher,
 		jobAllocMem:   prometheus.NewDesc("slurm_job_mem_alloc", "running job cpus aklocated", []string{"jobid"}, nil),
 		jobAllocCpus:  prometheus.NewDesc("slurm_job_cpu_alloc", "running job cpus aklocated", []string{"jobid"}, nil),
 		pid:           prometheus.NewDesc("slurm_proc_pid", "pid of running slurm job", []string{"jobid", "hostname"}, nil),
@@ -125,10 +125,14 @@ func (c *TraceController) Describe(ch chan<- *prometheus.Desc) {
 
 func (c *TraceController) Collect(ch chan<- prometheus.Metric) {
 	procs := c.ProcessFetcher.Fetch()
-	jobMetrics, err := c.squeueFetcher.fetchJobMetrics()
+	squeue, err := c.squeueFetcher.Fetch()
 	if err != nil {
 		// reusing another collector so we won't
 		// redisplay parent error messages
+		return
+	}
+	jobMetrics, err := parseJobMetrics(squeue)
+	if err != nil {
 		return
 	}
 	for _, j := range jobMetrics {
