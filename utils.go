@@ -91,11 +91,12 @@ func (cf *CliFetcher) captureCli() ([]byte, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	time.AfterFunc(cf.timeout, func() {
+	timer := time.AfterFunc(cf.timeout, func() {
 		if err := cmd.Process.Kill(); err != nil {
-			slog.Error("failed to cancel cmd: %v", cf.args)
+			slog.Error(fmt.Sprintf("failed to cancel cmd: %v", cf.args))
 		}
 	})
+	defer timer.Stop()
 	if err := cmd.Wait(); err != nil {
 		return nil, err
 	}

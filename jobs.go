@@ -165,9 +165,13 @@ func (jc *JobsController) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (jc *JobsController) Collect(ch chan<- prometheus.Metric) {
+	defer func() {
+		ch <- jc.jobScrapeError
+	}()
 	squeue, err := jc.fetcher.Fetch()
 	if err != nil {
 		slog.Error(fmt.Sprintf("fetch error %q", err))
+		jc.jobScrapeError.Inc()
 		return
 	}
 	jobMetrics, err := parseJobMetrics(squeue)

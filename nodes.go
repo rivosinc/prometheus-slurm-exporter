@@ -189,6 +189,9 @@ func (nc *NodesCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
+	defer func() {
+		ch <- nc.nodeScrapeErrors
+	}()
 	sinfo, err := nc.fetcher.Fetch()
 	if err != nil {
 		slog.Error("Failed to fetch from cli: " + err.Error())
