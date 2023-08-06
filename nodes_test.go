@@ -69,7 +69,9 @@ func TestNodeSummaryMemoryMetrics(t *testing.T) {
 
 func TestNodeCollector(t *testing.T) {
 	assert := assert.New(t)
-	nc := NewNodeCollecter()
+	config, err := NewConfig()
+	assert.Nil(err)
+	nc := NewNodeCollecter(config)
 	// cache miss, use our mock fetcher
 	nc.fetcher = MockNodeInfoFetcher
 	metricChan := make(chan prometheus.Metric)
@@ -88,7 +90,9 @@ func TestNodeCollector(t *testing.T) {
 func TestNodeDescribe(t *testing.T) {
 	assert := assert.New(t)
 	ch := make(chan *prometheus.Desc)
-	jc := NewNodeCollecter()
+	config, err := NewConfig()
+	assert.Nil(err)
+	jc := NewNodeCollecter(config)
 	jc.fetcher = MockJobInfoFetcher
 	go func() {
 		jc.Describe(ch)

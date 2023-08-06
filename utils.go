@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,16 +43,7 @@ func (atc *AtomicThrottledCache) fetchOrThrottle(fetchFunc func() ([]byte, error
 	return slurmData, nil
 }
 
-func NewAtomicThrottledCache() *AtomicThrottledCache {
-	var limit float64 = 1
-	var err error
-	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
-		limit, err = strconv.ParseFloat(lm, 64)
-		if err != nil {
-			slog.Error("`POLL_LIMIT` env var must be a float")
-			os.Exit(1)
-		}
-	}
+func NewAtomicThrottledCache(limit float64) *AtomicThrottledCache {
 	return &AtomicThrottledCache{
 		t:     time.Now(),
 		limit: limit,
@@ -110,7 +100,7 @@ func NewCliFetcher(args ...string) *CliFetcher {
 	return &CliFetcher{
 		args:    args,
 		timeout: 10 * time.Second,
-		cache:   NewAtomicThrottledCache(),
+		cache:   NewAtomicThrottledCache(1),
 	}
 }
 

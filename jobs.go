@@ -135,9 +135,10 @@ type JobsController struct {
 	jobScrapeError prometheus.Counter
 }
 
-func NewJobsController(fetcher SlurmFetcher) *JobsController {
+func NewJobsController(config *Config) *JobsController {
+	fetcher := config.traceConf.sharedFetcher
 	return &JobsController{
-		cache:   NewAtomicThrottledCache(),
+		cache:   NewAtomicThrottledCache(config.pollLimit),
 		fetcher: fetcher,
 		// individual job metrics
 		jobAllocCpus:           prometheus.NewDesc("slurm_job_alloc_cpus", "amount of cpus allocated per job", []string{"jobid"}, nil),

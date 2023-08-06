@@ -95,12 +95,12 @@ type TraceController struct {
 	readBytes    *prometheus.Desc
 }
 
-func NewTraceController(sampleRate uint64, squeueFetcher SlurmFetcher) *TraceController {
-	fetcher := NewAtomicProFetcher(sampleRate)
+func NewTraceController(config *Config) *TraceController {
+	traceConfig := config.traceConf
 	return &TraceController{
-		ProcessFetcher: fetcher,
+		ProcessFetcher: NewAtomicProFetcher(traceConfig.rate),
 		// add for job id correlation
-		squeueFetcher: squeueFetcher,
+		squeueFetcher: traceConfig.sharedFetcher,
 		jobAllocMem:   prometheus.NewDesc("slurm_job_mem_alloc", "running job cpus aklocated", []string{"jobid"}, nil),
 		jobAllocCpus:  prometheus.NewDesc("slurm_job_cpu_alloc", "running job cpus aklocated", []string{"jobid"}, nil),
 		pid:           prometheus.NewDesc("slurm_proc_pid", "pid of running slurm job", []string{"jobid", "hostname"}, nil),

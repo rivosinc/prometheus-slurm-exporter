@@ -85,7 +85,7 @@ func TestCliFetcher_StdErr(t *testing.T) {
 
 func TestAtomicThrottledCache_CompMiss(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache()
+	cache := NewAtomicThrottledCache(10)
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
 	info, err := cache.fetchOrThrottle(fetcher.Fetch)
@@ -99,9 +99,8 @@ func TestAtomicThrottledCache_CompMiss(t *testing.T) {
 
 func TestAtomicThrottledCache_Hit(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache()
+	cache := NewAtomicThrottledCache(math.MaxFloat64)
 	cache.cache = []byte("cache")
-	cache.limit = math.MaxFloat64
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
 	info, err := cache.fetchOrThrottle(fetcher.Fetch)
@@ -115,9 +114,8 @@ func TestAtomicThrottledCache_Hit(t *testing.T) {
 
 func TestAtomicThrottledCache_Stale(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache()
+	cache := NewAtomicThrottledCache(0)
 	cache.cache = []byte("cache")
-	cache.limit = 0
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
 	info, err := cache.fetchOrThrottle(fetcher.Fetch)

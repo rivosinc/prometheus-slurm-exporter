@@ -140,9 +140,9 @@ type NodesCollector struct {
 	nodeScrapeErrors prometheus.Counter
 }
 
-func NewNodeCollecter() *NodesCollector {
+func NewNodeCollecter(config *Config) *NodesCollector {
 	return &NodesCollector{
-		cache:   NewAtomicThrottledCache(),
+		cache:   NewAtomicThrottledCache(config.pollLimit),
 		fetcher: NewCliFetcher("sinfo", "--json"),
 		// partition stats
 		partitionCpus:        prometheus.NewDesc("slurm_partition_total_cpus", "Total cpus per partition", []string{"partition"}, nil),

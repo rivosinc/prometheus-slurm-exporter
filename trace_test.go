@@ -71,9 +71,11 @@ func TestUploadTracePost(t *testing.T) {
 	assert := assert.New(t)
 	fixture, err := os.ReadFile("fixtures/trace_info_body.json")
 	assert.Nil(err)
+	config, err := NewConfig()
+	assert.Nil(err)
 	r := httptest.NewRequest(http.MethodPost, "dummy.url:8092/trace", bytes.NewBuffer(fixture))
 	w := httptest.NewRecorder()
-	c := NewTraceController(10, nil)
+	c := NewTraceController(config)
 	c.uploadTrace(w, r)
 	assert.Equal(1, len(c.ProcessFetcher.Info))
 }
@@ -82,7 +84,9 @@ func TestUploadTraceGet(t *testing.T) {
 	assert := assert.New(t)
 	r := httptest.NewRequest(http.MethodGet, "dummy.url:8092/trace", nil)
 	w := httptest.NewRecorder()
-	c := NewTraceController(10, nil)
+	config, err := NewConfig()
+	assert.Nil(err)
+	c := NewTraceController(config)
 	c.ProcessFetcher.Info[10] = &TraceInfo{}
 	c.uploadTrace(w, r)
 	assert.Equal(200, w.Code)
@@ -91,7 +95,14 @@ func TestUploadTraceGet(t *testing.T) {
 
 func TestTraceControllerCollect(t *testing.T) {
 	assert := assert.New(t)
-	c := NewTraceController(10000, MockJobInfoFetcher)
+	config := &Config{
+		pollLimit: 10,
+		traceConf: &TraceConfig{
+			rate:          10,
+			sharedFetcher: MockJobInfoFetcher,
+		},
+	}
+	c := NewTraceController(config)
 	c.ProcessFetcher.Add(&TraceInfo{JobId: 26515966})
 	assert.Positive(len(c.ProcessFetcher.Info))
 	metricChan := make(chan prometheus.Metric)
@@ -109,7 +120,14 @@ func TestTraceControllerCollect(t *testing.T) {
 
 func TestTraceControllerDescribe(t *testing.T) {
 	assert := assert.New(t)
-	c := NewTraceController(10000, NewCliFetcher())
+	config := &Config{
+		pollLimit: 10,
+		traceConf: &TraceConfig{
+			rate:          10,
+			sharedFetcher: MockJobInfoFetcher,
+		},
+	}
+	c := NewTraceController(config)
 	c.ProcessFetcher.Add(&TraceInfo{JobId: 26515966})
 	assert.Positive(len(c.ProcessFetcher.Info))
 	metricChan := make(chan *prometheus.Desc)
