@@ -21,9 +21,9 @@ func init() {
 	slog.Debug(fmt.Sprintf("rand seed: %d", seed))
 }
 
-func generateRandString(n uint) string {
+func generateRandString(n int) string {
 	randBytes := make([]byte, n)
-	for i := 0; i < int(n); i++ {
+	for i := 0; i < n; i++ {
 		randBytes[i] = chars[seededRand.Int()%len(chars)]
 	}
 	return string(randBytes)
@@ -85,7 +85,7 @@ func TestCliFetcher_StdErr(t *testing.T) {
 
 func TestAtomicThrottledCache_CompMiss(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache()
+	cache := NewAtomicThrottledCache(10)
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
 	info, err := cache.fetchOrThrottle(fetcher.Fetch)
@@ -99,9 +99,8 @@ func TestAtomicThrottledCache_CompMiss(t *testing.T) {
 
 func TestAtomicThrottledCache_Hit(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache()
+	cache := NewAtomicThrottledCache(math.MaxFloat64)
 	cache.cache = []byte("cache")
-	cache.limit = math.MaxFloat64
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
 	info, err := cache.fetchOrThrottle(fetcher.Fetch)
@@ -115,9 +114,8 @@ func TestAtomicThrottledCache_Hit(t *testing.T) {
 
 func TestAtomicThrottledCache_Stale(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache()
+	cache := NewAtomicThrottledCache(0)
 	cache.cache = []byte("cache")
-	cache.limit = 0
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
 	info, err := cache.fetchOrThrottle(fetcher.Fetch)
