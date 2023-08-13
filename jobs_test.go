@@ -57,9 +57,13 @@ func TestUserJobMetric(t *testing.T) {
 
 func TestJobCollect(t *testing.T) {
 	assert := assert.New(t)
-	config, err := NewConfig()
-	assert.Nil(err)
-	config.SetFetcher(MockJobInfoFetcher)
+	config := &Config{
+		pollLimit: 10,
+		traceConf: &TraceConfig{
+			sharedFetcher: MockJobInfoFetcher,
+			rate:          10,
+		},
+	}
 	jc := NewJobsController(config)
 	jobChan := make(chan prometheus.Metric)
 	go func() {

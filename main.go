@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -81,6 +82,7 @@ func NewConfig() (*Config, error) {
 		config.listenAddress = *listenAddress
 	}
 	if *metricsPath != "" {
+		fmt.Println(*metricsPath)
 		config.metricsPath = *metricsPath
 	}
 	sharedFetcher.cache = NewAtomicThrottledCache(config.pollLimit)
@@ -91,25 +93,28 @@ func (c *Config) SetFetcher(fetcher SlurmFetcher) {
 	c.traceConf.sharedFetcher = fetcher
 }
 
-func main() {
-	config, err := NewConfig()
-	if err != nil {
-		slog.Error(fmt.Sprintf("invalid configuration: %q", err))
-		return
-	}
+func initPromServer(config *Config) http.Handler {
 	textHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.logLevel,
 	})
 	slog.SetDefault(slog.New(textHandler))
-	flag.Parse()
 	prometheus.MustRegister(NewNodeCollecter(config), NewJobsController(config))
-	if *traceEnabled {
-		slog.Info("trace path enabled at path: " + *listenAddress + *tracePath)
+	if traceconf := config.traceConf; traceconf.enabled {
+		slog.Info("trace path enabled at path: " + config.listenAddress + traceconf.path)
 		traceController := NewTraceController(config)
-		http.HandleFunc(*tracePath, traceController.uploadTrace)
+		http.HandleFunc(traceconf.path, traceController.uploadTrace)
 		prometheus.MustRegister(traceController)
 	}
-	http.Handle(*metricsPath, promhttp.Handler())
-	slog.Info("serving metrics at " + *listenAddress + *metricsPath)
-	slog.Error(fmt.Sprintf("server exited with %q", http.ListenAndServe(*listenAddress, nil)))
+	return promhttp.Handler()
+}
+
+func main() {
+	flag.Parse()
+	config, err := NewConfig()
+	if err != nil {
+		log.Fatalf("config failed to load with error %q", err)
+	}
+	http.Handle(config.metricsPath, initPromServer(config))
+	slog.Info("serving metrics at " + config.listenAddress + config.metricsPath)
+	log.Fatalf("server exited with %q", http.ListenAndServe(config.listenAddress, nil))
 }

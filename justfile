@@ -19,7 +19,7 @@ init:
 build:
   rm -rf {{build_dir}}
   mkdir {{build_dir}}
-  CGO_ENABLED=0 go build -o {{build_dir}}/slurm_exporter .
+  go build -o {{build_dir}}/slurm_exporter .
 
 devel: build
   {{build_dir}}/slurm_exporter --trace.enabled
