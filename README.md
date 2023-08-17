@@ -102,7 +102,7 @@ $ curl localhost:8092/metrics | grep "# HELP"
 ```
 
 ### Exporter Env Var Docs
-
+Env vars can be sepcified in a `.env` file, while using the `just`
 | Var        | Default Value | Purpose                                                                     |
 |------------|---------------|-----------------------------------------------------------------------------|
 | POLL_LIMIT | 1             | # of seconds to wait before polling slurmctl again (client-side throtting)  |
