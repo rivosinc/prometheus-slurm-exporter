@@ -141,9 +141,10 @@ type NodesCollector struct {
 }
 
 func NewNodeCollecter(config *Config) *NodesCollector {
+	cliOpts := config.cliOpts
 	return &NodesCollector{
 		cache:   NewAtomicThrottledCache(config.pollLimit),
-		fetcher: NewCliFetcher("sinfo", "--json"),
+		fetcher: NewCliFetcher(cliOpts.sinfo...),
 		// partition stats
 		partitionCpus:        prometheus.NewDesc("slurm_partition_total_cpus", "Total cpus per partition", []string{"partition"}, nil),
 		partitionRealMemory:  prometheus.NewDesc("slurm_partition_real_mem", "Real mem per partition", []string{"partition"}, nil),

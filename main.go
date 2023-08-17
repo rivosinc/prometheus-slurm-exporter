@@ -19,18 +19,25 @@ var (
 		"Address to listen on for telemetry (default: 9092)")
 	metricsPath = flag.String("web.telemetry-path", "",
 		"Path under which to expose metrics (default: /metrics)")
-	logLevel       = flag.String("web.log-level", "", "Log level: info, debug, error, warning")
-	traceEnabled   = flag.Bool("trace.enabled", false, "Set up Post endpoint for collecting traces")
-	tracePath      = flag.String("trace.path", "/trace", "POST path to upload job proc info")
-	traceRate      = flag.Uint64("trace.rate", 0, "number of seconds proc info should stay in memory before being marked as stale")
-	slurmPollLimit = flag.Float64("slurm.poll-limit", 0, "throttle for slurmctld (default: 10s)")
-	logLevelMap    = map[string]slog.Level{
+	logLevel            = flag.String("web.log-level", "", "Log level: info, debug, error, warning")
+	traceEnabled        = flag.Bool("trace.enabled", false, "Set up Post endpoint for collecting traces")
+	tracePath           = flag.String("trace.path", "/trace", "POST path to upload job proc info")
+	traceRate           = flag.Uint64("trace.rate", 0, "number of seconds proc info should stay in memory before being marked as stale")
+	slurmPollLimit      = flag.Float64("slurm.poll-limit", 0, "throttle for slurmctld (default: 10s)")
+	slurmSinfoOverride  = flag.String("slurm.sinfo-cli", "sinfo cli override", "override sinfo")
+	slurmSqueueOverride = flag.String("slurm.squeue-cli", "squeue cli override", "override squeue")
+	logLevelMap         = map[string]slog.Level{
 		"debug": slog.LevelDebug,
 		"info":  slog.LevelInfo,
 		"warn":  slog.LevelWarn,
 		"error": slog.LevelError,
 	}
 )
+
+type CliOpts struct {
+	sinfo  []string
+	squeue []string
+}
 
 type TraceConfig struct {
 	enabled       bool
@@ -45,22 +52,26 @@ type Config struct {
 	logLevel      slog.Level
 	listenAddress string
 	metricsPath   string
+	cliOpts       *CliOpts
 }
 
 func NewConfig() (*Config, error) {
 	// defaults
-	sharedFetcher := NewCliFetcher("squeue", "--json")
+	cliOpts := CliOpts{
+		squeue: []string{"squeue", "--json"},
+		sinfo:  []string{"sinfo", "--json"},
+	}
 	config := &Config{
 		pollLimit:     10,
 		logLevel:      slog.LevelInfo,
 		listenAddress: ":9092",
 		metricsPath:   "/metrics",
 		traceConf: &TraceConfig{
-			enabled:       *traceEnabled,
-			path:          *tracePath,
-			rate:          *traceRate,
-			sharedFetcher: sharedFetcher,
+			enabled: *traceEnabled,
+			path:    *tracePath,
+			rate:    *traceRate,
 		},
+		cliOpts: &cliOpts,
 	}
 	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
 		if limit, err := strconv.ParseFloat(lm, 64); err != nil {
@@ -85,7 +96,15 @@ func NewConfig() (*Config, error) {
 		fmt.Println(*metricsPath)
 		config.metricsPath = *metricsPath
 	}
-	sharedFetcher.cache = NewAtomicThrottledCache(config.pollLimit)
+	if *slurmSqueueOverride != "" {
+		cliOpts.squeue = strings.Split(*slurmSqueueOverride, " ")
+	}
+	if *slurmSinfoOverride != "" {
+		cliOpts.sinfo = strings.Split(*slurmSinfoOverride, " ")
+	}
+	fetcher := NewCliFetcher(cliOpts.squeue...)
+	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
+	config.SetFetcher(fetcher)
 	return config, nil
 }
 
