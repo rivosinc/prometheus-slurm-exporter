@@ -16,16 +16,16 @@ import (
 
 var (
 	listenAddress = flag.String("web.listen-address", "",
-		"Address to listen on for telemetry (default: 9092)")
+		`Address to listen on for telemetry "(default: :9092)"`)
 	metricsPath = flag.String("web.telemetry-path", "",
 		"Path under which to expose metrics (default: /metrics)")
 	logLevel            = flag.String("web.log-level", "", "Log level: info, debug, error, warning")
 	traceEnabled        = flag.Bool("trace.enabled", false, "Set up Post endpoint for collecting traces")
 	tracePath           = flag.String("trace.path", "/trace", "POST path to upload job proc info")
-	traceRate           = flag.Uint64("trace.rate", 0, "number of seconds proc info should stay in memory before being marked as stale")
+	traceRate           = flag.Uint64("trace.rate", 0, "number of seconds proc info should stay in memory before being marked as stale (default 10)")
 	slurmPollLimit      = flag.Float64("slurm.poll-limit", 0, "throttle for slurmctld (default: 10s)")
-	slurmSinfoOverride  = flag.String("slurm.sinfo-cli", "sinfo cli override", "override sinfo")
-	slurmSqueueOverride = flag.String("slurm.squeue-cli", "squeue cli override", "override squeue")
+	slurmSinfoOverride  = flag.String("slurm.sinfo-cli", "sinfo cli override", "")
+	slurmSqueueOverride = flag.String("slurm.squeue-cli", "squeue cli override", "")
 	logLevelMap         = map[string]slog.Level{
 		"debug": slog.LevelDebug,
 		"info":  slog.LevelInfo,
