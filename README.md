@@ -5,20 +5,28 @@ metrics from the previously maintained exporter. We have not yet added GPU or fa
 This exporter uses is rewritten to use the json out put of the sinfo and squeue commands. In addition, this exporter comes with job tracing and client-side throttling
 
 ### Getting Started
-Golang 20 is required. From there, follow the `justfile` or run `just devel` to start a dev server. Here is a brief overview of exporter options
+Golang 20 is required. From there, follow the `justfile` or run `just prod` to start a dev server. Here is a brief overview of exporter options
 
 ```bash
 Usage of ./build/slurm_exporter:
+  -slurm.poll-limit float
+        throttle for slurmctld (default: 10s)
+  -slurm.sinfo-cli string
+         (default "sinfo cli override")
+  -slurm.squeue-cli string
+         (default "squeue cli override")
   -trace.enabled
         Set up Post endpoint for collecting traces
   -trace.path string
         POST path to upload job proc info (default "/trace")
   -trace.rate uint
-        number of seconds proc info should stay in memory before being marked as stale (default 10)
+        number of seconds proc info should stay in memory before being marked as stale
   -web.listen-address string
-        Address to listen on for telemetry (default ":8092")
+        Address to listen on for telemetry (default: 9092)
+  -web.log-level string
+        Log level: info, debug, error, warning
   -web.telemetry-path string
-        Path under which to expose metrics (default "/metrics")
+        Path under which to expose metrics (default: /metrics)
 ```
 
 ### Job Tracing
@@ -94,7 +102,7 @@ $ curl localhost:8092/metrics | grep "# HELP"
 ```
 
 ### Exporter Env Var Docs
-
+Env vars can be sepcified in a `.env` file, while using the `just`
 | Var        | Default Value | Purpose                                                                     |
 |------------|---------------|-----------------------------------------------------------------------------|
 | POLL_LIMIT | 1             | # of seconds to wait before polling slurmctl again (client-side throtting)  |

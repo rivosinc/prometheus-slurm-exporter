@@ -24,18 +24,24 @@ func TestMain(m *testing.M) {
 
 func TestPromServer(t *testing.T) {
 	assert := assert.New(t)
-	config, err := NewConfig()
-	assert.Nil(err)
-	traceConfig := config.traceConf
-	traceConfig.enabled = true
+	config := &Config{
+		pollLimit: 10,
+		cliOpts: &CliOpts{
+			sinfo:  []string{"cat", "fixtures/sinfo_out.json"},
+			squeue: []string{"cat", "fixtures/squeue_out.json"},
+		},
+		traceConf: new(TraceConfig),
+	}
+	cliOpts := config.cliOpts
+	config.SetFetcher(NewCliFetcher(cliOpts.squeue...))
 	server := initPromServer(config)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	server.ServeHTTP(w, r)
 	assert.Equal(200, w.Code)
 	txt := strings.Split(w.Body.String(), "\n")
-	assert.Contains(txt, "slurm_job_scrape_error 1")
-	assert.Contains(txt, "slurm_node_scrape_error 1")
+	assert.Contains(txt, "slurm_job_scrape_error 0")
+	assert.Contains(txt, "slurm_node_scrape_error 0")
 }
 
 // TODO: add integration test
