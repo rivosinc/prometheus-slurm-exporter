@@ -117,7 +117,6 @@ func parsePartitionJobMetrics(jobs []JobMetrics) map[string]*PartitionJobMetric 
 
 type JobsController struct {
 	// collector state
-	cache        *AtomicThrottledCache
 	fetcher      SlurmFetcher
 	jobAllocCpus *prometheus.Desc
 	jobAllocMem  *prometheus.Desc
@@ -138,7 +137,6 @@ type JobsController struct {
 func NewJobsController(config *Config) *JobsController {
 	fetcher := config.traceConf.sharedFetcher
 	return &JobsController{
-		cache:   NewAtomicThrottledCache(config.pollLimit),
 		fetcher: fetcher,
 		// individual job metrics
 		jobAllocCpus:           prometheus.NewDesc("slurm_job_alloc_cpus", "amount of cpus allocated per job", []string{"jobid"}, nil),
