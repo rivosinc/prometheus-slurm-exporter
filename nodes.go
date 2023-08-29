@@ -116,7 +116,6 @@ func fetchNodeTotalMemMetrics(nodes []NodeMetrics) *MemSummaryMetrics {
 
 type NodesCollector struct {
 	// collector state
-	cache   *AtomicThrottledCache
 	fetcher SlurmFetcher
 	// partition summary metrics
 	partitionCpus        *prometheus.Desc
@@ -142,9 +141,10 @@ type NodesCollector struct {
 
 func NewNodeCollecter(config *Config) *NodesCollector {
 	cliOpts := config.cliOpts
+	fetcher := NewCliFetcher(cliOpts.sinfo...)
+	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
 	return &NodesCollector{
-		cache:   NewAtomicThrottledCache(config.pollLimit),
-		fetcher: NewCliFetcher(cliOpts.sinfo...),
+		fetcher: fetcher,
 		// partition stats
 		partitionCpus:        prometheus.NewDesc("slurm_partition_total_cpus", "Total cpus per partition", []string{"partition"}, nil),
 		partitionRealMemory:  prometheus.NewDesc("slurm_partition_real_mem", "Real mem per partition", []string{"partition"}, nil),

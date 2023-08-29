@@ -1,5 +1,6 @@
 build_dir := "./build"
 coverage := "coverage"
+vpython := "venv/bin/python3"
 
 # Implicitly source '.env' files when running commands.
 set dotenv-load := true
@@ -13,8 +14,7 @@ init:
   go mod tidy
   rm -rf venv
   python -m venv venv
-  source venv/bin/activate
-  pip install pre-commit psutil requests
+  {{vpython}} -m pip install pre-commit psutil requests
 
 build:
   rm -rf {{build_dir}}
@@ -28,7 +28,7 @@ prod: build
   {{build_dir}}/slurm_exporter -trace.enabled
 
 test:
-  go test -coverprofile {{coverage}}.out
+  source venv/bin/activate && go test -coverprofile {{coverage}}.out
   go tool cover -html {{coverage}}.out -o {{coverage}}.html
   open {{coverage}}.html
 

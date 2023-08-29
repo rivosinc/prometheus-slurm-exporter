@@ -24,8 +24,8 @@ var (
 	tracePath           = flag.String("trace.path", "/trace", "POST path to upload job proc info")
 	traceRate           = flag.Uint64("trace.rate", 0, "number of seconds proc info should stay in memory before being marked as stale (default 10)")
 	slurmPollLimit      = flag.Float64("slurm.poll-limit", 0, "throttle for slurmctld (default: 10s)")
-	slurmSinfoOverride  = flag.String("slurm.sinfo-cli", "sinfo cli override", "")
-	slurmSqueueOverride = flag.String("slurm.squeue-cli", "squeue cli override", "")
+	slurmSinfoOverride  = flag.String("slurm.sinfo-cli", "", "sinfo cli override")
+	slurmSqueueOverride = flag.String("slurm.squeue-cli", "", "squeue cli override")
 	logLevelMap         = map[string]slog.Level{
 		"debug": slog.LevelDebug,
 		"info":  slog.LevelInfo,

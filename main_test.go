@@ -44,4 +44,12 @@ func TestPromServer(t *testing.T) {
 	assert.Contains(txt, "slurm_node_scrape_error 0")
 }
 
+func TestNewConfig(t *testing.T) {
+	assert := assert.New(t)
+	config, err := NewConfig()
+	assert.Nil(err)
+	assert.Equal([]string{"sinfo", "--json"}, config.cliOpts.sinfo)
+	assert.Equal([]string{"squeue", "--json"}, config.cliOpts.squeue)
+}
+
 // TODO: add integration test
