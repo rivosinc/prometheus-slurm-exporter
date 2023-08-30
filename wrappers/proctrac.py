@@ -89,6 +89,7 @@ Or by passing explicit cmdline args, exp.
         default=int(os.getenv("SLURM_JOBID", 0)),
     )
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--verbose", action="store_true")
     parser.add_argument(
         "--validate",
         action="store_true",
@@ -105,7 +106,7 @@ Or by passing explicit cmdline args, exp.
     elif args.dry_run:
         [print(json.dumps(dataclasses.asdict(stat))) for stat in wrapper.poll_info()]
     else:
-        [
-            requests.post(args.endpoint, json=dataclasses.asdict(trace))
-            for trace in wrapper.poll_info()
-        ]
+        for trace in wrapper.poll_info():
+            resp = requests.post(args.endpoint, json=dataclasses.asdict(trace))
+            if args.verbose:
+                print(resp)

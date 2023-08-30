@@ -101,8 +101,8 @@ func NewTraceController(config *Config) *TraceController {
 		ProcessFetcher: NewAtomicProFetcher(traceConfig.rate),
 		// add for job id correlation
 		squeueFetcher: traceConfig.sharedFetcher,
-		jobAllocMem:   prometheus.NewDesc("slurm_job_mem_alloc", "running job cpus aklocated", []string{"jobid"}, nil),
-		jobAllocCpus:  prometheus.NewDesc("slurm_job_cpu_alloc", "running job cpus aklocated", []string{"jobid"}, nil),
+		jobAllocMem:   prometheus.NewDesc("slurm_job_mem_alloc", "running job mem allocated", []string{"jobid"}, nil),
+		jobAllocCpus:  prometheus.NewDesc("slurm_job_cpu_alloc", "running job cpus allocated", []string{"jobid"}, nil),
 		pid:           prometheus.NewDesc("slurm_proc_pid", "pid of running slurm job", []string{"jobid", "hostname"}, nil),
 		cpuUsage:      prometheus.NewDesc("slurm_proc_cpu_usage", "actual cpu usage collected from proc monitor", []string{"jobid", "username"}, nil),
 		memUsage:      prometheus.NewDesc("slurm_proc_mem_usage", "proc mem usage", []string{"jobid", "username"}, nil),
@@ -127,12 +127,12 @@ func (c *TraceController) Collect(ch chan<- prometheus.Metric) {
 	procs := c.ProcessFetcher.Fetch()
 	squeue, err := c.squeueFetcher.Fetch()
 	if err != nil {
-		// reusing another collector so we won't
-		// redisplay parent error messages
+		slog.Debug(fmt.Sprintf("squeue fetch failed with %q", err))
 		return
 	}
 	jobMetrics, err := parseJobMetrics(squeue)
 	if err != nil {
+		slog.Debug(fmt.Sprintf("job metric parse failed with %q", err))
 		return
 	}
 	for _, j := range jobMetrics {
