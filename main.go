@@ -21,7 +21,7 @@ var (
 		"Path under which to expose metrics (default: /metrics)")
 	logLevel            = flag.String("web.log-level", "", "Log level: info, debug, error, warning")
 	traceEnabled        = flag.Bool("trace.enabled", false, "Set up Post endpoint for collecting traces")
-	tracePath           = flag.String("trace.path", "/trace", "POST path to upload job proc info")
+	tracePath           = flag.String("trace.path", "", "POST path to upload job proc info")
 	traceRate           = flag.Uint64("trace.rate", 0, "number of seconds proc info should stay in memory before being marked as stale (default 10)")
 	slurmPollLimit      = flag.Float64("slurm.poll-limit", 0, "throttle for slurmctld (default: 10s)")
 	slurmSinfoOverride  = flag.String("slurm.sinfo-cli", "", "sinfo cli override")
@@ -61,17 +61,18 @@ func NewConfig() (*Config, error) {
 		squeue: []string{"squeue", "--json"},
 		sinfo:  []string{"sinfo", "--json"},
 	}
+	traceConf := &TraceConfig{
+		enabled: *traceEnabled,
+		path:    "/trace",
+		rate:    10,
+	}
 	config := &Config{
 		pollLimit:     10,
 		logLevel:      slog.LevelInfo,
 		listenAddress: ":9092",
 		metricsPath:   "/metrics",
-		traceConf: &TraceConfig{
-			enabled: *traceEnabled,
-			path:    *tracePath,
-			rate:    *traceRate,
-		},
-		cliOpts: &cliOpts,
+		traceConf:     traceConf,
+		cliOpts:       &cliOpts,
 	}
 	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
 		if limit, err := strconv.ParseFloat(lm, 64); err != nil {
@@ -101,6 +102,12 @@ func NewConfig() (*Config, error) {
 	}
 	if *slurmSinfoOverride != "" {
 		cliOpts.sinfo = strings.Split(*slurmSinfoOverride, " ")
+	}
+	if *traceRate != 0 {
+		traceConf.rate = *traceRate
+	}
+	if *tracePath != "" {
+		traceConf.path = *tracePath
 	}
 	fetcher := NewCliFetcher(cliOpts.squeue...)
 	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)

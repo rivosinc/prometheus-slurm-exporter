@@ -50,6 +50,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal([]string{"sinfo", "--json"}, config.cliOpts.sinfo)
 	assert.Equal([]string{"squeue", "--json"}, config.cliOpts.squeue)
+	assert.Equal(uint64(10), config.traceConf.rate)
 }
 
 // TODO: add integration test
