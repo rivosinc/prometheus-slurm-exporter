@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Rivos Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
+
 build_dir := "./build"
 coverage := "coverage"
 vpython := "venv/bin/python3"

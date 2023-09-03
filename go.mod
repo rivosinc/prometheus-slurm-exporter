@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 Rivos Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 module slurm_exporter
 
 go 1.20
