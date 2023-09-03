@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
+    rev: v4.4.0
     hooks:
       - id: end-of-file-fixer
       - id: mixed-line-ending
@@ -13,3 +13,9 @@ repos:
       - id: go-fmt
         # - id: go-unit-tests
       - id: go-mod-tidy
+
+  - repo: https://github.com/rivosinc/reuse-tool
+    rev: 'b512b7b19fd56388eda5f0c7a8ea6c2ad094109f'
+    hooks:
+      # Check compliance
+      - id: reuse
