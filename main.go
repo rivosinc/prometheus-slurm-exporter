@@ -23,14 +23,16 @@ var (
 		`Address to listen on for telemetry "(default: :9092)"`)
 	metricsPath = flag.String("web.telemetry-path", "",
 		"Path under which to expose metrics (default: /metrics)")
-	logLevel            = flag.String("web.log-level", "", "Log level: info, debug, error, warning")
-	traceEnabled        = flag.Bool("trace.enabled", false, "Set up Post endpoint for collecting traces")
-	tracePath           = flag.String("trace.path", "", "POST path to upload job proc info")
-	traceRate           = flag.Uint64("trace.rate", 0, "number of seconds proc info should stay in memory before being marked as stale (default 10)")
-	slurmPollLimit      = flag.Float64("slurm.poll-limit", 0, "throttle for slurmctld (default: 10s)")
-	slurmSinfoOverride  = flag.String("slurm.sinfo-cli", "", "sinfo cli override")
-	slurmSqueueOverride = flag.String("slurm.squeue-cli", "", "squeue cli override")
-	logLevelMap         = map[string]slog.Level{
+	logLevel             = flag.String("web.log-level", "", "Log level: info, debug, error, warning")
+	traceEnabled         = flag.Bool("trace.enabled", false, "Set up Post endpoint for collecting traces")
+	tracePath            = flag.String("trace.path", "", "POST path to upload job proc info")
+	traceRate            = flag.Uint64("trace.rate", 0, "number of seconds proc info should stay in memory before being marked as stale (default 10)")
+	slurmPollLimit       = flag.Float64("slurm.poll-limit", 0, "throttle for slurmctld (default: 10s)")
+	slurmSinfoOverride   = flag.String("slurm.sinfo-cli", "", "sinfo cli override")
+	slurmSqueueOverride  = flag.String("slurm.squeue-cli", "", "squeue cli override")
+	slurmLicenseOverride = flag.String("slurm.lic-cli", "", "squeue cli override")
+	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
+	logLevelMap          = map[string]slog.Level{
 		"debug": slog.LevelDebug,
 		"info":  slog.LevelInfo,
 		"warn":  slog.LevelWarn,
@@ -39,8 +41,10 @@ var (
 )
 
 type CliOpts struct {
-	sinfo  []string
-	squeue []string
+	sinfo      []string
+	squeue     []string
+	lic        []string
+	licEnabled bool
 }
 
 type TraceConfig struct {
@@ -62,8 +66,10 @@ type Config struct {
 func NewConfig() (*Config, error) {
 	// defaults
 	cliOpts := CliOpts{
-		squeue: []string{"squeue", "--json"},
-		sinfo:  []string{"sinfo", "--json"},
+		squeue:     []string{"squeue", "--json"},
+		sinfo:      []string{"sinfo", "--json"},
+		lic:        []string{"scontrol", "show", "lic", "--json"},
+		licEnabled: *slurmLicEnabled,
 	}
 	traceConf := &TraceConfig{
 		enabled: *traceEnabled,
@@ -113,6 +119,9 @@ func NewConfig() (*Config, error) {
 	if *tracePath != "" {
 		traceConf.path = *tracePath
 	}
+	if *slurmLicenseOverride != "" {
+		cliOpts.lic = strings.Split(*slurmLicenseOverride, " ")
+	}
 	fetcher := NewCliFetcher(cliOpts.squeue...)
 	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
 	config.SetFetcher(fetcher)
@@ -134,6 +143,10 @@ func initPromServer(config *Config) http.Handler {
 		traceController := NewTraceController(config)
 		http.HandleFunc(traceconf.path, traceController.uploadTrace)
 		prometheus.MustRegister(traceController)
+	}
+	if cliOpts := config.cliOpts; cliOpts.licEnabled {
+		slog.Info("licence collection enabled")
+		prometheus.MustRegister(NewLicCollector(config))
 	}
 	return promhttp.Handler()
 }

@@ -26,7 +26,12 @@ build:
   go build -o {{build_dir}}/slurm_exporter .
 
 devel: build
-  {{build_dir}}/slurm_exporter -trace.enabled -slurm.squeue-cli "cat fixtures/squeue_out.json" -slurm.sinfo-cli "cat fixtures/sinfo_out.json"
+  {{build_dir}}/slurm_exporter \
+  -trace.enabled \
+  -slurm.squeue-cli "cat fixtures/squeue_out.json" \
+  -slurm.sinfo-cli "cat fixtures/sinfo_out.json" \
+  -slurm.collect-licenses \
+  -slurm.lic-cli "cat fixtures/license_out.json"
 
 prod: build
   {{build_dir}}/slurm_exporter -trace.enabled

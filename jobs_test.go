@@ -79,7 +79,7 @@ func TestJobCollect(t *testing.T) {
 		t.Log(metric.Desc().String())
 		jobMetrics = append(jobMetrics, metric)
 	}
-	assert.Positive(len(jobMetrics))
+	assert.NotEmpty(jobMetrics)
 
 }
 

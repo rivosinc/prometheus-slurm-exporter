@@ -17,20 +17,24 @@ Golang 20 is required. From there, follow the `justfile` or run `just prod` to s
 
 ```bash
 Usage of ./build/slurm_exporter:
+  -slurm.collect-licenses
+        Collect license info from slurm
+  -slurm.lic-cli string
+        squeue cli override
   -slurm.poll-limit float
         throttle for slurmctld (default: 10s)
   -slurm.sinfo-cli string
-         (default "sinfo cli override")
+        sinfo cli override
   -slurm.squeue-cli string
-         (default "squeue cli override")
+        squeue cli override
   -trace.enabled
         Set up Post endpoint for collecting traces
   -trace.path string
-        POST path to upload job proc info (default "/trace")
+        POST path to upload job proc info
   -trace.rate uint
-        number of seconds proc info should stay in memory before being marked as stale
+        number of seconds proc info should stay in memory before being marked as stale (default 10)
   -web.listen-address string
-        Address to listen on for telemetry (default: 9092)
+        Address to listen on for telemetry "(default: :9092)"
   -web.log-level string
         Log level: info, debug, error, warning
   -web.telemetry-path string
