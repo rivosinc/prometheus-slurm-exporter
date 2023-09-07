@@ -34,7 +34,7 @@ devel: build
   -slurm.lic-cli "cat fixtures/license_out.json"
 
 prod: build
-  {{build_dir}}/slurm_exporter -trace.enabled
+  {{build_dir}}/slurm_exporter -trace.enabled -slurm.collect-licenses
 
 test:
   source venv/bin/activate && go test -coverprofile {{coverage}}.out

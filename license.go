@@ -94,9 +94,17 @@ func (lc *LicCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, lic := range licMetrics {
-		ch <- prometheus.MustNewConstMetric(lc.licTotal, prometheus.GaugeValue, float64(lic.Total), lic.LicenseName)
-		ch <- prometheus.MustNewConstMetric(lc.licFree, prometheus.GaugeValue, float64(lic.Free), lic.LicenseName)
-		ch <- prometheus.MustNewConstMetric(lc.licUsed, prometheus.GaugeValue, float64(lic.Used), lic.LicenseName)
-		ch <- prometheus.MustNewConstMetric(lc.licReserved, prometheus.GaugeValue, float64(lic.Reserved), lic.LicenseName)
+		if lic.Total > 0 {
+			ch <- prometheus.MustNewConstMetric(lc.licTotal, prometheus.GaugeValue, float64(lic.Total), lic.LicenseName)
+		}
+		if lic.Free > 0 {
+			ch <- prometheus.MustNewConstMetric(lc.licFree, prometheus.GaugeValue, float64(lic.Free), lic.LicenseName)
+		}
+		if lic.Used > 0 {
+			ch <- prometheus.MustNewConstMetric(lc.licUsed, prometheus.GaugeValue, float64(lic.Used), lic.LicenseName)
+		}
+		if lic.Reserved > 0 {
+			ch <- prometheus.MustNewConstMetric(lc.licReserved, prometheus.GaugeValue, float64(lic.Reserved), lic.LicenseName)
+		}
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -101,9 +102,16 @@ func (cf *CliFetcher) captureCli() ([]byte, error) {
 }
 
 func NewCliFetcher(args ...string) *CliFetcher {
+	var limit float64 = 10
+	var err error
+	if tm, ok := os.LookupEnv("CLI_TIMEOUT"); ok {
+		if limit, err = strconv.ParseFloat(tm, 64); err != nil {
+			slog.Error("`CLI_TIMEOUT` env var parse error parse error")
+		}
+	}
 	return &CliFetcher{
 		args:    args,
-		timeout: 10 * time.Second,
+		timeout: time.Duration(limit) * time.Second,
 		cache:   NewAtomicThrottledCache(1),
 	}
 }
