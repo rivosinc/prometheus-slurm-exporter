@@ -5,6 +5,7 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,7 +21,7 @@ func TestMain(m *testing.M) {
 	opts := slog.HandlerOptions{
 		Level: slog.LevelError,
 	}
-	textHandler := slog.NewTextHandler(os.Stdout, &opts)
+	textHandler := slog.NewTextHandler(io.Discard, &opts)
 	slog.SetDefault(slog.New(textHandler))
 	code := m.Run()
 	os.Exit(code)
@@ -54,6 +55,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal([]string{"sinfo", "--json"}, config.cliOpts.sinfo)
 	assert.Equal([]string{"squeue", "--json"}, config.cliOpts.squeue)
+	assert.Equal([]string{"scontrol", "show", "lic", "--json"}, config.cliOpts.lic)
 	assert.Equal(uint64(10), config.traceConf.rate)
 }
 

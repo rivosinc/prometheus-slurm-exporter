@@ -5,6 +5,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -44,6 +45,12 @@ func (f *MockFetchTriggered) Fetch() ([]byte, error) {
 	return f.msg, nil
 }
 
+type MockFetchErrored struct{}
+
+func (f *MockFetchErrored) Fetch() ([]byte, error) {
+	return nil, errors.New("mock fetch error")
+}
+
 func TestCliFetcher(t *testing.T) {
 	assert := assert.New(t)
 	cliFetcher := NewCliFetcher("ls")
@@ -54,7 +61,7 @@ func TestCliFetcher(t *testing.T) {
 
 func TestCliFetcher_Timeout(t *testing.T) {
 	assert := assert.New(t)
-	cliFetcher := NewCliFetcher("ls")
+	cliFetcher := NewCliFetcher("sleep", "100")
 	cliFetcher.timeout = 0
 	data, err := cliFetcher.Fetch()
 	assert.EqualError(err, "signal: killed")

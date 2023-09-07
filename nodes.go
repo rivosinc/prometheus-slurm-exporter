@@ -199,7 +199,7 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	}()
 	sinfo, err := nc.fetcher.Fetch()
 	if err != nil {
-		slog.Error("Failed to fetch from cli: " + err.Error())
+		slog.Error("node fetch error" + err.Error())
 		nc.nodeScrapeErrors.Inc()
 		return
 	}
