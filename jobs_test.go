@@ -110,5 +110,5 @@ func TestJobDescribe(t *testing.T) {
 	for desc, ok := <-ch; ok; desc, ok = <-ch {
 		descs = append(descs, desc)
 	}
-	assert.Positive(len(descs))
+	assert.NotEmpty(descs)
 }

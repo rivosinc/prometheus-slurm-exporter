@@ -5,6 +5,7 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,7 +21,7 @@ func TestMain(m *testing.M) {
 	opts := slog.HandlerOptions{
 		Level: slog.LevelError,
 	}
-	textHandler := slog.NewTextHandler(os.Stdout, &opts)
+	textHandler := slog.NewTextHandler(io.Discard, &opts)
 	slog.SetDefault(slog.New(textHandler))
 	code := m.Run()
 	os.Exit(code)

@@ -58,6 +58,30 @@ func TestLicCollect(t *testing.T) {
 	assert.NotEmpty(licMetrics)
 }
 
+func TestLicCollect_ColectionE(t *testing.T) {
+	assert := assert.New(t)
+	config := Config{
+		pollLimit: 10,
+		cliOpts: &CliOpts{
+			licEnabled: true,
+		},
+	}
+	lc := NewLicCollector(&config)
+	lc.fetcher = new(MockFetchErrored)
+	lcChan := make(chan prometheus.Metric)
+	go func() {
+		lc.Collect(lcChan)
+		close(lcChan)
+	}()
+	licMetrics := make([]prometheus.Metric, 0)
+	for metric, ok := <-lcChan; ok; metric, ok = <-lcChan {
+		t.Log(metric.Desc().String())
+		licMetrics = append(licMetrics, metric)
+	}
+
+	assert.Equal(1, len(licMetrics))
+}
+
 func TestLicDescribe(t *testing.T) {
 	assert := assert.New(t)
 	config := Config{

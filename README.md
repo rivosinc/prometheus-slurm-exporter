@@ -115,10 +115,11 @@ $ curl localhost:8092/metrics | grep "# HELP"
 
 ### Exporter Env Var Docs
 Env vars can be sepcified in a `.env` file, while using the `just`
-| Var        | Default Value | Purpose                                                                     |
-|------------|---------------|-----------------------------------------------------------------------------|
-| POLL_LIMIT | 1             | # of seconds to wait before polling slurmctl again (client-side throtting)  |
-| LOGLEVEL   | info          | Log Level: debug, info, warn, error                                         |
+| Var           | Default Value | Purpose                                                                     |
+|---------------|---------------|-----------------------------------------------------------------------------|
+| POLL_LIMIT    | 1             | # of seconds to wait before polling slurmctl again (client-side throtting)  |
+| LOGLEVEL      | info          | Log Level: debug, info, warn, error                                         |
+| CLI_TIMEOUT   | 10.           | # seconds before the exporter terminates command.                           |
 
 
 ### Future work

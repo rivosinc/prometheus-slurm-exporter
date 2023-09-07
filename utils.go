@@ -106,7 +106,7 @@ func NewCliFetcher(args ...string) *CliFetcher {
 	var err error
 	if tm, ok := os.LookupEnv("CLI_TIMEOUT"); ok {
 		if limit, err = strconv.ParseFloat(tm, 64); err != nil {
-			slog.Error("`CLI_TIMEOUT` env var parse error parse error")
+			slog.Error("`CLI_TIMEOUT` env var parse error")
 		}
 	}
 	return &CliFetcher{

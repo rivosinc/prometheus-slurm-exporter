@@ -5,6 +5,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -42,6 +43,12 @@ type MockFetchTriggered struct {
 func (f *MockFetchTriggered) Fetch() ([]byte, error) {
 	f.called = true
 	return f.msg, nil
+}
+
+type MockFetchErrored struct{}
+
+func (f *MockFetchErrored) Fetch() ([]byte, error) {
+	return nil, errors.New("mock fetch error")
 }
 
 func TestCliFetcher(t *testing.T) {
