@@ -61,7 +61,7 @@ func TestCliFetcher(t *testing.T) {
 
 func TestCliFetcher_Timeout(t *testing.T) {
 	assert := assert.New(t)
-	cliFetcher := NewCliFetcher("ls")
+	cliFetcher := NewCliFetcher("sleep", "100")
 	cliFetcher.timeout = 0
 	data, err := cliFetcher.Fetch()
 	assert.EqualError(err, "signal: killed")
