@@ -32,6 +32,7 @@ var (
 	slurmSqueueOverride  = flag.String("slurm.squeue-cli", "", "squeue cli override")
 	slurmLicenseOverride = flag.String("slurm.lic-cli", "", "squeue cli override")
 	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
+	slurmCliFallback     = flag.Bool("slurm.cli-fallback", false, "drop the --json arg and revert back to standard squeue for performance reasons")
 	logLevelMap          = map[string]slog.Level{
 		"debug": slog.LevelDebug,
 		"info":  slog.LevelInfo,
@@ -121,6 +122,9 @@ func NewConfig() (*Config, error) {
 	}
 	if *slurmLicenseOverride != "" {
 		cliOpts.lic = strings.Split(*slurmLicenseOverride, " ")
+	}
+	if *slurmCliFallback {
+		cliOpts.squeue = []string{"squeue ", "-h", "-o", `'{"account": "%a", "job_id": %A, "end_time": "%e", "job_state": "%T", "partition": "%P", "job_resources": {"allocated_cpus": %C, "fallback_mem": "%m"}}'`}
 	}
 	fetcher := NewCliFetcher(cliOpts.squeue...)
 	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)

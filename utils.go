@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -124,4 +125,18 @@ type MockFetcher struct {
 
 func (f *MockFetcher) Fetch() ([]byte, error) {
 	return os.ReadFile(f.fixture)
+}
+
+// convert slurm mem string to float64 bytes
+func MemToFloat(mem string) float64 {
+	memUnits := map[string]int{
+		"M": 1e+6,
+		"G": 1e+9,
+		"T": 1e+12,
+	}
+	re := regexp.MustCompile(`^(\d+)(G|M|T)$`)
+	matches := re.FindStringSubmatch(mem)
+	num, _ := strconv.Atoi(matches[1])
+	return float64(num * memUnits[matches[2]])
+
 }

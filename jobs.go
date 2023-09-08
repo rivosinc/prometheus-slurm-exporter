@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -14,6 +15,7 @@ import (
 
 type JobResource struct {
 	AllocCpus  float64 `json:"allocated_cpus"`
+	AllocMem   string  `json:"fallback_mem"`
 	AllocNodes map[string]struct {
 		Mem float64 `json:"memory"`
 	} `json:"allocated_nodes"`
@@ -50,6 +52,19 @@ func parseJobMetrics(jsonJobList []byte) ([]JobMetrics, error) {
 		return nil, err
 	}
 	return squeue.Jobs, nil
+}
+
+func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
+	jobMetrics := make([]JobMetrics, 0)
+	for i, line := range bytes.Split(squeue, []byte("\n")) {
+		var metric JobMetrics
+		if err := json.Unmarshal(line, &metric); err != nil {
+			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
+			return nil, err
+		}
+		jobMetrics = append(jobMetrics, metric)
+	}
+	return jobMetrics, nil
 }
 
 type UserJobMetrics struct {

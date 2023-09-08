@@ -137,3 +137,8 @@ func TestAtomicThrottledCache_Stale(t *testing.T) {
 	// assert cache populated
 	assert.Equal(cache.cache, fetcher.msg)
 }
+
+func TestConvertMemToFloat(t *testing.T) {
+	assert := assert.New(t)
+	assert.Equal(float64(1.2e+10), MemToFloat("12G"))
+}
