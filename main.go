@@ -46,6 +46,7 @@ type CliOpts struct {
 	squeue     []string
 	lic        []string
 	licEnabled bool
+	fallback   bool
 }
 
 type TraceConfig struct {
@@ -71,8 +72,9 @@ func NewConfig() (*Config, error) {
 		sinfo:      []string{"sinfo", "--json"},
 		lic:        []string{"scontrol", "show", "lic", "--json"},
 		licEnabled: *slurmLicEnabled,
+		fallback:   *slurmCliFallback,
 	}
-	traceConf := &TraceConfig{
+	traceConf := TraceConfig{
 		enabled: *traceEnabled,
 		path:    "/trace",
 		rate:    10,
@@ -82,7 +84,7 @@ func NewConfig() (*Config, error) {
 		logLevel:      slog.LevelInfo,
 		listenAddress: ":9092",
 		metricsPath:   "/metrics",
-		traceConf:     traceConf,
+		traceConf:     &traceConf,
 		cliOpts:       &cliOpts,
 	}
 	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
@@ -123,8 +125,9 @@ func NewConfig() (*Config, error) {
 	if *slurmLicenseOverride != "" {
 		cliOpts.lic = strings.Split(*slurmLicenseOverride, " ")
 	}
-	if *slurmCliFallback {
-		cliOpts.squeue = []string{"squeue ", "-h", "-o", `'{"account": "%a", "job_id": %A, "end_time": "%e", "job_state": "%T", "partition": "%P", "job_resources": {"allocated_cpus": %C, "fallback_mem": "%m"}}'`}
+	if cliOpts.fallback {
+		// we define a custom json format that we convert back into the openapi format
+		cliOpts.squeue = []string{"squeue ", "-h", "-o", `'{"a": "%a", "id": %A, "end_time": "%e", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}'`}
 	}
 	fetcher := NewCliFetcher(cliOpts.squeue...)
 	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
@@ -156,7 +159,6 @@ func initPromServer(config *Config) http.Handler {
 }
 
 func main() {
-	flag.Parse()
 	config, err := NewConfig()
 	if err != nil {
 		log.Fatalf("config failed to load with error %q", err)

@@ -20,6 +20,9 @@ func TestNewJobsController(t *testing.T) {
 		traceConf: &TraceConfig{
 			sharedFetcher: MockJobInfoFetcher,
 		},
+		cliOpts: &CliOpts{
+			fallback: true,
+		},
 	}
 	jc := NewJobsController(config)
 	assert.NotNil(jc)
@@ -42,6 +45,16 @@ func TestParseJobMetrics(t *testing.T) {
 	}
 	assert.NotNil(job)
 	assert.Equal(float64(64000), totalAllocMem(&job.JobResources))
+}
+
+func TestParseCliFallback(t *testing.T) {
+	assert := assert.New(t)
+	fetcher := MockFetcher{fixture: "fixtures/squeue_fallback.txt"}
+	data, err := fetcher.Fetch()
+	assert.Nil(err)
+	metrics, err := parseCliFallback(data)
+	assert.Nil(err)
+	assert.Equal(1, len(metrics))
 }
 
 func TestUserJobMetric(t *testing.T) {

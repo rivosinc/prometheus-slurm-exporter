@@ -1,1 +1,1 @@
-{"account": "account1", "job_id": 50587031, "end_time": "2023-09-21T00:21:42", "job_state": "RUNNING", "partition": "hw-h", "job_resources": {"allocated_cpus": 1, "fallback_mem": "128G"}}
+{"a": "account1", "id": 50587031, "end_time": "2023-09-21T00:21:42", "state": "RUNNING", "p": "hw-h", "cpu": 1, "mem": "128G"}

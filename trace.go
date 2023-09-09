@@ -88,6 +88,7 @@ func (m *AtomicProcFetcher) Fetch() map[int64]*TraceInfo {
 type TraceController struct {
 	ProcessFetcher *AtomicProcFetcher
 	squeueFetcher  SlurmFetcher
+	fallback       bool
 	// actual proc monitoring
 	jobAllocMem  *prometheus.Desc
 	jobAllocCpus *prometheus.Desc
@@ -103,16 +104,17 @@ func NewTraceController(config *Config) *TraceController {
 	traceConfig := config.traceConf
 	return &TraceController{
 		ProcessFetcher: NewAtomicProFetcher(traceConfig.rate),
+		squeueFetcher:  traceConfig.sharedFetcher,
+		fallback:       config.cliOpts.fallback,
 		// add for job id correlation
-		squeueFetcher: traceConfig.sharedFetcher,
-		jobAllocMem:   prometheus.NewDesc("slurm_job_mem_alloc", "running job mem allocated", []string{"jobid"}, nil),
-		jobAllocCpus:  prometheus.NewDesc("slurm_job_cpu_alloc", "running job cpus allocated", []string{"jobid"}, nil),
-		pid:           prometheus.NewDesc("slurm_proc_pid", "pid of running slurm job", []string{"jobid", "hostname"}, nil),
-		cpuUsage:      prometheus.NewDesc("slurm_proc_cpu_usage", "actual cpu usage collected from proc monitor", []string{"jobid", "username"}, nil),
-		memUsage:      prometheus.NewDesc("slurm_proc_mem_usage", "proc mem usage", []string{"jobid", "username"}, nil),
-		threadCount:   prometheus.NewDesc("slurm_proc_threadcount", "threads currently being used", []string{"jobid", "username"}, nil),
-		writeBytes:    prometheus.NewDesc("slurm_proc_write_bytes", "proc write bytes", []string{"jobid", "username"}, nil),
-		readBytes:     prometheus.NewDesc("slurm_proc_read_bytes", "proc read bytes", []string{"jobid", "username"}, nil),
+		jobAllocMem:  prometheus.NewDesc("slurm_job_mem_alloc", "running job mem allocated", []string{"jobid"}, nil),
+		jobAllocCpus: prometheus.NewDesc("slurm_job_cpu_alloc", "running job cpus allocated", []string{"jobid"}, nil),
+		pid:          prometheus.NewDesc("slurm_proc_pid", "pid of running slurm job", []string{"jobid", "hostname"}, nil),
+		cpuUsage:     prometheus.NewDesc("slurm_proc_cpu_usage", "actual cpu usage collected from proc monitor", []string{"jobid", "username"}, nil),
+		memUsage:     prometheus.NewDesc("slurm_proc_mem_usage", "proc mem usage", []string{"jobid", "username"}, nil),
+		threadCount:  prometheus.NewDesc("slurm_proc_threadcount", "threads currently being used", []string{"jobid", "username"}, nil),
+		writeBytes:   prometheus.NewDesc("slurm_proc_write_bytes", "proc write bytes", []string{"jobid", "username"}, nil),
+		readBytes:    prometheus.NewDesc("slurm_proc_read_bytes", "proc read bytes", []string{"jobid", "username"}, nil),
 	}
 }
 
@@ -134,7 +136,12 @@ func (c *TraceController) Collect(ch chan<- prometheus.Metric) {
 		slog.Debug(fmt.Sprintf("squeue fetch failed with %q", err))
 		return
 	}
-	jobMetrics, err := parseJobMetrics(squeue)
+	var jobMetrics []JobMetrics
+	if c.fallback {
+		jobMetrics, err = parseCliFallback(squeue)
+	} else {
+		jobMetrics, err = parseJobMetrics(squeue)
+	}
 	if err != nil {
 		slog.Debug(fmt.Sprintf("job metric parse failed with %q", err))
 		return

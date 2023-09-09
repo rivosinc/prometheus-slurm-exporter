@@ -5,11 +5,11 @@
 package main
 
 import (
+	"flag"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,12 +44,12 @@ func TestPromServer(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	server.ServeHTTP(w, r)
 	assert.Equal(200, w.Code)
-	txt := strings.Split(w.Body.String(), "\n")
+	txt := w.Body.String()
 	assert.Contains(txt, "slurm_job_scrape_error 0")
 	assert.Contains(txt, "slurm_node_scrape_error 0")
 }
 
-func TestNewConfig(t *testing.T) {
+func TestNewConfig_Default(t *testing.T) {
 	assert := assert.New(t)
 	config, err := NewConfig()
 	assert.Nil(err)
@@ -57,6 +57,17 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal([]string{"squeue", "--json"}, config.cliOpts.squeue)
 	assert.Equal([]string{"scontrol", "show", "lic", "--json"}, config.cliOpts.lic)
 	assert.Equal(uint64(10), config.traceConf.rate)
+}
+
+func TestNewConfig_NonDefault(t *testing.T) {
+	assert := assert.New(t)
+	err := flag.Set("slurm.cli-fallback", "true")
+	assert.Nil(err)
+	config, err := NewConfig()
+	t.Log(slurmCliFallback)
+	assert.Nil(err)
+	expected := []string{"squeue ", "-h", "-o", `'{"a": "%a", "id": %A, "end_time": "%e", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}'`}
+	assert.Equal(expected, config.cliOpts.squeue)
 }
 
 // TODO: add integration test

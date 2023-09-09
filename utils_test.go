@@ -140,5 +140,8 @@ func TestAtomicThrottledCache_Stale(t *testing.T) {
 
 func TestConvertMemToFloat(t *testing.T) {
 	assert := assert.New(t)
+	assert.Equal(float64(1.2e+7), MemToFloat("12M"))
 	assert.Equal(float64(1.2e+10), MemToFloat("12G"))
+	assert.Equal(float64(1.2e+13), MemToFloat("12T"))
+	
 }
