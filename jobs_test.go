@@ -80,6 +80,7 @@ func TestJobCollect(t *testing.T) {
 			sharedFetcher: MockJobInfoFetcher,
 			rate:          10,
 		},
+		cliOpts: &CliOpts{},
 	}
 	jc := NewJobsController(config)
 	jobChan := make(chan prometheus.Metric)
