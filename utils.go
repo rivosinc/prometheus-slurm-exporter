@@ -128,15 +128,20 @@ func (f *MockFetcher) Fetch() ([]byte, error) {
 }
 
 // convert slurm mem string to float64 bytes
-func MemToFloat(mem string) float64 {
+func MemToFloat(mem string) (float64, error) {
 	memUnits := map[string]int{
 		"M": 1e+6,
 		"G": 1e+9,
 		"T": 1e+12,
 	}
-	re := regexp.MustCompile(`^(\d+)(G|M|T)$`)
+	re := regexp.MustCompile(`^(?P<num>([0-9]*[.])?[0-9]+)(?P<memunit>G|M|T)$`)
 	matches := re.FindStringSubmatch(mem)
-	num, _ := strconv.Atoi(matches[1])
-	return float64(num * memUnits[matches[2]])
+	if len(matches) < 2 {
+		slog.Error(fmt.Sprintf("mem string %s doesn't match regex %s", mem, re))
+		return -1, nil
+	}
 
+	num, _ := strconv.ParseFloat(matches[re.SubexpIndex("num")], 64)
+	memunit := memUnits[matches[re.SubexpIndex("memunit")]]
+	return num * float64(memunit), nil
 }

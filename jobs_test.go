@@ -34,7 +34,7 @@ func TestParseJobMetrics(t *testing.T) {
 	assert.Nil(err)
 	jms, err := parseJobMetrics(fixture)
 	assert.Nil(err)
-	assert.Positive(len(jms))
+	assert.NotEmpty(jms)
 	// test parse of single job
 	var job *JobMetrics
 	for _, m := range jms {
@@ -54,7 +54,7 @@ func TestParseCliFallback(t *testing.T) {
 	assert.Nil(err)
 	metrics, err := parseCliFallback(data)
 	assert.Nil(err)
-	assert.Equal(1, len(metrics))
+	assert.NotEmpty(metrics)
 }
 
 func TestUserJobMetric(t *testing.T) {

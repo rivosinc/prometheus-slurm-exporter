@@ -72,23 +72,31 @@ func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
 			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
 			return nil, err
 		}
-		t, err := time.Parse(layout, metric.EndTime)
+		mem, err := MemToFloat(metric.Mem)
 		if err != nil {
 			return nil, err
 		}
-		jobMetrics = append(jobMetrics, JobMetrics{
+		openapiJobMetric := JobMetrics{
 			Account:   metric.Account,
 			JobId:     metric.JobId,
-			EndTime:   float64(t.Unix()),
 			JobState:  metric.JobState,
 			Partition: metric.Partition,
 			JobResources: JobResource{
 				AllocCpus: float64(metric.Cpu),
 				AllocNodes: map[string]struct {
 					Mem float64 `json:"memory"`
-				}{"0": {Mem: MemToFloat(metric.Mem)}},
+				}{"0": {Mem: mem}},
 			},
-		})
+		}
+		if metric.EndTime == "N/A" {
+			openapiJobMetric.EndTime = -1
+		} else if t, err := time.Parse(layout, metric.EndTime); err == nil {
+			openapiJobMetric.EndTime = float64(t.Unix())
+		} else {
+			slog.Error(fmt.Sprintf("unexpected time val: %s", metric.EndTime))
+			return nil, err
+		}
+		jobMetrics = append(jobMetrics, openapiJobMetric)
 	}
 	return jobMetrics, nil
 }
