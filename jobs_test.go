@@ -94,6 +94,32 @@ func TestJobCollect(t *testing.T) {
 		jobMetrics = append(jobMetrics, metric)
 	}
 	assert.NotEmpty(jobMetrics)
+}
+
+func TestJobCollect_Fallback(t *testing.T) {
+	assert := assert.New(t)
+	config := &Config{
+		pollLimit: 10,
+		traceConf: &TraceConfig{
+			sharedFetcher: &MockFetcher{fixture: "fixtures/squeue_fallback.txt"},
+			rate:          10,
+		},
+		cliOpts: &CliOpts{
+			fallback: true,
+		},
+	}
+	jc := NewJobsController(config)
+	jobChan := make(chan prometheus.Metric)
+	go func() {
+		jc.Collect(jobChan)
+		close(jobChan)
+	}()
+	jobMetrics := make([]prometheus.Metric, 0)
+	for metric, ok := <-jobChan; ok; metric, ok = <-jobChan {
+		t.Log(metric.Desc().String())
+		jobMetrics = append(jobMetrics, metric)
+	}
+	assert.NotEmpty(jobMetrics)
 
 }
 

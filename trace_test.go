@@ -123,6 +123,32 @@ func TestTraceControllerCollect(t *testing.T) {
 	assert.NotEmpty(metrics)
 }
 
+func TestTraceControllerCollect_Fallback(t *testing.T) {
+	assert := assert.New(t)
+	config := &Config{
+		pollLimit: 10,
+		traceConf: &TraceConfig{
+			rate:          10,
+			sharedFetcher: &MockFetcher{fixture: "fixtures/squeue_fallback.txt"},
+		},
+		cliOpts: &CliOpts{fallback: true},
+	}
+	c := NewTraceController(config)
+	c.ProcessFetcher.Add(&TraceInfo{JobId: 26515966})
+	assert.NotEmpty(c.ProcessFetcher.Info)
+	metricChan := make(chan prometheus.Metric)
+	go func() {
+		c.Collect(metricChan)
+		close(metricChan)
+	}()
+
+	metrics := make([]prometheus.Metric, 0)
+	for m, ok := <-metricChan; ok; m, ok = <-metricChan {
+		metrics = append(metrics, m)
+	}
+	assert.NotEmpty(metrics)
+}
+
 func TestTraceControllerDescribe(t *testing.T) {
 	assert := assert.New(t)
 	config := &Config{
