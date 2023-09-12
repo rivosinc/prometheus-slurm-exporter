@@ -20,6 +20,9 @@ func TestNewJobsController(t *testing.T) {
 		traceConf: &TraceConfig{
 			sharedFetcher: MockJobInfoFetcher,
 		},
+		cliOpts: &CliOpts{
+			fallback: true,
+		},
 	}
 	jc := NewJobsController(config)
 	assert.NotNil(jc)
@@ -31,7 +34,7 @@ func TestParseJobMetrics(t *testing.T) {
 	assert.Nil(err)
 	jms, err := parseJobMetrics(fixture)
 	assert.Nil(err)
-	assert.Positive(len(jms))
+	assert.NotEmpty(jms)
 	// test parse of single job
 	var job *JobMetrics
 	for _, m := range jms {
@@ -42,6 +45,16 @@ func TestParseJobMetrics(t *testing.T) {
 	}
 	assert.NotNil(job)
 	assert.Equal(float64(64000), totalAllocMem(&job.JobResources))
+}
+
+func TestParseCliFallback(t *testing.T) {
+	assert := assert.New(t)
+	fetcher := MockFetcher{fixture: "fixtures/squeue_fallback.txt"}
+	data, err := fetcher.Fetch()
+	assert.Nil(err)
+	metrics, err := parseCliFallback(data)
+	assert.Nil(err)
+	assert.NotEmpty(metrics)
 }
 
 func TestUserJobMetric(t *testing.T) {
@@ -66,6 +79,33 @@ func TestJobCollect(t *testing.T) {
 		traceConf: &TraceConfig{
 			sharedFetcher: MockJobInfoFetcher,
 			rate:          10,
+		},
+		cliOpts: &CliOpts{},
+	}
+	jc := NewJobsController(config)
+	jobChan := make(chan prometheus.Metric)
+	go func() {
+		jc.Collect(jobChan)
+		close(jobChan)
+	}()
+	jobMetrics := make([]prometheus.Metric, 0)
+	for metric, ok := <-jobChan; ok; metric, ok = <-jobChan {
+		t.Log(metric.Desc().String())
+		jobMetrics = append(jobMetrics, metric)
+	}
+	assert.NotEmpty(jobMetrics)
+}
+
+func TestJobCollect_Fallback(t *testing.T) {
+	assert := assert.New(t)
+	config := &Config{
+		pollLimit: 10,
+		traceConf: &TraceConfig{
+			sharedFetcher: &MockFetcher{fixture: "fixtures/squeue_fallback.txt"},
+			rate:          10,
+		},
+		cliOpts: &CliOpts{
+			fallback: true,
 		},
 	}
 	jc := NewJobsController(config)

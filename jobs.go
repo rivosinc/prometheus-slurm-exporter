@@ -5,8 +5,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/exp/slog"
@@ -50,6 +52,53 @@ func parseJobMetrics(jsonJobList []byte) ([]JobMetrics, error) {
 		return nil, err
 	}
 	return squeue.Jobs, nil
+}
+
+func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
+	const layout = "2006-01-02T15:04:05"
+	jobMetrics := make([]JobMetrics, 0)
+	// convert our custom format to the openapi format we expect
+	for i, line := range bytes.Split(bytes.Trim(squeue, "\n"), []byte("\n")) {
+		var metric struct {
+			Account   string  `json:"a"`
+			JobId     float64 `json:"id"`
+			EndTime   string  `json:"end_time"`
+			JobState  string  `json:"state"`
+			Partition string  `json:"p"`
+			Cpu       int64   `json:"cpu"`
+			Mem       string  `json:"mem"`
+		}
+		if err := json.Unmarshal(line, &metric); err != nil {
+			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
+			return nil, err
+		}
+		mem, err := MemToFloat(metric.Mem)
+		if err != nil {
+			return nil, err
+		}
+		openapiJobMetric := JobMetrics{
+			Account:   metric.Account,
+			JobId:     metric.JobId,
+			JobState:  metric.JobState,
+			Partition: metric.Partition,
+			JobResources: JobResource{
+				AllocCpus: float64(metric.Cpu),
+				AllocNodes: map[string]struct {
+					Mem float64 `json:"memory"`
+				}{"0": {Mem: mem}},
+			},
+		}
+		if metric.EndTime == "N/A" {
+			openapiJobMetric.EndTime = -1
+		} else if t, err := time.Parse(layout, metric.EndTime); err == nil {
+			openapiJobMetric.EndTime = float64(t.Unix())
+		} else {
+			slog.Error(fmt.Sprintf("unexpected time val: %s", metric.EndTime))
+			return nil, err
+		}
+		jobMetrics = append(jobMetrics, openapiJobMetric)
+	}
+	return jobMetrics, nil
 }
 
 type UserJobMetrics struct {
@@ -122,6 +171,7 @@ func parsePartitionJobMetrics(jobs []JobMetrics) map[string]*PartitionJobMetric 
 type JobsController struct {
 	// collector state
 	fetcher      SlurmFetcher
+	fallback     bool
 	jobAllocCpus *prometheus.Desc
 	jobAllocMem  *prometheus.Desc
 	// user metrics
@@ -141,7 +191,8 @@ type JobsController struct {
 func NewJobsController(config *Config) *JobsController {
 	fetcher := config.traceConf.sharedFetcher
 	return &JobsController{
-		fetcher: fetcher,
+		fetcher:  fetcher,
+		fallback: config.cliOpts.fallback,
 		// individual job metrics
 		jobAllocCpus:           prometheus.NewDesc("slurm_job_alloc_cpus", "amount of cpus allocated per job", []string{"jobid"}, nil),
 		jobAllocMem:            prometheus.NewDesc("slurm_job_alloc_mem", "amount of mem allocated per job", []string{"jobid"}, nil),
@@ -177,7 +228,12 @@ func (jc *JobsController) Collect(ch chan<- prometheus.Metric) {
 		slog.Error(fmt.Sprintf("job fetch error %q", err))
 		return
 	}
-	jobMetrics, err := parseJobMetrics(squeue)
+	var jobMetrics []JobMetrics
+	if jc.fallback {
+		jobMetrics, err = parseCliFallback(squeue)
+	} else {
+		jobMetrics, err = parseJobMetrics(squeue)
+	}
 	if err != nil {
 		jc.jobScrapeError.Inc()
 		slog.Error(fmt.Sprintf("job failed to parse with %q", err))

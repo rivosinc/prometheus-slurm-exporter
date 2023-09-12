@@ -42,7 +42,7 @@ Usage of ./build/slurm_exporter:
 ```
 
 ### Job Tracing
-Job tracing is default disabled. To enable it simply add `--trace.enabled` to the arg list. This will enable endpoint `/trace` by default (configurable, see help page).
+Job tracing is default disabled. To enable it simply add `-trace.enabled` to the arg list. This will enable endpoint `/trace` by default (configurable, see help page).
 With trace enabled jobs can _POST_ proccess metrics to the exporter. This adds a memory overhead that is proportional to the amount of jobs enabled for tracing.
 When writing wrapper scripts to upload job data, ensure that they publish data in a json schema that the exporter can understand and that it uploads proc info at a rate thats faster than the prometheus scrape time (I reccomend 2x the prometheus scrape interval). Wrapped jobs can now be traced on Grafana so users can see job resource usage
 alongside a jobs allocated resources. Here is an example wrapper script:
@@ -61,7 +61,7 @@ SAMPLE_RATE=5
 python3 ./wrappers/proctrac.py $@
 ```
 
-We can then get dispatch jobs with our wrapper script as such `srun/sbatch srun_wrapper.sh sleep 300`. With tracing enabled, we get the following visualization.
+We can then get dispatch jobs with our wrapper script as such `sbatch srun_wrapper.sh sleep 300`. With tracing enabled, we get the following visualization.
 ![Alt text](<images/trace_example.png>)
 
 

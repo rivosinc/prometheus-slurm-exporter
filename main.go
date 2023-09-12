@@ -32,6 +32,7 @@ var (
 	slurmSqueueOverride  = flag.String("slurm.squeue-cli", "", "squeue cli override")
 	slurmLicenseOverride = flag.String("slurm.lic-cli", "", "squeue cli override")
 	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
+	slurmCliFallback     = flag.Bool("slurm.cli-fallback", false, "drop the --json arg and revert back to standard squeue for performance reasons")
 	logLevelMap          = map[string]slog.Level{
 		"debug": slog.LevelDebug,
 		"info":  slog.LevelInfo,
@@ -45,6 +46,7 @@ type CliOpts struct {
 	squeue     []string
 	lic        []string
 	licEnabled bool
+	fallback   bool
 }
 
 type TraceConfig struct {
@@ -70,8 +72,9 @@ func NewConfig() (*Config, error) {
 		sinfo:      []string{"sinfo", "--json"},
 		lic:        []string{"scontrol", "show", "lic", "--json"},
 		licEnabled: *slurmLicEnabled,
+		fallback:   *slurmCliFallback,
 	}
-	traceConf := &TraceConfig{
+	traceConf := TraceConfig{
 		enabled: *traceEnabled,
 		path:    "/trace",
 		rate:    10,
@@ -81,7 +84,7 @@ func NewConfig() (*Config, error) {
 		logLevel:      slog.LevelInfo,
 		listenAddress: ":9092",
 		metricsPath:   "/metrics",
-		traceConf:     traceConf,
+		traceConf:     &traceConf,
 		cliOpts:       &cliOpts,
 	}
 	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
@@ -121,6 +124,10 @@ func NewConfig() (*Config, error) {
 	}
 	if *slurmLicenseOverride != "" {
 		cliOpts.lic = strings.Split(*slurmLicenseOverride, " ")
+	}
+	if cliOpts.fallback {
+		// we define a custom json format that we convert back into the openapi format
+		cliOpts.squeue = []string{"squeue ", "-h", "-o", `'{"a": "%a", "id": %A, "end_time": "%e", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}'`}
 	}
 	fetcher := NewCliFetcher(cliOpts.squeue...)
 	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
