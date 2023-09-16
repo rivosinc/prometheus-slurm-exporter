@@ -65,6 +65,7 @@ func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
 			EndTime   string  `json:"end_time"`
 			JobState  string  `json:"state"`
 			Partition string  `json:"p"`
+			UserName  string  `json:"u"`
 			Cpu       int64   `json:"cpu"`
 			Mem       string  `json:"mem"`
 		}
@@ -81,6 +82,7 @@ func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
 			JobId:     metric.JobId,
 			JobState:  metric.JobState,
 			Partition: metric.Partition,
+			UserName:  metric.UserName,
 			JobResources: JobResource{
 				AllocCpus: float64(metric.Cpu),
 				AllocNodes: map[string]struct {

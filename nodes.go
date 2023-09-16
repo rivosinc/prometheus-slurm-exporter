@@ -5,26 +5,30 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 )
 
 type NodeMetrics struct {
-	Hostname     string   `json:"hostname"`
-	Cpus         float64  `json:"cpus"`
-	RealMemory   float64  `json:"real_memory"`
-	FreeMemory   float64  `json:"free_memory"`
-	Partitions   []string `json:"partitions"`
-	State        string   `json:"state"`
-	AllocMemory  float64  `json:"alloc_memory"`
-	AllocCpus    float64  `json:"alloc_cpus"`
-	IdleCpus     float64  `json:"idle_cpus"`
-	Weight       float64  `json:"weight"`
-	CpuLoad      float64  `json:"cpu_load"`
-	Architecture string   `json:"architecture"`
+	Hostname    string   `json:"hostname"`
+	Cpus        float64  `json:"cpus"`
+	RealMemory  float64  `json:"real_memory"`
+	FreeMemory  float64  `json:"free_memory"`
+	Partitions  []string `json:"partitions"`
+	State       string   `json:"state"`
+	AllocMemory float64  `json:"alloc_memory"`
+	AllocCpus   float64  `json:"alloc_cpus"`
+	IdleCpus    float64  `json:"idle_cpus"`
+	Weight      float64  `json:"weight"`
+	CpuLoad     float64  `json:"cpu_load"`
 }
 
 type sinfoResponse struct {
@@ -47,6 +51,76 @@ func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetrics, error) {
 		return nil, errors.New(squeue.Errors[0])
 	}
 	return squeue.Nodes, nil
+}
+
+func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
+	nodeMetrics := make(map[string]*NodeMetrics, 0)
+	for i, line := range bytes.Split(bytes.Trim(sinfo, "\n"), []byte("\n")) {
+		var metric struct {
+			Hostname   string  `json:"n"`
+			RealMemory float64 `json:"mem"`
+			FreeMemory float64 `json:"fmem"`
+			CpuState   string  `json:"cstate"`
+			Partition  string  `json:"p"`
+			CpuLoad    float64 `json:"l"`
+			State      string  `json:"s"`
+			Weight     float64 `json:"w"`
+		}
+		if err := json.Unmarshal(line, &metric); err != nil {
+			return nil, fmt.Errorf("sinfo failed to parse line %d: %s", i, line)
+		}
+		// convert mem units from MB to Bytes
+		metric.RealMemory *= 1e6
+		metric.FreeMemory *= 1e6
+		cpuStates := strings.Split(metric.CpuState, "/")
+		if len(cpuStates) != 4 {
+			return nil, fmt.Errorf("unexpected cpu state format. Got %s", metric.CpuState)
+		}
+		allocated, err := strconv.Atoi(cpuStates[0])
+		if err != nil {
+			return nil, err
+		}
+		idle, err := strconv.Atoi(cpuStates[1])
+		if err != nil {
+			return nil, err
+		}
+		other, err := strconv.Atoi(cpuStates[2])
+		if err != nil {
+			return nil, err
+		}
+		total, err := strconv.Atoi(cpuStates[3])
+		if err != nil {
+			return nil, err
+		}
+		_ = other
+		if nodeMetric, ok := nodeMetrics[metric.Hostname]; ok {
+			nodeMetric.Partitions = append(nodeMetric.Partitions, metric.Partition)
+			states := strings.Split(nodeMetric.State, "&")
+			if !slices.Contains(states, metric.State) {
+				// nodes can have multiple states. Our query puts them on seperate lines
+				nodeMetric.State += "&" + metric.State
+			}
+		} else {
+			nodeMetrics[metric.Hostname] = &NodeMetrics{
+				Hostname:    metric.Hostname,
+				Cpus:        float64(total),
+				RealMemory:  metric.RealMemory,
+				FreeMemory:  metric.FreeMemory,
+				Partitions:  []string{metric.Partition},
+				State:       metric.State,
+				AllocMemory: metric.RealMemory - metric.FreeMemory,
+				AllocCpus:   float64(allocated),
+				IdleCpus:    float64(idle),
+				Weight:      metric.Weight,
+				CpuLoad:     metric.CpuLoad,
+			}
+		}
+	}
+	values := make([]NodeMetrics, 0)
+	for _, val := range nodeMetrics {
+		values = append(values, *val)
+	}
+	return values, nil
 }
 
 type PartitionMetrics struct {
@@ -120,7 +194,8 @@ func fetchNodeTotalMemMetrics(nodes []NodeMetrics) *MemSummaryMetrics {
 
 type NodesCollector struct {
 	// collector state
-	fetcher SlurmFetcher
+	fetcher  SlurmFetcher
+	fallback bool
 	// partition summary metrics
 	partitionCpus        *prometheus.Desc
 	partitionRealMemory  *prometheus.Desc
@@ -148,7 +223,8 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 	fetcher := NewCliFetcher(cliOpts.sinfo...)
 	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
 	return &NodesCollector{
-		fetcher: fetcher,
+		fetcher:  fetcher,
+		fallback: cliOpts.fallback,
 		// partition stats
 		partitionCpus:        prometheus.NewDesc("slurm_partition_total_cpus", "Total cpus per partition", []string{"partition"}, nil),
 		partitionRealMemory:  prometheus.NewDesc("slurm_partition_real_mem", "Real mem per partition", []string{"partition"}, nil),
@@ -203,7 +279,12 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 		nc.nodeScrapeErrors.Inc()
 		return
 	}
-	nodeMetrics, err := parseNodeMetrics(sinfo)
+	var nodeMetrics []NodeMetrics
+	if nc.fallback {
+		nodeMetrics, err = parseNodeCliFallback(sinfo)
+	} else {
+		nodeMetrics, err = parseNodeMetrics(sinfo)
+	}
 	if err != nil {
 		nc.nodeScrapeErrors.Inc()
 		slog.Error("Failed to parse node metrics: " + err.Error())

@@ -9,6 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/exp/slices"
 )
 
 var MockNodeInfoFetcher = &MockFetcher{fixture: "fixtures/sinfo_out.json"}
@@ -107,4 +108,21 @@ func TestNodeDescribe(t *testing.T) {
 		descs = append(descs, desc)
 	}
 	assert.NotEmpty(descs)
+}
+
+func TestParseFallbackNodeMetrics(t *testing.T) {
+	assert := assert.New(t)
+	fetcher := &MockFetcher{fixture: "fixtures/sinfo_fallback.txt"}
+	data, err := fetcher.Fetch()
+	assert.Nil(err)
+	metrics, err := parseNodeCliFallback(data)
+	assert.Nil(err)
+	assert.NotEmpty(metrics)
+	cs25idx := slices.IndexFunc(metrics, func(nm NodeMetrics) bool { return nm.Hostname == "cs25" })
+	assert.GreaterOrEqual(cs25idx, 0)
+	cs25NodeMetric := metrics[cs25idx]
+	assert.Equal("allocated", cs25NodeMetric.State)
+	assert.Equal(64., cs25NodeMetric.AllocCpus)
+	assert.Equal(89124.*1e6, cs25NodeMetric.FreeMemory)
+	assert.Equal([]string{"hw", "hw-l", "hw-m", "hw-h", "cdn"}, cs25NodeMetric.Partitions)
 }
