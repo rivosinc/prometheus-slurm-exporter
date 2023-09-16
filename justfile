@@ -36,6 +36,9 @@ devel: build
 prod: build
   {{build_dir}}/slurm_exporter -trace.enabled -slurm.collect-licenses
 
+fallback: build
+  {{build_dir}}/slurm_exporter -trace.enabled -slurm.cli-fallback
+
 test:
   source venv/bin/activate && go test -coverprofile {{coverage}}.out
   go tool cover -html {{coverage}}.out -o {{coverage}}.html

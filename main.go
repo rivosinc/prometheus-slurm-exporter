@@ -127,7 +127,8 @@ func NewConfig() (*Config, error) {
 	}
 	if cliOpts.fallback {
 		// we define a custom json format that we convert back into the openapi format
-		cliOpts.squeue = []string{"squeue ", "-h", "-o", `'{"a": "%a", "id": %A, "end_time": "%e", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}'`}
+		cliOpts.squeue = []string{"squeue", "-h", "-o", `{"a": "%a", "id": %A, "end_time": "%e", "u": "%u", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}`}
+		cliOpts.sinfo = []string{ "sinfo", "-o", "%T %m %n %O %R"}
 	}
 	fetcher := NewCliFetcher(cliOpts.squeue...)
 	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
