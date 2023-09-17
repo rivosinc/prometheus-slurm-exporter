@@ -215,7 +215,8 @@ type NodesCollector struct {
 	totalFreeMemory  *prometheus.Desc
 	totalAllocMemory *prometheus.Desc
 	// exporter metrics
-	nodeScrapeErrors prometheus.Counter
+	nodeScrapeErrors   prometheus.Counter
+	nodeScrapeDuration prometheus.Gauge
 }
 
 func NewNodeCollecter(config *Config) *NodesCollector {
@@ -248,6 +249,10 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 			Name: "slurm_node_scrape_error",
 			Help: "slurm node info scrape errors",
 		}),
+		nodeScrapeDuration: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "slurm_node_scrape_duration",
+			Help: fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.sinfo),
+		}),
 	}
 }
 
@@ -267,11 +272,13 @@ func (nc *NodesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- nc.totalFreeMemory
 	ch <- nc.totalAllocMemory
 	ch <- nc.nodeScrapeErrors.Desc()
+	ch <- nc.nodeScrapeDuration.Desc()
 }
 
 func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
 		ch <- nc.nodeScrapeErrors
+		ch <- nc.nodeScrapeDuration
 	}()
 	sinfo, err := nc.fetcher.Fetch()
 	if err != nil {
@@ -279,6 +286,7 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 		nc.nodeScrapeErrors.Inc()
 		return
 	}
+	nc.nodeScrapeDuration.Set(float64(nc.fetcher.Duration().Milliseconds()))
 	var nodeMetrics []NodeMetrics
 	if nc.fallback {
 		nodeMetrics, err = parseNodeCliFallback(sinfo)
