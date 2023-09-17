@@ -45,10 +45,18 @@ func (f *MockFetchTriggered) Fetch() ([]byte, error) {
 	return f.msg, nil
 }
 
+func (f *MockFetchTriggered) Duration() time.Duration {
+	return -1
+}
+
 type MockFetchErrored struct{}
 
 func (f *MockFetchErrored) Fetch() ([]byte, error) {
 	return nil, errors.New("mock fetch error")
+}
+
+func (f *MockFetchErrored) Duration() time.Duration {
+	return -1
 }
 
 func TestCliFetcher(t *testing.T) {
@@ -136,6 +144,8 @@ func TestAtomicThrottledCache_Stale(t *testing.T) {
 	assert.True(fetcher.called)
 	// assert cache populated
 	assert.Equal(cache.cache, fetcher.msg)
+	// assert duration tracked
+	assert.Positive(cache.duration)
 }
 
 func TestConvertMemToFloat(t *testing.T) {

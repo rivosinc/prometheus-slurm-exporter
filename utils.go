@@ -23,6 +23,7 @@ import (
 // used for dep injection/ease of testing & for add slurmrestd support later
 type SlurmFetcher interface {
 	Fetch() ([]byte, error)
+	Duration() time.Duration
 }
 
 type AtomicThrottledCache struct {
@@ -30,6 +31,8 @@ type AtomicThrottledCache struct {
 	t     time.Time
 	limit float64
 	cache []byte
+	// duration of last cache miss
+	duration time.Duration
 }
 
 // atomic fetch of either the cache or the collector
@@ -40,10 +43,12 @@ func (atc *AtomicThrottledCache) fetchOrThrottle(fetchFunc func() ([]byte, error
 	if len(atc.cache) > 0 && time.Since(atc.t).Seconds() < atc.limit {
 		return atc.cache, nil
 	}
+	t := time.Now()
 	slurmData, err := fetchFunc()
 	if err != nil {
 		return nil, err
 	}
+	atc.duration = time.Since(t)
 	atc.cache = slurmData
 	atc.t = time.Now()
 	return slurmData, nil
@@ -73,6 +78,10 @@ type CliFetcher struct {
 
 func (cf *CliFetcher) Fetch() ([]byte, error) {
 	return cf.cache.fetchOrThrottle(cf.captureCli)
+}
+
+func (cf *CliFetcher) Duration() time.Duration {
+	return cf.cache.duration
 }
 
 func (cf *CliFetcher) captureCli() ([]byte, error) {
@@ -120,11 +129,19 @@ func NewCliFetcher(args ...string) *CliFetcher {
 // implements SlurmFetcher by pulling fixtures instead
 // used exclusively for testing
 type MockFetcher struct {
-	fixture string
+	fixture  string
+	duration time.Duration
 }
 
 func (f *MockFetcher) Fetch() ([]byte, error) {
+	defer func(t time.Time) {
+		f.duration = time.Since(t)
+	}(time.Now())
 	return os.ReadFile(f.fixture)
+}
+
+func (f *MockFetcher) Duration() time.Duration {
+	return f.duration
 }
 
 // convert slurm mem string to float64 bytes
