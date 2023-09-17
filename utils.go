@@ -154,11 +154,9 @@ func MemToFloat(mem string) (float64, error) {
 	re := regexp.MustCompile(`^(?P<num>([0-9]*[.])?[0-9]+)(?P<memunit>G|M|T)$`)
 	matches := re.FindStringSubmatch(mem)
 	if len(matches) < 2 {
-		slog.Error(fmt.Sprintf("mem string %s doesn't match regex %s", mem, re))
-		return -1, nil
+		return -1, fmt.Errorf("mem string %s doesn't match regex %s", mem, re)
 	}
-
-	num, _ := strconv.ParseFloat(matches[re.SubexpIndex("num")], 64)
+	num, err := strconv.ParseFloat(matches[re.SubexpIndex("num")], 64)
 	memunit := memUnits[matches[re.SubexpIndex("memunit")]]
-	return num * float64(memunit), nil
+	return num * float64(memunit), err
 }
