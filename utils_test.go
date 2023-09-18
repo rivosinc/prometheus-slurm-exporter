@@ -45,10 +45,18 @@ func (f *MockFetchTriggered) Fetch() ([]byte, error) {
 	return f.msg, nil
 }
 
+func (f *MockFetchTriggered) Duration() time.Duration {
+	return 1
+}
+
 type MockFetchErrored struct{}
 
 func (f *MockFetchErrored) Fetch() ([]byte, error) {
 	return nil, errors.New("mock fetch error")
+}
+
+func (f *MockFetchErrored) Duration() time.Duration {
+	return 1
 }
 
 func TestCliFetcher(t *testing.T) {
@@ -129,13 +137,19 @@ func TestAtomicThrottledCache_Stale(t *testing.T) {
 	cache.cache = []byte("cache")
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
-	info, err := cache.fetchOrThrottle(fetcher.Fetch)
+	info, err := cache.fetchOrThrottle(func() ([]byte, error) {
+		// TODO: mock the wall clk, instead of wasting time
+		time.Sleep(1 * time.Millisecond)
+		return fetcher.Fetch()
+	})
 	assert.Nil(err)
 	assert.Equal(info, fetcher.msg)
 	// assert fetch not called
 	assert.True(fetcher.called)
 	// assert cache populated
 	assert.Equal(cache.cache, fetcher.msg)
+	// assert duration tracked
+	assert.Positive(cache.duration)
 }
 
 func TestConvertMemToFloat(t *testing.T) {
@@ -147,4 +161,11 @@ func TestConvertMemToFloat(t *testing.T) {
 		assert.Equal(e, n)
 		e *= 1e+3
 	}
+}
+
+func TestConvertMemToFloat_Sad(t *testing.T) {
+	assert := assert.New(t)
+	n, err := MemToFloat("afal")
+	assert.Error(err)
+	assert.Equal(-1., n)
 }

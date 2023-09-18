@@ -187,14 +187,16 @@ type JobsController struct {
 	accountJobCpuAlloc   *prometheus.Desc
 	accountJobStateTotal *prometheus.Desc
 	// exporter metrics
-	jobScrapeError prometheus.Counter
+	jobScrapeDuration *prometheus.Desc
+	jobScrapeError    prometheus.Counter
 }
 
 func NewJobsController(config *Config) *JobsController {
+	cliOpts := config.cliOpts
 	fetcher := config.traceConf.sharedFetcher
 	return &JobsController{
 		fetcher:  fetcher,
-		fallback: config.cliOpts.fallback,
+		fallback: cliOpts.fallback,
 		// individual job metrics
 		jobAllocCpus:           prometheus.NewDesc("slurm_job_alloc_cpus", "amount of cpus allocated per job", []string{"jobid"}, nil),
 		jobAllocMem:            prometheus.NewDesc("slurm_job_alloc_mem", "amount of mem allocated per job", []string{"jobid"}, nil),
@@ -205,6 +207,7 @@ func NewJobsController(config *Config) *JobsController {
 		accountJobMemAlloc:     prometheus.NewDesc("slurm_account_mem_alloc", "alloc mem consumed per account", []string{"account"}, nil),
 		accountJobCpuAlloc:     prometheus.NewDesc("slurm_account_cpu_alloc", "alloc cpu consumed per account", []string{"account"}, nil),
 		accountJobStateTotal:   prometheus.NewDesc("slurm_account_job_state_total", "total jobs per account per job state", []string{"account", "state"}, nil),
+		jobScrapeDuration:      prometheus.NewDesc("slurm_job_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.squeue), nil, nil),
 		jobScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_job_scrape_error",
 			Help: "slurm job scrape error",
@@ -215,8 +218,14 @@ func NewJobsController(config *Config) *JobsController {
 func (jc *JobsController) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.jobAllocCpus
 	ch <- jc.jobAllocMem
+	ch <- jc.userJobStateTotal
 	ch <- jc.userJobMemAlloc
 	ch <- jc.userJobCpuAlloc
+	ch <- jc.partitionJobStateTotal
+	ch <- jc.accountJobMemAlloc
+	ch <- jc.accountJobCpuAlloc
+	ch <- jc.accountJobStateTotal
+	ch <- jc.jobScrapeDuration
 	ch <- jc.jobScrapeError.Desc()
 }
 
@@ -230,6 +239,7 @@ func (jc *JobsController) Collect(ch chan<- prometheus.Metric) {
 		slog.Error(fmt.Sprintf("job fetch error %q", err))
 		return
 	}
+	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.Duration().Milliseconds()))
 	var jobMetrics []JobMetrics
 	if jc.fallback {
 		jobMetrics, err = parseCliFallback(squeue)
