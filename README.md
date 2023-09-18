@@ -10,13 +10,20 @@ SPDX-License-Identifier: Apache-2.0
 
 Inspired by the now unmaintained prometheus slurm [exporter](https://github.com/vpenso/prometheus-slurm-exporter). We implement in some form or another, most of the
 metrics from the previously maintained exporter. We have not yet added GPU or fairshare support, although we will be more than happy to accept contributions for those.
-This exporter uses is rewritten to use the json out put of the sinfo and squeue commands. In addition, this exporter comes with job tracing and client-side throttling
+This exporter supports `--json` output from cli. Note that the plugin supported is `openapi/v0.0.37` not `data_parser`, which ships with the most modern version of slurm.
+While in production we've found that the cli fallback (defining a custom json format from the slurm cmdline) performs far better and more reliably than parsing with the slurm
+provided json output. Thus, this is now the default mode of deployment as it also doesn't require any compiled plugins. We are keeping the openapi support for slurmrestd
+support in the future. We also support client-side throttling. In practice, users can have multiple prometheus instances polling the same exporter without worrying about
+overwhelming slurmctld. The final addition we've added is tracing support. If enabled, users can publish process stats for their jobs and track alloc vs live usage for
+profiling and optimization consideration.
 
 ### Getting Started
 Golang 20 is required. From there, follow the `justfile` or run `just prod` to start a dev server. Here is a brief overview of exporter options
 
 ```bash
 Usage of ./build/slurm_exporter:
+  -slurm.cli-fallback
+        drop the --json arg and revert back to standard squeue for performance reasons
   -slurm.collect-licenses
         Collect license info from slurm
   -slurm.lic-cli string
@@ -55,8 +62,8 @@ alongside a jobs allocated resources. Here is an example wrapper script:
 
 module load python3
 
-SLURM_EXPORTER=http://path.to.exporter:8092/trace
-SAMPLE_RATE=5
+export SLURM_EXPORTER=http://path.to.exporter:8092/trace
+export SAMPLE_RATE=5
 
 python3 ./wrappers/proctrac.py $@
 ```
@@ -78,7 +85,16 @@ B[[Slurm Exporter]] -->|*30sec*| E[(Prometheus)]
 
 ### Available Metrics
 ```bash
-$ curl localhost:8092/metrics | grep "# HELP"
+$ curl localhost:9092/metrics | grep "# HELP"
+# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+# HELP process_max_fds Maximum number of open file descriptors.
+# HELP process_open_fds Number of open file descriptors.
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# HELP process_virtual_memory_bytes Virtual memory size in bytes.
+# HELP process_virtual_memory_max_bytes Maximum amount of virtual memory available in bytes.
+# HELP promhttp_metric_handler_requests_in_flight Current number of scrapes being served.
+# HELP promhttp_metric_handler_requests_total Total number of scrapes by HTTP status code.
 # HELP slurm_account_cpu_alloc alloc cpu consumed per account
 # HELP slurm_account_job_state_total total jobs per account per job state
 # HELP slurm_account_mem_alloc alloc mem consumed per account
@@ -86,13 +102,16 @@ $ curl localhost:8092/metrics | grep "# HELP"
 # HELP slurm_cpus_idle Total idle cpus
 # HELP slurm_cpus_per_state Cpus per state i.e alloc, mixed, draining, etc.
 # HELP slurm_cpus_total Total cpus
+# HELP slurm_job_scrape_duration how long the cmd [cat fixtures/squeue_out.json] took (ms)
+# HELP slurm_job_scrape_error slurm job scrape error
 # HELP slurm_mem_alloc Total alloc mem
 # HELP slurm_mem_free Total free mem
 # HELP slurm_mem_real Total real mem
+# HELP slurm_node_scrape_duration how long the cmd [cat fixtures/sinfo_out.json] took (ms)
+# HELP slurm_node_scrape_error slurm node info scrape errors
 # HELP slurm_partition_alloc_cpus Alloc cpus per partition
 # HELP slurm_partition_alloc_mem Alloc mem per partition
 # HELP slurm_partition_cpu_load Total cpu load per partition
-# HELP slurm_partition_free_mem Free mem per partition
 # HELP slurm_partition_idle_cpus Idle cpus per partition
 # HELP slurm_partition_job_state_total total jobs per partition per state
 # HELP slurm_partition_real_mem Real mem per partition
@@ -102,7 +121,7 @@ $ curl localhost:8092/metrics | grep "# HELP"
 # HELP slurm_user_mem_alloc total mem alloc per user
 # HELP slurm_user_state_total total jobs per state per user
 
-# Only available for --trace.enabled jobs
+# Only available for -trace.enabled jobs
 # HELP slurm_proc_cpu_usage actual cpu usage collected from proc monitor
 # HELP slurm_proc_mem_usage proc mem usage
 # HELP slurm_proc_pid pid of running slurm job
@@ -123,4 +142,4 @@ Env vars can be sepcified in a `.env` file, while using the `just`
 
 
 ### Future work
-Add scheduler info, slurmrestd support, package binary into apt and rpm packages
+Add scheduler info, slurmrestd support, package binary into apt, rpm packages, and docker
