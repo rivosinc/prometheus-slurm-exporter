@@ -46,7 +46,7 @@ func (f *MockFetchTriggered) Fetch() ([]byte, error) {
 }
 
 func (f *MockFetchTriggered) Duration() time.Duration {
-	return -1
+	return 1
 }
 
 type MockFetchErrored struct{}
