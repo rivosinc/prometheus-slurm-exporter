@@ -56,7 +56,7 @@ func (f *MockFetchErrored) Fetch() ([]byte, error) {
 }
 
 func (f *MockFetchErrored) Duration() time.Duration {
-	return -1
+	return 1
 }
 
 func TestCliFetcher(t *testing.T) {
@@ -137,7 +137,11 @@ func TestAtomicThrottledCache_Stale(t *testing.T) {
 	cache.cache = []byte("cache")
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
-	info, err := cache.fetchOrThrottle(fetcher.Fetch)
+	info, err := cache.fetchOrThrottle(func() ([]byte, error) {
+		// TODO: mock the wall clk, instead of wasting time
+		time.Sleep(1 * time.Millisecond)
+		return fetcher.Fetch()
+	})
 	assert.Nil(err)
 	assert.Equal(info, fetcher.msg)
 	// assert fetch not called
