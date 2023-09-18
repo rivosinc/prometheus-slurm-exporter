@@ -29,12 +29,10 @@ devel: build
   {{build_dir}}/slurm_exporter \
   -trace.enabled \
   -slurm.squeue-cli "cat fixtures/squeue_out.json" \
-  -slurm.sinfo-cli "cat fixtures/sinfo_out.json" \
-  -slurm.collect-licenses \
-  -slurm.lic-cli "cat fixtures/license_out.json"
+  -slurm.sinfo-cli "cat fixtures/sinfo_out.json"
 
-prod *args: build
-  {{build_dir}}/slurm_exporter -slurm.cli-fallback *args
+prod: build
+  {{build_dir}}/slurm_exporter -slurm.cli-fallback
 
 test:
   source venv/bin/activate && go test -coverprofile {{coverage}}.out

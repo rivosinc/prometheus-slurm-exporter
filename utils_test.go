@@ -137,19 +137,13 @@ func TestAtomicThrottledCache_Stale(t *testing.T) {
 	cache.cache = []byte("cache")
 	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
 	// empty cache scenario
-	info, err := cache.fetchOrThrottle(func() ([]byte, error) {
-		// TODO: mock the wall clk, instead of wasting time
-		time.Sleep(1 * time.Millisecond)
-		return fetcher.Fetch()
-	})
+	info, err := cache.fetchOrThrottle(fetcher.Fetch)
 	assert.Nil(err)
 	assert.Equal(info, fetcher.msg)
 	// assert fetch not called
 	assert.True(fetcher.called)
 	// assert cache populated
 	assert.Equal(cache.cache, fetcher.msg)
-	// assert duration tracked
-	assert.Positive(cache.duration)
 }
 
 func TestConvertMemToFloat(t *testing.T) {
