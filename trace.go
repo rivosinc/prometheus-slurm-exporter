@@ -52,9 +52,8 @@ func NewAtomicProFetcher(sampleRate uint64) *AtomicProcFetcher {
 
 // clean stale entries
 func (m *AtomicProcFetcher) cleanup() {
-	oldest := time.Now().Add(-time.Second * time.Duration(m.sampleRate))
 	for jobid, metric := range m.Info {
-		if metric.uploadAt.Before(oldest) {
+		if time.Since(metric.uploadAt).Seconds() > float64(m.sampleRate) {
 			delete(m.Info, jobid)
 		}
 	}
