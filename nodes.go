@@ -157,21 +157,24 @@ func fetchNodePartitionMetrics(nodes []NodeMetrics) map[string]*PartitionMetrics
 }
 
 type CpuSummaryMetrics struct {
-	Total    float64
-	Idle     float64
-	Load     float64
-	PerState map[string]float64
+	Total             float64
+	Idle              float64
+	Load              float64
+	PerState          map[string]float64
+	NodeCountPerState map[string]float64
 }
 
 func fetchNodeTotalCpuMetrics(nodes []NodeMetrics) *CpuSummaryMetrics {
 	cpuSummaryMetrics := &CpuSummaryMetrics{
-		PerState: make(map[string]float64),
+		PerState:          make(map[string]float64),
+		NodeCountPerState: make(map[string]float64),
 	}
 	for _, node := range nodes {
 		cpuSummaryMetrics.Total += node.Cpus
 		cpuSummaryMetrics.Idle += node.IdleCpus
 		cpuSummaryMetrics.Load += node.CpuLoad
 		cpuSummaryMetrics.PerState[node.State] += node.Cpus
+		cpuSummaryMetrics.NodeCountPerState[node.State]++
 	}
 	return cpuSummaryMetrics
 }
@@ -206,10 +209,11 @@ type NodesCollector struct {
 	partitionWeight      *prometheus.Desc
 	partitionCpuLoad     *prometheus.Desc
 	// cpu summary stats
-	cpusPerState  *prometheus.Desc
-	totalCpus     *prometheus.Desc
-	totalIdleCpus *prometheus.Desc
-	totalCpuLoad  *prometheus.Desc
+	cpusPerState      *prometheus.Desc
+	totalCpus         *prometheus.Desc
+	totalIdleCpus     *prometheus.Desc
+	totalCpuLoad      *prometheus.Desc
+	nodeCountPerState *prometheus.Desc
 	// memory summary stats
 	totalRealMemory  *prometheus.Desc
 	totalFreeMemory  *prometheus.Desc
@@ -236,10 +240,11 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 		partitionWeight:      prometheus.NewDesc("slurm_partition_weight", "Total node weight per partition??", []string{"partition"}, nil),
 		partitionCpuLoad:     prometheus.NewDesc("slurm_partition_cpu_load", "Total cpu load per partition", []string{"partition"}, nil),
 		// node cpu summary stats
-		totalCpus:     prometheus.NewDesc("slurm_cpus_total", "Total cpus", nil, nil),
-		totalIdleCpus: prometheus.NewDesc("slurm_cpus_idle", "Total idle cpus", nil, nil),
-		totalCpuLoad:  prometheus.NewDesc("slurm_cpu_load", "Total cpu load", nil, nil),
-		cpusPerState:  prometheus.NewDesc("slurm_cpus_per_state", "Cpus per state i.e alloc, mixed, draining, etc.", []string{"state"}, nil),
+		totalCpus:         prometheus.NewDesc("slurm_cpus_total", "Total cpus", nil, nil),
+		totalIdleCpus:     prometheus.NewDesc("slurm_cpus_idle", "Total idle cpus", nil, nil),
+		totalCpuLoad:      prometheus.NewDesc("slurm_cpu_load", "Total cpu load", nil, nil),
+		cpusPerState:      prometheus.NewDesc("slurm_cpus_per_state", "Cpus per state i.e alloc, mixed, draining, etc.", []string{"state"}, nil),
+		nodeCountPerState: prometheus.NewDesc("slurm_node_count_per_state", "nodes per state", []string{"state"}, nil),
 		// node memory summary stats
 		totalRealMemory:  prometheus.NewDesc("slurm_mem_real", "Total real mem", nil, nil),
 		totalFreeMemory:  prometheus.NewDesc("slurm_mem_free", "Total free mem", nil, nil),
@@ -329,6 +334,9 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(nc.totalCpuLoad, prometheus.GaugeValue, nodeCpuMetrics.Load)
 	for state, cpus := range nodeCpuMetrics.PerState {
 		ch <- prometheus.MustNewConstMetric(nc.cpusPerState, prometheus.GaugeValue, cpus, state)
+	}
+	for state, count := range nodeCpuMetrics.NodeCountPerState {
+		ch <- prometheus.MustNewConstMetric(nc.nodeCountPerState, prometheus.GaugeValue, count, state)
 	}
 	// node mem summary set
 	memMetrics := fetchNodeTotalMemMetrics(nodeMetrics)
