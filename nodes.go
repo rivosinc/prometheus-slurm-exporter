@@ -156,25 +156,32 @@ func fetchNodePartitionMetrics(nodes []NodeMetrics) map[string]*PartitionMetrics
 	return partitions
 }
 
+type PerStateMetric struct {
+	Cpus  float64
+	Count float64
+}
+
 type CpuSummaryMetrics struct {
-	Total             float64
-	Idle              float64
-	Load              float64
-	PerState          map[string]float64
-	NodeCountPerState map[string]float64
+	Total    float64
+	Idle     float64
+	Load     float64
+	PerState map[string]*PerStateMetric
 }
 
 func fetchNodeTotalCpuMetrics(nodes []NodeMetrics) *CpuSummaryMetrics {
 	cpuSummaryMetrics := &CpuSummaryMetrics{
-		PerState:          make(map[string]float64),
-		NodeCountPerState: make(map[string]float64),
+		PerState: make(map[string]*PerStateMetric),
 	}
 	for _, node := range nodes {
 		cpuSummaryMetrics.Total += node.Cpus
 		cpuSummaryMetrics.Idle += node.IdleCpus
 		cpuSummaryMetrics.Load += node.CpuLoad
-		cpuSummaryMetrics.PerState[node.State] += node.Cpus
-		cpuSummaryMetrics.NodeCountPerState[node.State]++
+		if metric, ok := cpuSummaryMetrics.PerState[node.State]; ok {
+			metric.Cpus += node.Cpus
+			metric.Count++
+		} else {
+			cpuSummaryMetrics.PerState[node.State] = &PerStateMetric{Cpus: node.Cpus, Count: 1}
+		}
 	}
 	return cpuSummaryMetrics
 }
@@ -332,11 +339,9 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(nc.totalCpus, prometheus.GaugeValue, nodeCpuMetrics.Total)
 	ch <- prometheus.MustNewConstMetric(nc.totalIdleCpus, prometheus.GaugeValue, nodeCpuMetrics.Idle)
 	ch <- prometheus.MustNewConstMetric(nc.totalCpuLoad, prometheus.GaugeValue, nodeCpuMetrics.Load)
-	for state, cpus := range nodeCpuMetrics.PerState {
-		ch <- prometheus.MustNewConstMetric(nc.cpusPerState, prometheus.GaugeValue, cpus, state)
-	}
-	for state, count := range nodeCpuMetrics.NodeCountPerState {
-		ch <- prometheus.MustNewConstMetric(nc.nodeCountPerState, prometheus.GaugeValue, count, state)
+	for state, psm := range nodeCpuMetrics.PerState {
+		ch <- prometheus.MustNewConstMetric(nc.cpusPerState, prometheus.GaugeValue, psm.Cpus, state)
+		ch <- prometheus.MustNewConstMetric(nc.nodeCountPerState, prometheus.GaugeValue, psm.Count, state)
 	}
 	// node mem summary set
 	memMetrics := fetchNodeTotalMemMetrics(nodeMetrics)

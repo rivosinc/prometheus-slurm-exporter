@@ -55,8 +55,9 @@ func TestNodeSummaryCpuMetric(t *testing.T) {
 	assert.Nil(err)
 	metrics := fetchNodeTotalCpuMetrics(nodeMetrics)
 	assert.Equal(4, len(metrics.PerState))
-	for _, cpu := range metrics.PerState {
-		assert.Equal(64., cpu)
+	for _, psm := range metrics.PerState {
+		assert.Equal(64., psm.Cpus)
+		assert.Equal(1., psm.Count)
 	}
 }
 
