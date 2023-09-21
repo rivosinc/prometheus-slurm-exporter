@@ -106,7 +106,7 @@ func (cf *CliFetcher) captureCli() ([]byte, error) {
 		return nil, err
 	}
 	if errb.Len() > 0 {
-		return nil, fmt.Errorf("cmd failed with %s", errb.Bytes())
+		return nil, fmt.Errorf("cmd failed with %s", errb.String())
 	}
 	return outb.Bytes(), nil
 }

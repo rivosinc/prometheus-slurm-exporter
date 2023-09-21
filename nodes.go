@@ -53,21 +53,40 @@ func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetrics, error) {
 	return squeue.Nodes, nil
 }
 
+type NAbleFloat float64
+
+func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
+	if string(data) == `"N/A"` {
+		*naf = 0
+		return nil
+	}
+	var fString string
+	if err := json.Unmarshal(data, &fString); err != nil {
+		return err
+	}
+	var f float64
+	if err := json.Unmarshal([]byte(fString), &f); err != nil {
+		return err
+	}
+	*naf = NAbleFloat(f)
+	return nil
+}
+
 func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
 	nodeMetrics := make(map[string]*NodeMetrics, 0)
 	for i, line := range bytes.Split(bytes.Trim(sinfo, "\n"), []byte("\n")) {
 		var metric struct {
-			Hostname   string  `json:"n"`
-			RealMemory float64 `json:"mem"`
-			FreeMemory float64 `json:"fmem"`
-			CpuState   string  `json:"cstate"`
-			Partition  string  `json:"p"`
-			CpuLoad    float64 `json:"l"`
-			State      string  `json:"s"`
-			Weight     float64 `json:"w"`
+			Hostname   string     `json:"n"`
+			RealMemory float64    `json:"mem"`
+			FreeMemory NAbleFloat `json:"fmem"`
+			CpuState   string     `json:"cstate"`
+			Partition  string     `json:"p"`
+			CpuLoad    NAbleFloat `json:"l"`
+			State      string     `json:"s"`
+			Weight     float64    `json:"w"`
 		}
 		if err := json.Unmarshal(line, &metric); err != nil {
-			return nil, fmt.Errorf("sinfo failed to parse line %d: %s", i, line)
+			return nil, fmt.Errorf("sinfo failed to parse line %d: %s, got %q", i, line, err)
 		}
 		// convert mem units from MB to Bytes
 		metric.RealMemory *= 1e6
@@ -105,14 +124,14 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
 				Hostname:    metric.Hostname,
 				Cpus:        float64(total),
 				RealMemory:  metric.RealMemory,
-				FreeMemory:  metric.FreeMemory,
+				FreeMemory:  float64(metric.FreeMemory),
 				Partitions:  []string{metric.Partition},
 				State:       metric.State,
-				AllocMemory: metric.RealMemory - metric.FreeMemory,
+				AllocMemory: metric.RealMemory - float64(metric.FreeMemory),
 				AllocCpus:   float64(allocated),
 				IdleCpus:    float64(idle),
 				Weight:      metric.Weight,
-				CpuLoad:     metric.CpuLoad,
+				CpuLoad:     float64(metric.CpuLoad),
 			}
 		}
 	}
