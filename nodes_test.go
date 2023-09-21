@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -126,4 +127,21 @@ func TestParseFallbackNodeMetrics(t *testing.T) {
 	assert.Equal(64., cs25NodeMetric.AllocCpus)
 	assert.Equal(89124.*1e6, cs25NodeMetric.FreeMemory)
 	assert.Equal([]string{"hw", "hw-l", "hw-m", "hw-h", "cdn"}, cs25NodeMetric.Partitions)
+}
+
+func TestNAbleFloat_NA(t *testing.T) {
+	assert := assert.New(t)
+	n := NAbleFloat(1.5)
+	data := []byte(`"N/A"`)
+	assert.NoError(n.UnmarshalJSON(data))
+	assert.Equal(0., float64(n))
+}
+
+func TestNAbleFloat_Float(t *testing.T) {
+	assert := assert.New(t)
+	n := NAbleFloat(1.5)
+	expected := 3.14
+	data := []byte(fmt.Sprintf(`"%f"`, expected))
+	assert.NoError(n.UnmarshalJSON(data))
+	assert.Equal(expected, float64(n))
 }
