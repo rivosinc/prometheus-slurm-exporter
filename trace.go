@@ -31,7 +31,7 @@ type TraceInfo struct {
 	Mem        float64 `json:"mem"`
 	Username   string  `json:"username"`
 	Hostname   string  `json:"hostname"`
-	// do not set explicilty, overriden on Add
+	// do not set explicitly, overridden on Add
 	uploadAt time.Time
 }
 

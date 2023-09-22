@@ -112,19 +112,19 @@ func parseCliFallback(squeue []byte) ([]JobMetric, error) {
 	return jobMetrics, nil
 }
 
-type UserJobMetrics struct {
+type UserJobMetric struct {
 	stateJobCount map[string]float64
 	totalJobCount float64
 	allocMemory   float64
 	allocCpu      float64
 }
 
-func parseUserJobMetrics(jobMetrics []JobMetric) map[string]*UserJobMetrics {
-	userMetricMap := make(map[string]*UserJobMetrics)
+func parseUserJobMetrics(jobMetrics []JobMetric) map[string]*UserJobMetric {
+	userMetricMap := make(map[string]*UserJobMetric)
 	for _, jobMetric := range jobMetrics {
 		metric, ok := userMetricMap[jobMetric.UserName]
 		if !ok {
-			metric = &UserJobMetrics{
+			metric = &UserJobMetric{
 				stateJobCount: make(map[string]float64),
 			}
 		}

@@ -25,7 +25,7 @@ func TestParseNodeMetrics(t *testing.T) {
 		t.Fatalf("Failed to parse metrics with %s", err)
 	}
 	if len(metrics) == 0 {
-		t.Fatal("No metrics recieved")
+		t.Fatal("No metrics received")
 	}
 	t.Logf("Node metrics collected %d", len(metrics))
 }

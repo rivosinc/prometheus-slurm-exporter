@@ -116,7 +116,7 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetric, error) {
 			nodeMetric.Partitions = append(nodeMetric.Partitions, metric.Partition)
 			states := strings.Split(nodeMetric.State, "&")
 			if !slices.Contains(states, metric.State) {
-				// nodes can have multiple states. Our query puts them on seperate lines
+				// nodes can have multiple states. Our query puts them on separate lines
 				nodeMetric.State += "&" + metric.State
 			}
 		} else {
@@ -180,15 +180,15 @@ type PerStateMetric struct {
 	Count float64
 }
 
-type CpuSummaryMetrics struct {
+type CpuSummaryMetric struct {
 	Total    float64
 	Idle     float64
 	Load     float64
 	PerState map[string]*PerStateMetric
 }
 
-func fetchNodeTotalCpuMetrics(nodes []NodeMetric) *CpuSummaryMetrics {
-	cpuSummaryMetrics := &CpuSummaryMetrics{
+func fetchNodeTotalCpuMetrics(nodes []NodeMetric) *CpuSummaryMetric {
+	cpuSummaryMetrics := &CpuSummaryMetric{
 		PerState: make(map[string]*PerStateMetric),
 	}
 	for _, node := range nodes {
@@ -205,14 +205,14 @@ func fetchNodeTotalCpuMetrics(nodes []NodeMetric) *CpuSummaryMetrics {
 	return cpuSummaryMetrics
 }
 
-type MemSummaryMetrics struct {
+type MemSummaryMetric struct {
 	AllocMemory float64
 	FreeMemory  float64
 	RealMemory  float64
 }
 
-func fetchNodeTotalMemMetrics(nodes []NodeMetric) *MemSummaryMetrics {
-	memSummary := new(MemSummaryMetrics)
+func fetchNodeTotalMemMetrics(nodes []NodeMetric) *MemSummaryMetric {
+	memSummary := new(MemSummaryMetric)
 	for _, node := range nodes {
 		memSummary.AllocMemory += node.AllocMemory
 		memSummary.FreeMemory += node.FreeMemory

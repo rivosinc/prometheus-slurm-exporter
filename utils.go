@@ -36,7 +36,7 @@ type AtomicThrottledCache struct {
 }
 
 // atomic fetch of either the cache or the collector
-// reset & hydrate as neccesary
+// reset & hydrate as necessary
 func (atc *AtomicThrottledCache) fetchOrThrottle(fetchFunc func() ([]byte, error)) ([]byte, error) {
 	atc.Lock()
 	defer atc.Unlock()
