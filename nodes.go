@@ -32,9 +32,18 @@ type NodeMetric struct {
 }
 
 type sinfoResponse struct {
-	Meta   map[string]interface{} `json:"meta"`
-	Errors []string               `json:"errors"`
-	Nodes  []NodeMetric           `json:"nodes"`
+	Meta struct {
+		SlurmVersion struct {
+			Version struct {
+				Major int `json:"major"`
+				Micro int `json:"micro"`
+				Minor int `json:"minor"`
+			} `json:"version"`
+			Release string `json:"release"`
+		} `json:"Slurm"`
+	} `json:"meta"`
+	Errors []string     `json:"errors"`
+	Nodes  []NodeMetric `json:"nodes"`
 }
 
 func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetric, error) {

@@ -31,9 +31,18 @@ type JobMetric struct {
 }
 
 type squeueResponse struct {
-	Meta   map[string]interface{} `json:"meta"`
-	Errors []string               `json:"errors"`
-	Jobs   []JobMetric            `json:"jobs"`
+	Meta struct {
+		SlurmVersion struct {
+			Version struct {
+				Major int `json:"major"`
+				Micro int `json:"micro"`
+				Minor int `json:"minor"`
+			} `json:"version"`
+			Release string `json:"release"`
+		} `json:"Slurm"`
+	} `json:"meta"`
+	Errors []string    `json:"errors"`
+	Jobs   []JobMetric `json:"jobs"`
 }
 
 func totalAllocMem(resource *JobResource) float64 {
