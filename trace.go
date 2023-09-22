@@ -135,7 +135,7 @@ func (c *TraceController) Collect(ch chan<- prometheus.Metric) {
 		slog.Debug(fmt.Sprintf("squeue fetch failed with %q", err))
 		return
 	}
-	var jobMetrics []JobMetrics
+	var jobMetrics []JobMetric
 	if c.fallback {
 		jobMetrics, err = parseCliFallback(squeue)
 	} else {

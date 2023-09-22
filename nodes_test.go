@@ -120,7 +120,7 @@ func TestParseFallbackNodeMetrics(t *testing.T) {
 	metrics, err := parseNodeCliFallback(data)
 	assert.Nil(err)
 	assert.NotEmpty(metrics)
-	cs25idx := slices.IndexFunc(metrics, func(nm NodeMetrics) bool { return nm.Hostname == "cs25" })
+	cs25idx := slices.IndexFunc(metrics, func(nm NodeMetric) bool { return nm.Hostname == "cs25" })
 	assert.GreaterOrEqual(cs25idx, 0)
 	cs25NodeMetric := metrics[cs25idx]
 	assert.Equal("allocated", cs25NodeMetric.State)

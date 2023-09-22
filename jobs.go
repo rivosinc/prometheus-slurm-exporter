@@ -20,7 +20,7 @@ type JobResource struct {
 		Mem float64 `json:"memory"`
 	} `json:"allocated_nodes"`
 }
-type JobMetrics struct {
+type JobMetric struct {
 	Account      string      `json:"account"`
 	JobId        float64     `json:"job_id"`
 	EndTime      float64     `json:"end_time"`
@@ -33,7 +33,7 @@ type JobMetrics struct {
 type squeueResponse struct {
 	Meta   map[string]interface{} `json:"meta"`
 	Errors []string               `json:"errors"`
-	Jobs   []JobMetrics           `json:"jobs"`
+	Jobs   []JobMetric            `json:"jobs"`
 }
 
 func totalAllocMem(resource *JobResource) float64 {
@@ -44,7 +44,7 @@ func totalAllocMem(resource *JobResource) float64 {
 	return allocMem
 }
 
-func parseJobMetrics(jsonJobList []byte) ([]JobMetrics, error) {
+func parseJobMetrics(jsonJobList []byte) ([]JobMetric, error) {
 	var squeue squeueResponse
 	err := json.Unmarshal(jsonJobList, &squeue)
 	if err != nil {
@@ -54,9 +54,9 @@ func parseJobMetrics(jsonJobList []byte) ([]JobMetrics, error) {
 	return squeue.Jobs, nil
 }
 
-func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
+func parseCliFallback(squeue []byte) ([]JobMetric, error) {
 	const layout = "2006-01-02T15:04:05"
-	jobMetrics := make([]JobMetrics, 0)
+	jobMetrics := make([]JobMetric, 0)
 	// convert our custom format to the openapi format we expect
 	for i, line := range bytes.Split(bytes.Trim(squeue, "\n"), []byte("\n")) {
 		var metric struct {
@@ -77,7 +77,7 @@ func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
 		if err != nil {
 			return nil, err
 		}
-		openapiJobMetric := JobMetrics{
+		openapiJobMetric := JobMetric{
 			Account:   metric.Account,
 			JobId:     metric.JobId,
 			JobState:  metric.JobState,
@@ -110,7 +110,7 @@ type UserJobMetrics struct {
 	allocCpu      float64
 }
 
-func parseUserJobMetrics(jobMetrics []JobMetrics) map[string]*UserJobMetrics {
+func parseUserJobMetrics(jobMetrics []JobMetric) map[string]*UserJobMetrics {
 	userMetricMap := make(map[string]*UserJobMetrics)
 	for _, jobMetric := range jobMetrics {
 		metric, ok := userMetricMap[jobMetric.UserName]
@@ -128,18 +128,18 @@ func parseUserJobMetrics(jobMetrics []JobMetrics) map[string]*UserJobMetrics {
 	return userMetricMap
 }
 
-type AccountMetrics struct {
+type AccountMetric struct {
 	allocMem      float64
 	allocCpu      float64
 	stateJobCount map[string]float64
 }
 
-func parseAccountMetrics(jobs []JobMetrics) map[string]*AccountMetrics {
-	accountMap := make(map[string]*AccountMetrics)
+func parseAccountMetrics(jobs []JobMetric) map[string]*AccountMetric {
+	accountMap := make(map[string]*AccountMetric)
 	for _, job := range jobs {
 		metric, ok := accountMap[job.Account]
 		if !ok {
-			metric = &AccountMetrics{
+			metric = &AccountMetric{
 				stateJobCount: make(map[string]float64),
 			}
 			accountMap[job.Account] = metric
@@ -155,7 +155,7 @@ type PartitionJobMetric struct {
 	partitionState map[string]float64
 }
 
-func parsePartitionJobMetrics(jobs []JobMetrics) map[string]*PartitionJobMetric {
+func parsePartitionJobMetrics(jobs []JobMetric) map[string]*PartitionJobMetric {
 	partitionMetric := make(map[string]*PartitionJobMetric)
 	for _, job := range jobs {
 		metric, ok := partitionMetric[job.Partition]
@@ -170,7 +170,7 @@ func parsePartitionJobMetrics(jobs []JobMetrics) map[string]*PartitionJobMetric 
 	return partitionMetric
 }
 
-type JobsController struct {
+type JobsCollector struct {
 	// collector state
 	fetcher      SlurmFetcher
 	fallback     bool
@@ -191,10 +191,10 @@ type JobsController struct {
 	jobScrapeError    prometheus.Counter
 }
 
-func NewJobsController(config *Config) *JobsController {
+func NewJobsController(config *Config) *JobsCollector {
 	cliOpts := config.cliOpts
 	fetcher := config.traceConf.sharedFetcher
-	return &JobsController{
+	return &JobsCollector{
 		fetcher:  fetcher,
 		fallback: cliOpts.fallback,
 		// individual job metrics
@@ -215,7 +215,7 @@ func NewJobsController(config *Config) *JobsController {
 	}
 }
 
-func (jc *JobsController) Describe(ch chan<- *prometheus.Desc) {
+func (jc *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.jobAllocCpus
 	ch <- jc.jobAllocMem
 	ch <- jc.userJobStateTotal
@@ -229,7 +229,7 @@ func (jc *JobsController) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.jobScrapeError.Desc()
 }
 
-func (jc *JobsController) Collect(ch chan<- prometheus.Metric) {
+func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
 		ch <- jc.jobScrapeError
 	}()
@@ -240,7 +240,7 @@ func (jc *JobsController) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.Duration().Milliseconds()))
-	var jobMetrics []JobMetrics
+	var jobMetrics []JobMetric
 	if jc.fallback {
 		jobMetrics, err = parseCliFallback(squeue)
 	} else {

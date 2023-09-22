@@ -17,7 +17,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-type NodeMetrics struct {
+type NodeMetric struct {
 	Hostname    string   `json:"hostname"`
 	Cpus        float64  `json:"cpus"`
 	RealMemory  float64  `json:"real_memory"`
@@ -34,10 +34,10 @@ type NodeMetrics struct {
 type sinfoResponse struct {
 	Meta   map[string]interface{} `json:"meta"`
 	Errors []string               `json:"errors"`
-	Nodes  []NodeMetrics          `json:"nodes"`
+	Nodes  []NodeMetric           `json:"nodes"`
 }
 
-func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetrics, error) {
+func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetric, error) {
 	squeue := sinfoResponse{}
 	err := json.Unmarshal(jsonNodeList, &squeue)
 	if err != nil {
@@ -56,13 +56,13 @@ func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetrics, error) {
 type NAbleFloat float64
 
 func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
-	if string(data) == `"N/A"` {
-		*naf = 0
-		return nil
-	}
 	var fString string
 	if err := json.Unmarshal(data, &fString); err != nil {
 		return err
+	}
+	if fString == "N/A" {
+		*naf = 0
+		return nil
 	}
 	var f float64
 	if err := json.Unmarshal([]byte(fString), &f); err != nil {
@@ -72,8 +72,8 @@ func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
-	nodeMetrics := make(map[string]*NodeMetrics, 0)
+func parseNodeCliFallback(sinfo []byte) ([]NodeMetric, error) {
+	nodeMetrics := make(map[string]*NodeMetric, 0)
 	for i, line := range bytes.Split(bytes.Trim(sinfo, "\n"), []byte("\n")) {
 		var metric struct {
 			Hostname   string     `json:"n"`
@@ -120,7 +120,7 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
 				nodeMetric.State += "&" + metric.State
 			}
 		} else {
-			nodeMetrics[metric.Hostname] = &NodeMetrics{
+			nodeMetrics[metric.Hostname] = &NodeMetric{
 				Hostname:    metric.Hostname,
 				Cpus:        float64(total),
 				RealMemory:  metric.RealMemory,
@@ -135,14 +135,14 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
 			}
 		}
 	}
-	values := make([]NodeMetrics, 0)
+	values := make([]NodeMetric, 0)
 	for _, val := range nodeMetrics {
 		values = append(values, *val)
 	}
 	return values, nil
 }
 
-type PartitionMetrics struct {
+type PartitionMetric struct {
 	Cpus        float64
 	RealMemory  float64
 	FreeMemory  float64
@@ -153,13 +153,13 @@ type PartitionMetrics struct {
 	Weight      float64
 }
 
-func fetchNodePartitionMetrics(nodes []NodeMetrics) map[string]*PartitionMetrics {
-	partitions := make(map[string]*PartitionMetrics)
+func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
+	partitions := make(map[string]*PartitionMetric)
 	for _, node := range nodes {
 		for _, p := range node.Partitions {
 			partition, ok := partitions[p]
 			if !ok {
-				partition = new(PartitionMetrics)
+				partition = new(PartitionMetric)
 				partitions[p] = partition
 			}
 			partition.Cpus += node.Cpus
@@ -187,7 +187,7 @@ type CpuSummaryMetrics struct {
 	PerState map[string]*PerStateMetric
 }
 
-func fetchNodeTotalCpuMetrics(nodes []NodeMetrics) *CpuSummaryMetrics {
+func fetchNodeTotalCpuMetrics(nodes []NodeMetric) *CpuSummaryMetrics {
 	cpuSummaryMetrics := &CpuSummaryMetrics{
 		PerState: make(map[string]*PerStateMetric),
 	}
@@ -211,7 +211,7 @@ type MemSummaryMetrics struct {
 	RealMemory  float64
 }
 
-func fetchNodeTotalMemMetrics(nodes []NodeMetrics) *MemSummaryMetrics {
+func fetchNodeTotalMemMetrics(nodes []NodeMetric) *MemSummaryMetrics {
 	memSummary := new(MemSummaryMetrics)
 	for _, node := range nodes {
 		memSummary.AllocMemory += node.AllocMemory
@@ -314,7 +314,7 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(nc.nodeScrapeDuration, prometheus.GaugeValue, float64(nc.fetcher.Duration().Milliseconds()))
-	var nodeMetrics []NodeMetrics
+	var nodeMetrics []NodeMetric
 	if nc.fallback {
 		nodeMetrics, err = parseNodeCliFallback(sinfo)
 	} else {

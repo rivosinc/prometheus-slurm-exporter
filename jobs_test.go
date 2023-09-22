@@ -36,7 +36,7 @@ func TestParseJobMetrics(t *testing.T) {
 	assert.Nil(err)
 	assert.NotEmpty(jms)
 	// test parse of single job
-	var job *JobMetrics
+	var job *JobMetric
 	for _, m := range jms {
 		if m.JobId == 26515966 {
 			job = &m
