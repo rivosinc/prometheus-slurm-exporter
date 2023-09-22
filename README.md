@@ -19,7 +19,7 @@ overwhelming slurmctld. The final addition we've added is tracing support. If en
 profiling and optimization consideration.
 
 ### Getting Started
-Golang >=20 is required. From there, follow the `justfile` or run `just prod` to start a dev server. Here is a brief overview of exporter options.
+Golang >=20 is required. From there, follow the `justfile` or run `just prod` to start a dev server.
 You can also install the exporter directly with `go install github.com/rivosinc/prometheus-slurm-exporter@latest`. Then you can run `prometheus-slurm-exporter -h`.
 
 

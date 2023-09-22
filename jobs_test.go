@@ -6,6 +6,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
@@ -151,4 +152,22 @@ func TestJobDescribe(t *testing.T) {
 		descs = append(descs, desc)
 	}
 	assert.NotEmpty(descs)
+}
+
+func TestNAbleTimeJson(t *testing.T) {
+	assert := assert.New(t)
+	data := `"2023-09-21T14:31:11"`
+	var nat NAbleTime
+	err := nat.UnmarshalJSON([]byte(data))
+	assert.Nil(err)
+	assert.True(nat.Equal(time.Date(2023, 9, 21, 14, 31, 11, 0, time.UTC)))
+}
+
+func TestNAbleTimeJson_NA(t *testing.T) {
+	assert := assert.New(t)
+	data := `"N/A"`
+	var nat NAbleTime
+	err := nat.UnmarshalJSON([]byte(data))
+	assert.Nil(err)
+	assert.True(nat.Equal(time.Time{}))
 }
