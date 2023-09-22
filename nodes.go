@@ -95,19 +95,19 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetric, error) {
 		if len(cpuStates) != 4 {
 			return nil, fmt.Errorf("unexpected cpu state format. Got %s", metric.CpuState)
 		}
-		allocated, err := strconv.Atoi(cpuStates[0])
+		allocated, err := strconv.ParseFloat(cpuStates[0], 64)
 		if err != nil {
 			return nil, err
 		}
-		idle, err := strconv.Atoi(cpuStates[1])
+		idle, err := strconv.ParseFloat(cpuStates[1], 64)
 		if err != nil {
 			return nil, err
 		}
-		other, err := strconv.Atoi(cpuStates[2])
+		other, err := strconv.ParseFloat(cpuStates[2], 64)
 		if err != nil {
 			return nil, err
 		}
-		total, err := strconv.Atoi(cpuStates[3])
+		total, err := strconv.ParseFloat(cpuStates[3], 64)
 		if err != nil {
 			return nil, err
 		}
@@ -122,14 +122,14 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetric, error) {
 		} else {
 			nodeMetrics[metric.Hostname] = &NodeMetric{
 				Hostname:    metric.Hostname,
-				Cpus:        float64(total),
+				Cpus:        total,
 				RealMemory:  metric.RealMemory,
 				FreeMemory:  float64(metric.FreeMemory),
 				Partitions:  []string{metric.Partition},
 				State:       metric.State,
 				AllocMemory: metric.RealMemory - float64(metric.FreeMemory),
-				AllocCpus:   float64(allocated),
-				IdleCpus:    float64(idle),
+				AllocCpus:   allocated,
+				IdleCpus:    idle,
 				Weight:      metric.Weight,
 				CpuLoad:     float64(metric.CpuLoad),
 			}

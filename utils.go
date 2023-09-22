@@ -156,6 +156,7 @@ func MemToFloat(mem string) (float64, error) {
 	if len(matches) < 2 {
 		return -1, fmt.Errorf("mem string %s doesn't match regex %s", mem, re)
 	}
+	// err here should be impossible due to regex
 	num, err := strconv.ParseFloat(matches[re.SubexpIndex("num")], 64)
 	memunit := memUnits[matches[re.SubexpIndex("memunit")]]
 	return num * float64(memunit), err

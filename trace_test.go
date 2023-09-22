@@ -79,7 +79,7 @@ func TestUploadTracePost(t *testing.T) {
 	assert.Nil(err)
 	r := httptest.NewRequest(http.MethodPost, "dummy.url:8092/trace", bytes.NewBuffer(fixture))
 	w := httptest.NewRecorder()
-	c := NewTraceController(config)
+	c := NewTraceCollector(config)
 	c.uploadTrace(w, r)
 	assert.Equal(1, len(c.ProcessFetcher.Info))
 }
@@ -90,7 +90,7 @@ func TestUploadTraceGet(t *testing.T) {
 	w := httptest.NewRecorder()
 	config, err := NewConfig()
 	assert.Nil(err)
-	c := NewTraceController(config)
+	c := NewTraceCollector(config)
 	c.ProcessFetcher.Info[10] = &TraceInfo{}
 	c.uploadTrace(w, r)
 	assert.Equal(200, w.Code)
@@ -107,7 +107,7 @@ func TestTraceControllerCollect(t *testing.T) {
 		},
 		cliOpts: new(CliOpts),
 	}
-	c := NewTraceController(config)
+	c := NewTraceCollector(config)
 	c.ProcessFetcher.Add(&TraceInfo{JobId: 26515966})
 	assert.NotEmpty(c.ProcessFetcher.Info)
 	metricChan := make(chan prometheus.Metric)
@@ -133,7 +133,7 @@ func TestTraceControllerCollect_Fallback(t *testing.T) {
 		},
 		cliOpts: &CliOpts{fallback: true},
 	}
-	c := NewTraceController(config)
+	c := NewTraceCollector(config)
 	c.ProcessFetcher.Add(&TraceInfo{JobId: 26515966})
 	assert.NotEmpty(c.ProcessFetcher.Info)
 	metricChan := make(chan prometheus.Metric)
@@ -159,7 +159,7 @@ func TestTraceControllerDescribe(t *testing.T) {
 		},
 		cliOpts: new(CliOpts),
 	}
-	c := NewTraceController(config)
+	c := NewTraceCollector(config)
 	c.ProcessFetcher.Add(&TraceInfo{JobId: 26515966})
 	assert.Positive(len(c.ProcessFetcher.Info))
 	metricChan := make(chan *prometheus.Desc)

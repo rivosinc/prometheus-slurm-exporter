@@ -148,7 +148,7 @@ func initPromServer(config *Config) http.Handler {
 	prometheus.MustRegister(NewNodeCollecter(config), NewJobsController(config))
 	if traceconf := config.traceConf; traceconf.enabled {
 		slog.Info("trace path enabled at path: " + config.listenAddress + traceconf.path)
-		traceController := NewTraceController(config)
+		traceController := NewTraceCollector(config)
 		http.HandleFunc(traceconf.path, traceController.uploadTrace)
 		prometheus.MustRegister(traceController)
 	}
