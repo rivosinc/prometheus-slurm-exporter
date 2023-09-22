@@ -21,8 +21,10 @@ profiling and optimization consideration.
 ### Getting Started
 Golang >=20 is required. From there, follow the `justfile` or run `just prod` to start a dev server.
 You can also install the exporter directly with `go install github.com/rivosinc/prometheus-slurm-exporter@latest`. Then you can run `prometheus-slurm-exporter -h`.
-
+Simply run with Docker using
 ```bash
+# install with docker
+$ docker run -d abhinavdhulipala/prometheus-slurm-exporter -slurm.cli-fallback
 # example installation
 $ go install github.com/rivosinc/prometheus-slurm-exporter@v1.0.0
 # or if you like living on the edge
