@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 # Slurm Exporter
 
 [![REUSE status](https://api.reuse.software/badge/github.com/rivosinc/prometheus-slurm-exporter)](https://api.reuse.software/info/github.com/rivosinc/prometheus-slurm-exporter)
-[![Go Report Card](https://goreportcard.com/badge/gojp/goreportcard)](github.com/rivosinc/prometheus-slurm-exporter)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rivosinc/prometheus-slurm-exporter)](https://goreportcard.com/report/github.com/rivosinc/prometheus-slurm-exporter)
 
 Inspired by the now unmaintained prometheus slurm [exporter](https://github.com/vpenso/prometheus-slurm-exporter). We implement in some form or another, most of the
 metrics from the previously maintained exporter. We have not yet added GPU or fairshare support, although we will be more than happy to accept contributions for those.
@@ -31,7 +31,7 @@ $ export PATH="$PATH:$GOPATH/bin"
 $ prometheus-slurm-exporter -h
 ...
 # probably the most common invocation
-$ POLL_LIMIT=10 prometheus-slurm-exporter -slurm.cli-fallback
+$ prometheus-slurm-exporter -slurm.cli-fallback
 ```
 
 ### Job Tracing
@@ -106,6 +106,7 @@ $ curl localhost:9092/metrics | grep "# HELP"
 # HELP slurm_user_cpu_alloc total cpu alloc per user
 # HELP slurm_user_mem_alloc total mem alloc per user
 # HELP slurm_user_state_total total jobs per state per user
+# HELP slurm_node_count_per_state nodes per state
 
 # Only available for -trace.enabled jobs
 # HELP slurm_proc_cpu_usage actual cpu usage collected from proc monitor
@@ -116,13 +117,22 @@ $ curl localhost:9092/metrics | grep "# HELP"
 # HELP slurm_proc_write_bytes proc write bytes
 # HELP slurm_job_cpu_alloc running job cpus allocated
 # HELP slurm_job_mem_alloc running job cpus allocated
+
+# Exporter stats
+# HELP slurm_node_count_per_state nodes per state
+# HELP slurm_node_scrape_duration how long the cmd [<configured command>] took ms
+# HELP slurm_node_scrape_error slurm node info scrape errors
+# HELP slurm_job_count_per_state jobs per state
+# HELP slurm_job_scrape_duration how long the cmd [<configured command>] took ms
+# HELP slurm_job_scrape_error slurm job info scrape errors
+
 ```
 
 ### Exporter Env Var Docs
 Env vars can be sepcified in a `.env` file, while using the `just`
 | Var           | Default Value | Purpose                                                                     |
 |---------------|---------------|-----------------------------------------------------------------------------|
-| POLL_LIMIT    | 1             | # of seconds to wait before polling slurmctl again (client-side throtting)  |
+| POLL_LIMIT    | 10            | # of seconds to wait before polling slurmctl again (client-side throtting)  |
 | LOGLEVEL      | info          | Log Level: debug, info, warn, error                                         |
 | CLI_TIMEOUT   | 10.           | # seconds before the exporter terminates command.                           |
 
