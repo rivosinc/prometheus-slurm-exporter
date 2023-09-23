@@ -25,7 +25,7 @@ func TestParseNodeMetrics(t *testing.T) {
 		t.Fatalf("Failed to parse metrics with %s", err)
 	}
 	if len(metrics) == 0 {
-		t.Fatal("No metrics recieved")
+		t.Fatal("No metrics received")
 	}
 	t.Logf("Node metrics collected %d", len(metrics))
 }
@@ -120,7 +120,7 @@ func TestParseFallbackNodeMetrics(t *testing.T) {
 	metrics, err := parseNodeCliFallback(data)
 	assert.Nil(err)
 	assert.NotEmpty(metrics)
-	cs25idx := slices.IndexFunc(metrics, func(nm NodeMetrics) bool { return nm.Hostname == "cs25" })
+	cs25idx := slices.IndexFunc(metrics, func(nm NodeMetric) bool { return nm.Hostname == "cs25" })
 	assert.GreaterOrEqual(cs25idx, 0)
 	cs25NodeMetric := metrics[cs25idx]
 	assert.Equal("allocated", cs25NodeMetric.State)

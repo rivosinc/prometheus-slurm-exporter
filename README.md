@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 # Slurm Exporter
 
 [![REUSE status](https://api.reuse.software/badge/github.com/rivosinc/prometheus-slurm-exporter)](https://api.reuse.software/info/github.com/rivosinc/prometheus-slurm-exporter)
+[![Go Report Card](https://goreportcard.com/badge/gojp/goreportcard)](github.com/rivosinc/prometheus-slurm-exporter)
 
 Inspired by the now unmaintained prometheus slurm [exporter](https://github.com/vpenso/prometheus-slurm-exporter). We implement in some form or another, most of the
 metrics from the previously maintained exporter. We have not yet added GPU or fairshare support, although we will be more than happy to accept contributions for those.
@@ -18,34 +19,19 @@ overwhelming slurmctld. The final addition we've added is tracing support. If en
 profiling and optimization consideration.
 
 ### Getting Started
-Golang 20 is required. From there, follow the `justfile` or run `just prod` to start a dev server. Here is a brief overview of exporter options
+Golang >=20 is required. From there, follow the `justfile` or run `just prod` to start a dev server.
+You can also install the exporter directly with `go install github.com/rivosinc/prometheus-slurm-exporter@latest`. Then you can run `prometheus-slurm-exporter -h`.
+
 
 ```bash
-Usage of ./build/slurm_exporter:
-  -slurm.cli-fallback
-        drop the --json arg and revert back to standard squeue for performance reasons
-  -slurm.collect-licenses
-        Collect license info from slurm
-  -slurm.lic-cli string
-        squeue cli override
-  -slurm.poll-limit float
-        throttle for slurmctld (default: 10s)
-  -slurm.sinfo-cli string
-        sinfo cli override
-  -slurm.squeue-cli string
-        squeue cli override
-  -trace.enabled
-        Set up Post endpoint for collecting traces
-  -trace.path string
-        POST path to upload job proc info
-  -trace.rate uint
-        number of seconds proc info should stay in memory before being marked as stale (default 10)
-  -web.listen-address string
-        Address to listen on for telemetry "(default: :9092)"
-  -web.log-level string
-        Log level: info, debug, error, warning
-  -web.telemetry-path string
-        Path under which to expose metrics (default: /metrics)
+# example installation
+$ go install github.com/rivosinc/prometheus-slurm-exporter@latest
+# if not already added, ensure
+$ export PATH="$PATH:$GOPATH/bin"
+$ prometheus-slurm-exporter -h
+...
+# probably the most common invocation
+$ POLL_LIMIT=10 prometheus-slurm-exporter -slurm.cli-fallback
 ```
 
 ### Job Tracing

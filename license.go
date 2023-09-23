@@ -20,7 +20,7 @@ type LicenseMetric struct {
 	Reserved    int    `json:"Reserved"`
 }
 
-type ScontrolLicResponse struct {
+type scontrolLicResponse struct {
 	Meta struct {
 		SlurmVersion struct {
 			Version struct {
@@ -35,7 +35,7 @@ type ScontrolLicResponse struct {
 }
 
 func parseLicenseMetrics(licList []byte) ([]LicenseMetric, error) {
-	lic := new(ScontrolLicResponse)
+	lic := new(scontrolLicResponse)
 	if err := json.Unmarshal(licList, lic); err != nil {
 		slog.Error(fmt.Sprintf("Unmarshaling license metrics %q", err))
 		return nil, err

@@ -20,7 +20,7 @@ type JobResource struct {
 		Mem float64 `json:"memory"`
 	} `json:"allocated_nodes"`
 }
-type JobMetrics struct {
+type JobMetric struct {
 	Account      string      `json:"account"`
 	JobId        float64     `json:"job_id"`
 	EndTime      float64     `json:"end_time"`
@@ -31,9 +31,18 @@ type JobMetrics struct {
 }
 
 type squeueResponse struct {
-	Meta   map[string]interface{} `json:"meta"`
-	Errors []string               `json:"errors"`
-	Jobs   []JobMetrics           `json:"jobs"`
+	Meta struct {
+		SlurmVersion struct {
+			Version struct {
+				Major int `json:"major"`
+				Micro int `json:"micro"`
+				Minor int `json:"minor"`
+			} `json:"version"`
+			Release string `json:"release"`
+		} `json:"Slurm"`
+	} `json:"meta"`
+	Errors []string    `json:"errors"`
+	Jobs   []JobMetric `json:"jobs"`
 }
 
 func totalAllocMem(resource *JobResource) float64 {
@@ -44,7 +53,7 @@ func totalAllocMem(resource *JobResource) float64 {
 	return allocMem
 }
 
-func parseJobMetrics(jsonJobList []byte) ([]JobMetrics, error) {
+func parseJobMetrics(jsonJobList []byte) ([]JobMetric, error) {
 	var squeue squeueResponse
 	err := json.Unmarshal(jsonJobList, &squeue)
 	if err != nil {
@@ -54,20 +63,36 @@ func parseJobMetrics(jsonJobList []byte) ([]JobMetrics, error) {
 	return squeue.Jobs, nil
 }
 
-func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
-	const layout = "2006-01-02T15:04:05"
-	jobMetrics := make([]JobMetrics, 0)
+type NAbleTime struct{ time.Time }
+
+// report beginning of time in the case of N/A
+func (nat *NAbleTime) UnmarshalJSON(data []byte) error {
+	var tString string
+	if err := json.Unmarshal(data, &tString); err != nil {
+		return err
+	}
+	if tString == "N/A" {
+		nat.Time = time.Time{}
+		return nil
+	}
+	t, err := time.Parse("2006-01-02T15:04:05", tString)
+	nat.Time = t
+	return err
+}
+
+func parseCliFallback(squeue []byte) ([]JobMetric, error) {
+	jobMetrics := make([]JobMetric, 0)
 	// convert our custom format to the openapi format we expect
 	for i, line := range bytes.Split(bytes.Trim(squeue, "\n"), []byte("\n")) {
 		var metric struct {
-			Account   string  `json:"a"`
-			JobId     float64 `json:"id"`
-			EndTime   string  `json:"end_time"`
-			JobState  string  `json:"state"`
-			Partition string  `json:"p"`
-			UserName  string  `json:"u"`
-			Cpu       int64   `json:"cpu"`
-			Mem       string  `json:"mem"`
+			Account   string    `json:"a"`
+			JobId     float64   `json:"id"`
+			EndTime   NAbleTime `json:"end_time"`
+			JobState  string    `json:"state"`
+			Partition string    `json:"p"`
+			UserName  string    `json:"u"`
+			Cpu       int64     `json:"cpu"`
+			Mem       string    `json:"mem"`
 		}
 		if err := json.Unmarshal(line, &metric); err != nil {
 			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
@@ -77,12 +102,13 @@ func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
 		if err != nil {
 			return nil, err
 		}
-		openapiJobMetric := JobMetrics{
+		openapiJobMetric := JobMetric{
 			Account:   metric.Account,
 			JobId:     metric.JobId,
 			JobState:  metric.JobState,
 			Partition: metric.Partition,
 			UserName:  metric.UserName,
+			EndTime:   float64(metric.EndTime.Unix()),
 			JobResources: JobResource{
 				AllocCpus: float64(metric.Cpu),
 				AllocNodes: map[string]struct {
@@ -90,32 +116,24 @@ func parseCliFallback(squeue []byte) ([]JobMetrics, error) {
 				}{"0": {Mem: mem}},
 			},
 		}
-		if metric.EndTime == "N/A" {
-			openapiJobMetric.EndTime = -1
-		} else if t, err := time.Parse(layout, metric.EndTime); err == nil {
-			openapiJobMetric.EndTime = float64(t.Unix())
-		} else {
-			slog.Error(fmt.Sprintf("unexpected time val: %s", metric.EndTime))
-			return nil, err
-		}
 		jobMetrics = append(jobMetrics, openapiJobMetric)
 	}
 	return jobMetrics, nil
 }
 
-type UserJobMetrics struct {
+type UserJobMetric struct {
 	stateJobCount map[string]float64
 	totalJobCount float64
 	allocMemory   float64
 	allocCpu      float64
 }
 
-func parseUserJobMetrics(jobMetrics []JobMetrics) map[string]*UserJobMetrics {
-	userMetricMap := make(map[string]*UserJobMetrics)
+func parseUserJobMetrics(jobMetrics []JobMetric) map[string]*UserJobMetric {
+	userMetricMap := make(map[string]*UserJobMetric)
 	for _, jobMetric := range jobMetrics {
 		metric, ok := userMetricMap[jobMetric.UserName]
 		if !ok {
-			metric = &UserJobMetrics{
+			metric = &UserJobMetric{
 				stateJobCount: make(map[string]float64),
 			}
 		}
@@ -128,18 +146,18 @@ func parseUserJobMetrics(jobMetrics []JobMetrics) map[string]*UserJobMetrics {
 	return userMetricMap
 }
 
-type AccountMetrics struct {
+type AccountMetric struct {
 	allocMem      float64
 	allocCpu      float64
 	stateJobCount map[string]float64
 }
 
-func parseAccountMetrics(jobs []JobMetrics) map[string]*AccountMetrics {
-	accountMap := make(map[string]*AccountMetrics)
+func parseAccountMetrics(jobs []JobMetric) map[string]*AccountMetric {
+	accountMap := make(map[string]*AccountMetric)
 	for _, job := range jobs {
 		metric, ok := accountMap[job.Account]
 		if !ok {
-			metric = &AccountMetrics{
+			metric = &AccountMetric{
 				stateJobCount: make(map[string]float64),
 			}
 			accountMap[job.Account] = metric
@@ -155,7 +173,7 @@ type PartitionJobMetric struct {
 	partitionState map[string]float64
 }
 
-func parsePartitionJobMetrics(jobs []JobMetrics) map[string]*PartitionJobMetric {
+func parsePartitionJobMetrics(jobs []JobMetric) map[string]*PartitionJobMetric {
 	partitionMetric := make(map[string]*PartitionJobMetric)
 	for _, job := range jobs {
 		metric, ok := partitionMetric[job.Partition]
@@ -170,7 +188,7 @@ func parsePartitionJobMetrics(jobs []JobMetrics) map[string]*PartitionJobMetric 
 	return partitionMetric
 }
 
-type JobsController struct {
+type JobsCollector struct {
 	// collector state
 	fetcher      SlurmFetcher
 	fallback     bool
@@ -191,10 +209,10 @@ type JobsController struct {
 	jobScrapeError    prometheus.Counter
 }
 
-func NewJobsController(config *Config) *JobsController {
+func NewJobsController(config *Config) *JobsCollector {
 	cliOpts := config.cliOpts
 	fetcher := config.traceConf.sharedFetcher
-	return &JobsController{
+	return &JobsCollector{
 		fetcher:  fetcher,
 		fallback: cliOpts.fallback,
 		// individual job metrics
@@ -215,7 +233,7 @@ func NewJobsController(config *Config) *JobsController {
 	}
 }
 
-func (jc *JobsController) Describe(ch chan<- *prometheus.Desc) {
+func (jc *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.jobAllocCpus
 	ch <- jc.jobAllocMem
 	ch <- jc.userJobStateTotal
@@ -229,7 +247,7 @@ func (jc *JobsController) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.jobScrapeError.Desc()
 }
 
-func (jc *JobsController) Collect(ch chan<- prometheus.Metric) {
+func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
 		ch <- jc.jobScrapeError
 	}()
@@ -240,7 +258,7 @@ func (jc *JobsController) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.Duration().Milliseconds()))
-	var jobMetrics []JobMetrics
+	var jobMetrics []JobMetric
 	if jc.fallback {
 		jobMetrics, err = parseCliFallback(squeue)
 	} else {

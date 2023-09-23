@@ -17,7 +17,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-type NodeMetrics struct {
+type NodeMetric struct {
 	Hostname    string   `json:"hostname"`
 	Cpus        float64  `json:"cpus"`
 	RealMemory  float64  `json:"real_memory"`
@@ -32,12 +32,21 @@ type NodeMetrics struct {
 }
 
 type sinfoResponse struct {
-	Meta   map[string]interface{} `json:"meta"`
-	Errors []string               `json:"errors"`
-	Nodes  []NodeMetrics          `json:"nodes"`
+	Meta struct {
+		SlurmVersion struct {
+			Version struct {
+				Major int `json:"major"`
+				Micro int `json:"micro"`
+				Minor int `json:"minor"`
+			} `json:"version"`
+			Release string `json:"release"`
+		} `json:"Slurm"`
+	} `json:"meta"`
+	Errors []string     `json:"errors"`
+	Nodes  []NodeMetric `json:"nodes"`
 }
 
-func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetrics, error) {
+func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetric, error) {
 	squeue := sinfoResponse{}
 	err := json.Unmarshal(jsonNodeList, &squeue)
 	if err != nil {
@@ -56,13 +65,13 @@ func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetrics, error) {
 type NAbleFloat float64
 
 func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
-	if string(data) == `"N/A"` {
-		*naf = 0
-		return nil
-	}
 	var fString string
 	if err := json.Unmarshal(data, &fString); err != nil {
 		return err
+	}
+	if fString == "N/A" {
+		*naf = 0
+		return nil
 	}
 	var f float64
 	if err := json.Unmarshal([]byte(fString), &f); err != nil {
@@ -72,8 +81,8 @@ func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
-	nodeMetrics := make(map[string]*NodeMetrics, 0)
+func parseNodeCliFallback(sinfo []byte) ([]NodeMetric, error) {
+	nodeMetrics := make(map[string]*NodeMetric, 0)
 	for i, line := range bytes.Split(bytes.Trim(sinfo, "\n"), []byte("\n")) {
 		var metric struct {
 			Hostname   string     `json:"n"`
@@ -95,19 +104,19 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
 		if len(cpuStates) != 4 {
 			return nil, fmt.Errorf("unexpected cpu state format. Got %s", metric.CpuState)
 		}
-		allocated, err := strconv.Atoi(cpuStates[0])
+		allocated, err := strconv.ParseFloat(cpuStates[0], 64)
 		if err != nil {
 			return nil, err
 		}
-		idle, err := strconv.Atoi(cpuStates[1])
+		idle, err := strconv.ParseFloat(cpuStates[1], 64)
 		if err != nil {
 			return nil, err
 		}
-		other, err := strconv.Atoi(cpuStates[2])
+		other, err := strconv.ParseFloat(cpuStates[2], 64)
 		if err != nil {
 			return nil, err
 		}
-		total, err := strconv.Atoi(cpuStates[3])
+		total, err := strconv.ParseFloat(cpuStates[3], 64)
 		if err != nil {
 			return nil, err
 		}
@@ -116,33 +125,33 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetrics, error) {
 			nodeMetric.Partitions = append(nodeMetric.Partitions, metric.Partition)
 			states := strings.Split(nodeMetric.State, "&")
 			if !slices.Contains(states, metric.State) {
-				// nodes can have multiple states. Our query puts them on seperate lines
+				// nodes can have multiple states. Our query puts them on separate lines
 				nodeMetric.State += "&" + metric.State
 			}
 		} else {
-			nodeMetrics[metric.Hostname] = &NodeMetrics{
+			nodeMetrics[metric.Hostname] = &NodeMetric{
 				Hostname:    metric.Hostname,
-				Cpus:        float64(total),
+				Cpus:        total,
 				RealMemory:  metric.RealMemory,
 				FreeMemory:  float64(metric.FreeMemory),
 				Partitions:  []string{metric.Partition},
 				State:       metric.State,
 				AllocMemory: metric.RealMemory - float64(metric.FreeMemory),
-				AllocCpus:   float64(allocated),
-				IdleCpus:    float64(idle),
+				AllocCpus:   allocated,
+				IdleCpus:    idle,
 				Weight:      metric.Weight,
 				CpuLoad:     float64(metric.CpuLoad),
 			}
 		}
 	}
-	values := make([]NodeMetrics, 0)
+	values := make([]NodeMetric, 0)
 	for _, val := range nodeMetrics {
 		values = append(values, *val)
 	}
 	return values, nil
 }
 
-type PartitionMetrics struct {
+type PartitionMetric struct {
 	Cpus        float64
 	RealMemory  float64
 	FreeMemory  float64
@@ -153,13 +162,13 @@ type PartitionMetrics struct {
 	Weight      float64
 }
 
-func fetchNodePartitionMetrics(nodes []NodeMetrics) map[string]*PartitionMetrics {
-	partitions := make(map[string]*PartitionMetrics)
+func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
+	partitions := make(map[string]*PartitionMetric)
 	for _, node := range nodes {
 		for _, p := range node.Partitions {
 			partition, ok := partitions[p]
 			if !ok {
-				partition = new(PartitionMetrics)
+				partition = new(PartitionMetric)
 				partitions[p] = partition
 			}
 			partition.Cpus += node.Cpus
@@ -180,15 +189,15 @@ type PerStateMetric struct {
 	Count float64
 }
 
-type CpuSummaryMetrics struct {
+type CpuSummaryMetric struct {
 	Total    float64
 	Idle     float64
 	Load     float64
 	PerState map[string]*PerStateMetric
 }
 
-func fetchNodeTotalCpuMetrics(nodes []NodeMetrics) *CpuSummaryMetrics {
-	cpuSummaryMetrics := &CpuSummaryMetrics{
+func fetchNodeTotalCpuMetrics(nodes []NodeMetric) *CpuSummaryMetric {
+	cpuSummaryMetrics := &CpuSummaryMetric{
 		PerState: make(map[string]*PerStateMetric),
 	}
 	for _, node := range nodes {
@@ -205,14 +214,14 @@ func fetchNodeTotalCpuMetrics(nodes []NodeMetrics) *CpuSummaryMetrics {
 	return cpuSummaryMetrics
 }
 
-type MemSummaryMetrics struct {
+type MemSummaryMetric struct {
 	AllocMemory float64
 	FreeMemory  float64
 	RealMemory  float64
 }
 
-func fetchNodeTotalMemMetrics(nodes []NodeMetrics) *MemSummaryMetrics {
-	memSummary := new(MemSummaryMetrics)
+func fetchNodeTotalMemMetrics(nodes []NodeMetric) *MemSummaryMetric {
+	memSummary := new(MemSummaryMetric)
 	for _, node := range nodes {
 		memSummary.AllocMemory += node.AllocMemory
 		memSummary.FreeMemory += node.FreeMemory
@@ -314,7 +323,7 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(nc.nodeScrapeDuration, prometheus.GaugeValue, float64(nc.fetcher.Duration().Milliseconds()))
-	var nodeMetrics []NodeMetrics
+	var nodeMetrics []NodeMetric
 	if nc.fallback {
 		nodeMetrics, err = parseNodeCliFallback(sinfo)
 	} else {

@@ -31,7 +31,7 @@ type TraceInfo struct {
 	Mem        float64 `json:"mem"`
 	Username   string  `json:"username"`
 	Hostname   string  `json:"hostname"`
-	// do not set explicilty, overriden on Add
+	// do not set explicitly, overridden on Add
 	uploadAt time.Time
 }
 
@@ -84,7 +84,7 @@ func (m *AtomicProcFetcher) Fetch() map[int64]*TraceInfo {
 	return cpy
 }
 
-type TraceController struct {
+type TraceCollector struct {
 	ProcessFetcher *AtomicProcFetcher
 	squeueFetcher  SlurmFetcher
 	fallback       bool
@@ -99,9 +99,9 @@ type TraceController struct {
 	readBytes    *prometheus.Desc
 }
 
-func NewTraceController(config *Config) *TraceController {
+func NewTraceCollector(config *Config) *TraceCollector {
 	traceConfig := config.traceConf
-	return &TraceController{
+	return &TraceCollector{
 		ProcessFetcher: NewAtomicProFetcher(traceConfig.rate),
 		squeueFetcher:  traceConfig.sharedFetcher,
 		fallback:       config.cliOpts.fallback,
@@ -117,7 +117,7 @@ func NewTraceController(config *Config) *TraceController {
 	}
 }
 
-func (c *TraceController) Describe(ch chan<- *prometheus.Desc) {
+func (c *TraceCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.jobAllocMem
 	ch <- c.jobAllocCpus
 	ch <- c.pid
@@ -128,14 +128,14 @@ func (c *TraceController) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.readBytes
 }
 
-func (c *TraceController) Collect(ch chan<- prometheus.Metric) {
+func (c *TraceCollector) Collect(ch chan<- prometheus.Metric) {
 	procs := c.ProcessFetcher.Fetch()
 	squeue, err := c.squeueFetcher.Fetch()
 	if err != nil {
 		slog.Debug(fmt.Sprintf("squeue fetch failed with %q", err))
 		return
 	}
-	var jobMetrics []JobMetrics
+	var jobMetrics []JobMetric
 	if c.fallback {
 		jobMetrics, err = parseCliFallback(squeue)
 	} else {
@@ -162,7 +162,7 @@ func (c *TraceController) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func (c *TraceController) uploadTrace(w http.ResponseWriter, r *http.Request) {
+func (c *TraceCollector) uploadTrace(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		defer r.Body.Close()
 		var info TraceInfo
