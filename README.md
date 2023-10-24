@@ -22,7 +22,6 @@ profiling and optimization consideration.
 Golang >=20 is required. From there, follow the `justfile` or run `just prod` to start a dev server.
 You can also install the exporter directly with `go install github.com/rivosinc/prometheus-slurm-exporter@latest`. Then you can run `prometheus-slurm-exporter -h`.
 
-
 ```bash
 # example installation
 $ go install github.com/rivosinc/prometheus-slurm-exporter@latest
@@ -33,6 +32,18 @@ $ prometheus-slurm-exporter -h
 # probably the most common invocation
 $ prometheus-slurm-exporter -slurm.cli-fallback
 ```
+
+Example prometheus config:
+
+```yaml
+  - job_name: 'slurm-prod-scraper'
+    scrape_interval: 30s # For the best experience, this should be at least 2x POLL_LIMIT
+    scrape_timeout: 30s
+    static_configs:
+        - targets: ['path.to.exporter:9092']
+```
+
+We've also uploaded a example [dashboard](https://grafana.com/grafana/dashboards/19835-slurm-exporter) to help users get started. If the link doesn't work try import by Id: `19835`
 
 ### Job Tracing
 Job tracing is default disabled. To enable it simply add `-trace.enabled` to the arg list. This will enable endpoint `/trace` by default (configurable, see help page).
