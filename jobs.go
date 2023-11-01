@@ -71,7 +71,8 @@ func (nat *NAbleTime) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &tString); err != nil {
 		return err
 	}
-	if tString == "N/A" {
+	nullSet := map[string]struct{}{"N/A": {}, "NONE": {}}
+	if _, ok := nullSet[tString]; ok {
 		nat.Time = time.Time{}
 		return nil
 	}
