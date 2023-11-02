@@ -45,6 +45,7 @@ type CliOpts struct {
 	sinfo      []string
 	squeue     []string
 	lic        []string
+	sdiag      []string
 	licEnabled bool
 	fallback   bool
 }
@@ -71,6 +72,7 @@ func NewConfig() (*Config, error) {
 		squeue:     []string{"squeue", "--json"},
 		sinfo:      []string{"sinfo", "--json"},
 		lic:        []string{"scontrol", "show", "lic", "--json"},
+		sdiag:      []string{"sdiag", "--json"},
 		licEnabled: *slurmLicEnabled,
 		fallback:   *slurmCliFallback,
 	}
