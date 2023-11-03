@@ -32,6 +32,7 @@ var (
 	slurmSqueueOverride  = flag.String("slurm.squeue-cli", "", "squeue cli override")
 	slurmLicenseOverride = flag.String("slurm.lic-cli", "", "squeue cli override")
 	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
+	slurmDiagEnabled     = flag.Bool("slurm.collect-diags", false, "Collect daemon diagnostics stats from slurm")
 	slurmCliFallback     = flag.Bool("slurm.cli-fallback", false, "drop the --json arg and revert back to standard squeue for performance reasons")
 	logLevelMap          = map[string]slog.Level{
 		"debug": slog.LevelDebug,
@@ -42,12 +43,13 @@ var (
 )
 
 type CliOpts struct {
-	sinfo      []string
-	squeue     []string
-	lic        []string
-	sdiag      []string
-	licEnabled bool
-	fallback   bool
+	sinfo        []string
+	squeue       []string
+	lic          []string
+	sdiag        []string
+	licEnabled   bool
+	diagsEnabled bool
+	fallback     bool
 }
 
 type TraceConfig struct {
@@ -69,12 +71,13 @@ type Config struct {
 func NewConfig() (*Config, error) {
 	// defaults
 	cliOpts := CliOpts{
-		squeue:     []string{"squeue", "--json"},
-		sinfo:      []string{"sinfo", "--json"},
-		lic:        []string{"scontrol", "show", "lic", "--json"},
-		sdiag:      []string{"sdiag", "--json"},
-		licEnabled: *slurmLicEnabled,
-		fallback:   *slurmCliFallback,
+		squeue:       []string{"squeue", "--json"},
+		sinfo:        []string{"sinfo", "--json"},
+		lic:          []string{"scontrol", "show", "lic", "--json"},
+		sdiag:        []string{"sdiag", "--json"},
+		licEnabled:   *slurmLicEnabled,
+		diagsEnabled: *slurmDiagEnabled,
+		fallback:     *slurmCliFallback,
 	}
 	traceConf := TraceConfig{
 		enabled: *traceEnabled,
@@ -154,9 +157,14 @@ func initPromServer(config *Config) http.Handler {
 		http.HandleFunc(traceconf.path, traceController.uploadTrace)
 		prometheus.MustRegister(traceController)
 	}
-	if cliOpts := config.cliOpts; cliOpts.licEnabled {
+	cliOpts := config.cliOpts
+	if cliOpts.licEnabled {
 		slog.Info("licence collection enabled")
 		prometheus.MustRegister(NewLicCollector(config))
+	}
+	if cliOpts.diagsEnabled {
+		slog.Info("daemon diagnostic collection enabled")
+		prometheus.MustRegister(NewDiagsCollector(config))
 	}
 	return promhttp.Handler()
 }
