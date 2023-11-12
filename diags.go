@@ -42,6 +42,7 @@ type SdiagResponse struct {
 	} `json:"meta"`
 	Statistics struct {
 		ServerThreadCount int              `json:"server_thread_count"`
+		DBDAgentQueueSize int              `json:"dbd_agent_queue_size"`
 		RpcByUser         []UserRpcInfo    `json:"rpcs_by_user"`
 		RpcByMessageType  []MessageRpcInfo `json:"rpcs_by_message_type"`
 	}
@@ -68,19 +69,21 @@ type DiagnosticsCollector struct {
 	slurmTypeRpcAvgTime   *prometheus.Desc
 	slurmTypeRpcTotalTime *prometheus.Desc
 	// daemon metrics
-	slurmCtlThreadCount *prometheus.Desc
+	slurmCtlThreadCount    *prometheus.Desc
+	slurmDbdAgentQueueSize *prometheus.Desc
 }
 
 func NewDiagsCollector(config *Config) *DiagnosticsCollector {
 	cliOpts := config.cliOpts
 	return &DiagnosticsCollector{
-		fetcher:               NewCliFetcher(config.cliOpts.sdiag...),
-		slurmUserRpcCount:     prometheus.NewDesc("slurm_rpc_user_count", "slurm rpc count per user", []string{"user"}, nil),
-		slurmUserRpcTotalTime: prometheus.NewDesc("slurm_rpc_user_total_time", "slurm rpc avg time per user", []string{"user"}, nil),
-		slurmTypeRpcCount:     prometheus.NewDesc("slurm_rpc_msg_type_count", "slurm rpc count per message type", []string{"type"}, nil),
-		slurmTypeRpcAvgTime:   prometheus.NewDesc("slurm_rpc_msg_type_avg_time", "slurm rpc total time consumed per message type", []string{"type"}, nil),
-		slurmTypeRpcTotalTime: prometheus.NewDesc("slurm_rpc_msg_type_total_time", "slurm rpc avg time per message type", []string{"type"}, nil),
-		slurmCtlThreadCount:   prometheus.NewDesc("slurm_daemon_thread_count", "slurm daemon thread count", nil, nil),
+		fetcher:                NewCliFetcher(config.cliOpts.sdiag...),
+		slurmUserRpcCount:      prometheus.NewDesc("slurm_rpc_user_count", "slurm rpc count per user", []string{"user"}, nil),
+		slurmUserRpcTotalTime:  prometheus.NewDesc("slurm_rpc_user_total_time", "slurm rpc avg time per user", []string{"user"}, nil),
+		slurmTypeRpcCount:      prometheus.NewDesc("slurm_rpc_msg_type_count", "slurm rpc count per message type", []string{"type"}, nil),
+		slurmTypeRpcAvgTime:    prometheus.NewDesc("slurm_rpc_msg_type_avg_time", "slurm rpc total time consumed per message type", []string{"type"}, nil),
+		slurmTypeRpcTotalTime:  prometheus.NewDesc("slurm_rpc_msg_type_total_time", "slurm rpc avg time per message type", []string{"type"}, nil),
+		slurmCtlThreadCount:    prometheus.NewDesc("slurm_daemon_thread_count", "slurm daemon thread count", nil, nil),
+		slurmDbdAgentQueueSize: prometheus.NewDesc("slurm_dbd_agent_queue_size", "slurmDbd queue size. Number of threads interacting with SlrumDBD. Will grow rapidly if DB is down or under stress", nil, nil),
 		diagScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_diag_scrape_error",
 			Help: "slurm diag scrape erro",
@@ -96,6 +99,7 @@ func (sc *DiagnosticsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- sc.slurmTypeRpcAvgTime
 	ch <- sc.slurmTypeRpcTotalTime
 	ch <- sc.slurmCtlThreadCount
+	ch <- sc.slurmDbdAgentQueueSize
 	ch <- sc.diagScrapeDuration
 	ch <- sc.diagScrapeError.Desc()
 }
@@ -126,6 +130,7 @@ func (sc *DiagnosticsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	ch <- prometheus.MustNewConstMetric(sc.slurmCtlThreadCount, prometheus.GaugeValue, float64(sdiagResponse.Statistics.ServerThreadCount))
+	ch <- prometheus.MustNewConstMetric(sc.slurmDbdAgentQueueSize, prometheus.GaugeValue, float64(sdiagResponse.Statistics.DBDAgentQueueSize))
 	for _, userRpcInfo := range sdiagResponse.Statistics.RpcByUser {
 		emitNonZero(sc.slurmUserRpcCount, float64(userRpcInfo.Count), userRpcInfo.User)
 		emitNonZero(sc.slurmUserRpcTotalTime, float64(userRpcInfo.TotalTime), userRpcInfo.User)
