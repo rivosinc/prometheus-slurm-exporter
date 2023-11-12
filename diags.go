@@ -62,7 +62,6 @@ type DiagnosticsCollector struct {
 	diagScrapeDuration *prometheus.Desc
 	// user rpc metrics
 	slurmUserRpcCount     *prometheus.Desc
-	slurmUserRpcAvgTime   *prometheus.Desc
 	slurmUserRpcTotalTime *prometheus.Desc
 	// type rpc metrics
 	slurmTypeRpcCount     *prometheus.Desc
@@ -77,7 +76,6 @@ func NewDiagsCollector(config *Config) *DiagnosticsCollector {
 	return &DiagnosticsCollector{
 		fetcher:               NewCliFetcher(config.cliOpts.sdiag...),
 		slurmUserRpcCount:     prometheus.NewDesc("slurm_rpc_user_count", "slurm rpc count per user", []string{"user"}, nil),
-		slurmUserRpcAvgTime:   prometheus.NewDesc("slurm_rpc_user_avg_time", "slurm rpc total time consumed per user", []string{"user"}, nil),
 		slurmUserRpcTotalTime: prometheus.NewDesc("slurm_rpc_user_total_time", "slurm rpc avg time per user", []string{"user"}, nil),
 		slurmTypeRpcCount:     prometheus.NewDesc("slurm_rpc_msg_type_count", "slurm rpc count per message type", []string{"type"}, nil),
 		slurmTypeRpcAvgTime:   prometheus.NewDesc("slurm_rpc_msg_type_avg_time", "slurm rpc total time consumed per message type", []string{"type"}, nil),
@@ -93,7 +91,6 @@ func NewDiagsCollector(config *Config) *DiagnosticsCollector {
 
 func (sc *DiagnosticsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- sc.slurmUserRpcCount
-	ch <- sc.slurmUserRpcAvgTime
 	ch <- sc.slurmUserRpcTotalTime
 	ch <- sc.slurmTypeRpcCount
 	ch <- sc.slurmTypeRpcAvgTime
@@ -131,7 +128,6 @@ func (sc *DiagnosticsCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(sc.slurmCtlThreadCount, prometheus.GaugeValue, float64(sdiagResponse.Statistics.ServerThreadCount))
 	for _, userRpcInfo := range sdiagResponse.Statistics.RpcByUser {
 		emitNonZero(sc.slurmUserRpcCount, float64(userRpcInfo.Count), userRpcInfo.User)
-		emitNonZero(sc.slurmUserRpcAvgTime, float64(userRpcInfo.AvgTime), userRpcInfo.User)
 		emitNonZero(sc.slurmUserRpcTotalTime, float64(userRpcInfo.TotalTime), userRpcInfo.User)
 	}
 	for _, typeRpcInfo := range sdiagResponse.Statistics.RpcByMessageType {
