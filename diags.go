@@ -137,6 +137,6 @@ func (sc *DiagnosticsCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, typeRpcInfo := range sdiagResponse.Statistics.RpcByMessageType {
 		emitNonZero(sc.slurmTypeRpcAvgTime, float64(typeRpcInfo.AvgTime), typeRpcInfo.MessageType)
 		emitNonZero(sc.slurmTypeRpcCount, float64(typeRpcInfo.Count), typeRpcInfo.MessageType)
-		emitNonZero(sc.slurmUserRpcTotalTime, float64(typeRpcInfo.TotalTime), typeRpcInfo.MessageType)
+		emitNonZero(sc.slurmTypeRpcTotalTime, float64(typeRpcInfo.TotalTime), typeRpcInfo.MessageType)
 	}
 }
