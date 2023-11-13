@@ -111,17 +111,19 @@ func (sc *DiagnosticsCollector) Collect(ch chan<- prometheus.Metric) {
 	sdiag, err := sc.fetcher.Fetch()
 	if err != nil {
 		sc.diagScrapeError.Inc()
+		slog.Error(fmt.Sprintf("sdiag fetch error %q", err))
 		return
 	}
 	ch <- prometheus.MustNewConstMetric(sc.diagScrapeDuration, prometheus.GaugeValue, float64(sc.fetcher.Duration().Abs().Milliseconds()))
 	sdiagResponse, err := parseDiagMetrics(sdiag)
 	if err != nil {
 		sc.diagScrapeError.Inc()
+		slog.Error(fmt.Sprintf("diag parse error: %q", err))
 		return
 	}
 	if _, ok := sdiagResponse.Meta.Plugins["data_parser"]; !ok {
-		slog.Error("only the data_parser plugin is supported")
 		sc.diagScrapeError.Inc()
+		slog.Error("only the data_parser plugin is supported")
 		return
 	}
 	emitNonZero := func(desc *prometheus.Desc, val float64, label string) {

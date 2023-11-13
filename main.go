@@ -31,6 +31,7 @@ var (
 	slurmSinfoOverride   = flag.String("slurm.sinfo-cli", "", "sinfo cli override")
 	slurmSqueueOverride  = flag.String("slurm.squeue-cli", "", "squeue cli override")
 	slurmLicenseOverride = flag.String("slurm.lic-cli", "", "squeue cli override")
+	slurmDiagOverride    = flag.String("slurm.diag-cli", "", "sdiag cli override")
 	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
 	slurmDiagEnabled     = flag.Bool("slurm.collect-diags", false, "Collect daemon diagnostics stats from slurm")
 	slurmCliFallback     = flag.Bool("slurm.cli-fallback", false, "drop the --json arg and revert back to standard squeue for performance reasons")
@@ -120,6 +121,9 @@ func NewConfig() (*Config, error) {
 	}
 	if *slurmSinfoOverride != "" {
 		cliOpts.sinfo = strings.Split(*slurmSinfoOverride, " ")
+	}
+	if *slurmDiagOverride != "" {
+		cliOpts.sdiag = strings.Split(*slurmDiagOverride, " ")
 	}
 	if *traceRate != 0 {
 		traceConf.rate = *traceRate
