@@ -18,7 +18,7 @@ init:
   go mod tidy
   rm -rf venv
   python -m venv venv
-  {{vpython}} -m pip install pre-commit psutil requests
+  {{vpython}} -m pip install -U pip pre-commit psutil requests
 
 build:
   rm -rf {{build_dir}}
@@ -28,8 +28,12 @@ build:
 devel: build
   {{build_dir}}/slurm_exporter \
   -trace.enabled \
+  -slurm.collect-diags \
+  -slurm.collect-licenses \
   -slurm.squeue-cli "cat fixtures/squeue_out.json" \
-  -slurm.sinfo-cli "cat fixtures/sinfo_out.json"
+  -slurm.sinfo-cli "cat fixtures/sinfo_out.json" \
+  -slurm.diag-cli "cat fixtures/sdiag.json" \
+  -slurm.lic-cli "cat fixtures/license_out.json"
 
 prod: build
   {{build_dir}}/slurm_exporter -slurm.cli-fallback
