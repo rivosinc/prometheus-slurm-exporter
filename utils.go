@@ -146,6 +146,9 @@ func (f *MockFetcher) Duration() time.Duration {
 
 // convert slurm mem string to float64 bytes
 func MemToFloat(mem string) (float64, error) {
+	if num, err := strconv.ParseFloat(mem, 64); err == nil {
+		return num, nil
+	}
 	memUnits := map[string]int{
 		"M": 1e+6,
 		"G": 1e+9,
@@ -154,7 +157,7 @@ func MemToFloat(mem string) (float64, error) {
 	re := regexp.MustCompile(`^(?P<num>([0-9]*[.])?[0-9]+)(?P<memunit>G|M|T)$`)
 	matches := re.FindStringSubmatch(mem)
 	if len(matches) < 2 {
-		return -1, fmt.Errorf("mem string %s doesn't match regex %s", mem, re)
+		return -1, fmt.Errorf("mem string %s doesn't match regex %s nor is a float", mem, re)
 	}
 	// err here should be impossible due to regex
 	num, err := strconv.ParseFloat(matches[re.SubexpIndex("num")], 64)
