@@ -155,6 +155,9 @@ func TestConvertMemToFloat(t *testing.T) {
 		assert.Equal(e, n)
 		e *= 1e+3
 	}
+	n, err := MemToFloat("0")
+	assert.Nil(err)
+	assert.Zero(n)
 }
 
 func TestConvertMemToFloat_Sad(t *testing.T) {
