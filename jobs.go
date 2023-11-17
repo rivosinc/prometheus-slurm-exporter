@@ -81,7 +81,7 @@ func (nat *NAbleTime) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-func parseCliFallback(squeue []byte) ([]JobMetric, error) {
+func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetric, error) {
 	jobMetrics := make([]JobMetric, 0)
 	// convert our custom format to the openapi format we expect
 	for i, line := range bytes.Split(bytes.Trim(squeue, "\n"), []byte("\n")) {
@@ -97,7 +97,8 @@ func parseCliFallback(squeue []byte) ([]JobMetric, error) {
 		}
 		if err := json.Unmarshal(line, &metric); err != nil {
 			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
-			return nil, err
+			errorCounter.Inc()
+			continue
 		}
 		mem, err := MemToFloat(metric.Mem)
 		if err != nil {
@@ -261,7 +262,7 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.Duration().Milliseconds()))
 	var jobMetrics []JobMetric
 	if jc.fallback {
-		jobMetrics, err = parseCliFallback(squeue)
+		jobMetrics, err = parseCliFallback(squeue, jc.jobScrapeError)
 	} else {
 		jobMetrics, err = parseJobMetrics(squeue)
 	}

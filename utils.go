@@ -137,7 +137,20 @@ func (f *MockFetcher) Fetch() ([]byte, error) {
 	defer func(t time.Time) {
 		f.duration = time.Since(t)
 	}(time.Now())
-	return os.ReadFile(f.fixture)
+	file, err := os.ReadFile(f.fixture)
+	if err != nil {
+		return nil, err
+	}
+	// allow commenting in text files
+	sep := []byte("\n")
+	lines := bytes.Split(file, sep)
+	filtered := make([][]byte, 0)
+	for _, line := range lines {
+		if !bytes.HasPrefix(line, []byte("#")) {
+			filtered = append(filtered, line)
+		}
+	}
+	return bytes.Join(filtered, sep), nil
 }
 
 func (f *MockFetcher) Duration() time.Duration {
