@@ -137,7 +137,7 @@ func (c *TraceCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	var jobMetrics []JobMetric
 	if c.fallback {
-		jobMetrics, err = parseCliFallback(squeue)
+		jobMetrics, err = parseCliFallback(squeue, prometheus.NewCounter(prometheus.CounterOpts{}))
 	} else {
 		jobMetrics, err = parseJobMetrics(squeue)
 	}

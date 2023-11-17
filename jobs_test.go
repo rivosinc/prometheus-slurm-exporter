@@ -9,10 +9,19 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 )
 
 var MockJobInfoFetcher = &MockFetcher{fixture: "fixtures/squeue_out.json"}
+
+func CollectCounterValue(counter prometheus.Counter) float64 {
+	metricChan := make(chan prometheus.Metric, 1)
+	counter.Collect(metricChan)
+	dtoMetric := new(dto.Metric)
+	(<-metricChan).Write(dtoMetric)
+	return dtoMetric.GetCounter().GetValue()
+}
 
 func TestNewJobsController(t *testing.T) {
 	assert := assert.New(t)
@@ -53,9 +62,11 @@ func TestParseCliFallback(t *testing.T) {
 	fetcher := MockFetcher{fixture: "fixtures/squeue_fallback.txt"}
 	data, err := fetcher.Fetch()
 	assert.Nil(err)
-	metrics, err := parseCliFallback(data)
+	counter := prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"})
+	metrics, err := parseCliFallback(data, counter)
 	assert.Nil(err)
 	assert.NotEmpty(metrics)
+	assert.Equal(2., CollectCounterValue(counter))
 }
 
 func TestUserJobMetric(t *testing.T) {
