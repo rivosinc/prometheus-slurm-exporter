@@ -114,4 +114,4 @@ Or by passing explicit cmdline args, exp.
     else:
         for trace in wrapper.poll_info():
             resp = requests.post(args.endpoint, json=dataclasses.asdict(trace))
-            args.verbose and print(dataclasses.asdict(trace), resp.json())
+            args.verbose and print(dataclasses.asdict(trace), resp)
