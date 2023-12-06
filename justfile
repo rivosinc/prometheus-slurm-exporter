@@ -45,3 +45,8 @@ test:
 
 fmt:
   go fmt
+
+ctest:
+  export LD_LIBRARY_PATH=/usr/lib64/slurm
+  gcc cslurm.c -L/usr/lib64/slurm -lslurmfull -g -o build/cslurm
+  ./build/cslurm
