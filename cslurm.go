@@ -1,3 +1,5 @@
+//go:build exclude
+
 package main
 
 // #cgo LDFLAGS: -L /usr/lib64/slurm -lslurmfull
