@@ -46,7 +46,9 @@ test:
 fmt:
   go fmt
 
-ctest:
-  export LD_LIBRARY_PATH=/usr/lib64/slurm
-  gcc cslurm.c -L/usr/lib64/slurm -lslurmfull -g -o build/cslurm
-  ./build/cslurm
+docker-ctest:
+  rm -rf {{build_dir}} && mkdir -p {{build_dir}}
+  gcc cslurm.c -I/usr/lib64/include -L/usr/lib64/lib/slurm -lslurmfull -g -o build/cslurm
+  # technically this should be ok to run natively...
+  if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
+  LD_LIBRARY_PATH=/usr/lib64/lib/slurm/ ./build/cslurm
