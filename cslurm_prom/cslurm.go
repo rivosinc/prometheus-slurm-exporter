@@ -1,13 +1,11 @@
-//go:build exclude
+package cslurm_prom
 
-package main
-
-// #cgo LDFLAGS: -L /usr/lib64/slurm -lslurmfull
 // #include <slurm/slurm.h>
 // #include <stdlib.h>
 import "C"
 
 import (
+	"os"
 	"testing"
 	"unsafe"
 
@@ -18,6 +16,14 @@ type SlurmVersion struct {
 	Major int
 	Micro int
 	Minor int
+}
+
+func init() {
+	slurm_conf, ok := os.LookupEnv("SLURM_CONF")
+	if !ok {
+		slurm_conf = "/etc/slurm/slurm.conf"
+	}
+	C.slurm_init(C.CString(slurm_conf))
 }
 
 func CGetPartitions() int {

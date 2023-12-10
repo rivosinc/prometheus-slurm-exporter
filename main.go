@@ -175,6 +175,7 @@ func initPromServer(config *Config) http.Handler {
 
 func main() {
 	flag.Parse()
+
 	config, err := NewConfig()
 	if err != nil {
 		log.Fatalf("config failed to load with error %q", err)

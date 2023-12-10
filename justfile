@@ -23,7 +23,7 @@ init:
 build:
   rm -rf {{build_dir}}
   mkdir {{build_dir}}
-  go build -o {{build_dir}}/slurm_exporter .
+  CGO_ENABLED=0 go build -o {{build_dir}}/slurm_exporter .
 
 devel: build
   {{build_dir}}/slurm_exporter \
@@ -39,16 +39,18 @@ prod: build
   {{build_dir}}/slurm_exporter -slurm.cli-fallback
 
 test:
-  source venv/bin/activate && go test -coverprofile {{coverage}}.out
-  go tool cover -html {{coverage}}.out -o {{coverage}}.html
-  open {{coverage}}.html
+  source venv/bin/activate && CGO_ENABLED=0 go test
 
 fmt:
   go fmt
 
 docker-ctest:
   rm -rf {{build_dir}} && mkdir -p {{build_dir}}
-  gcc cslurm.c -I/usr/lib64/include -L/usr/lib64/lib/slurm -lslurmfull -g -o build/cslurm
+  g++ cslurm_prom/cslurm.cpp -I/usr/lib64/include -L/usr/lib64/lib/slurm -lslurmfull -g -o build/cslurm
   # technically this should be ok to run natively...
   if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
   LD_LIBRARY_PATH=/usr/lib64/lib/slurm/ ./build/cslurm
+
+ctest:
+  rm -rf {{build_dir}} && mkdir -p {{build_dir}}
+  CGO_CFLAGS="-I/usr/lib64/include" CGO_LDFLAGS="-L/usr/lib64/lib/slurm -lslurmfull" LD_LIBRARY_PATH=/usr/lib64/lib/slurm go test

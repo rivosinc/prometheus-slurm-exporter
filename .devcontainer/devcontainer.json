@@ -10,7 +10,6 @@
 	},
 	"features": {
 		"ghcr.io/devcontainers/features/github-cli:1": {},
-		"ghcr.io/guiyomh/features/just:0": {},
 		"ghcr.io/wxw-matt/devcontainer-features/command_runner:0": {}
 	}
 
