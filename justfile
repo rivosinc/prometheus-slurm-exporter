@@ -46,11 +46,11 @@ fmt:
 
 docker-ctest:
   rm -rf {{build_dir}} && mkdir -p {{build_dir}}
-  g++ cslurm_prom/cslurm.cpp -I/usr/lib64/include -L/usr/lib64/lib/slurm -lslurmfull -g -o build/cslurm
+  g++ cslurm.cpp -I/usr/lib64/include -L/usr/lib64/lib/slurm -lslurmfull -g -o build/cslurm
   # technically this should be ok to run natively...
   if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
   LD_LIBRARY_PATH=/usr/lib64/lib/slurm/ ./build/cslurm
 
-ctest:
-  rm -rf {{build_dir}} && mkdir -p {{build_dir}}
-  CGO_CFLAGS="-I/usr/lib64/include" CGO_LDFLAGS="-L/usr/lib64/lib/slurm -lslurmfull" LD_LIBRARY_PATH=/usr/lib64/lib/slurm go test
+test-all:
+  if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
+  source venv/bin/activate && CGO_CXXFLAGS="-I/usr/lib64/include" CGO_LDFLAGS="-L/usr/lib64/lib/slurm -lslurmfull" LD_LIBRARY_PATH=/usr/lib64/lib/slurm go test . ./slurmcprom

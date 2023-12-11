@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <slurm/slurm.h>
 #include "cslurm.hpp"
-#include "math.h"
 
 
 MetricExporter::MetricExporter()
@@ -54,6 +53,10 @@ int MetricExporter::enrichNodeInfo(node_info_t *node_ptr) {
     return SLURM_SUCCESS;
 }
 
+size_t MetricExporter::NumMetrics() {
+    return enrichedMetrics.size();
+}
+
 int MetricExporter::CollectNodeInfo() {
 	static partition_info_msg_t *old_part_ptr = NULL;
 	static node_info_msg_t *old_node_ptr = NULL;
@@ -91,11 +94,4 @@ void MetricExporter::Print() {
     for (auto const& p: enrichedMetrics) {
         std::cout << p.first << ":" << p.second.Partitions << "\n";
     }
-}
-
-int main() {
-    auto exporter = MetricExporter();
-    exporter.CollectNodeInfo();
-    exporter.Print();
-    return 0;
 }

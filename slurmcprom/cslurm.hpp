@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 Rivos Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 #include <slurm/slurm.h>
 #include <string>
 #include <unordered_map>
@@ -8,8 +12,8 @@ class PromNodeMetric
 private:
 
 public:
-    PromNodeMetric();
-    ~PromNodeMetric();
+    PromNodeMetric() {};
+    ~PromNodeMetric() {};
     std::string Hostname;
     uint16_t Cpus;
     uint64_t RealMemory;
@@ -23,9 +27,6 @@ public:
     uint32_t CpuLoad;
 };
 
-PromNodeMetric::PromNodeMetric() {};
-PromNodeMetric::~PromNodeMetric() {};
-
 class MetricExporter
 {
 private:
@@ -37,5 +38,6 @@ public:
     MetricExporter();
     ~MetricExporter();
     int CollectNodeInfo();
+    size_t NumMetrics();
     void Print();
 };

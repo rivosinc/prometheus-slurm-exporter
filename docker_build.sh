@@ -1,4 +1,8 @@
-#/bin/bash
+#!/bin/bash
+
+# SPDX-FileCopyrightText: 2023 Rivos Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
 
 SLURM_CONF_DIR=${SLURM_CONF_DIR:-'/etc/slurm'}
 MUNGE_KEY=${MUNGE_KEY:-'/etc/munge/munge.key'}

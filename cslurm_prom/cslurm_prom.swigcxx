@@ -1,4 +1,0 @@
-%module cslurm_prom
-%{
-    #include "cslurm.hpp"
-%}
