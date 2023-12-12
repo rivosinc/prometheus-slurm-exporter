@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#include <iostream>
 #include <cslurm.hpp>
 #include <assert.h>
+
+using namespace std;
 
 void TestNodeCollectorNullConf() {
     auto fetcher = NodeMetricFetcher("");
@@ -22,5 +25,6 @@ void TestNodeCollectorProvidedConf() {
 int main() {
     TestNodeCollectorNullConf();
     TestNodeCollectorProvidedConf();
+    cout << "all tests passed!\n";
     return 0;
 }

@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 build_dir := "./build"
+ld_library := "/usr/lib64/slurm"
+include_path := "/usr/lib64/include"
 set dotenv-load
 set shell := ["bash", "-ceo", "pipefail"]
 
@@ -11,10 +13,10 @@ default:
 
 gotest:
   if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
-  CGO_CXXFLAGS="-I/usr/lib64/include" CGO_LDFLAGS="-L/usr/lib64/lib/slurm -lslurmfull" LD_LIBRARY_PATH="/usr/lib64/lib/slurm:$LD_LIBRARY_PATH" go test
+  CGO_CXXFLAGS="-I{{include_path}}" CGO_LDFLAGS="-L{{ld_library}} -lslurmfull" LD_LIBRARY_PATH="{{ld_library}}" go test
 
 cpptest:
   if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
   rm -rf {{build_dir}} && mkdir -p {{build_dir}}
-  g++ tests/cslurm_test.cpp cslurm.cpp -I/usr/lib64/include -I. -L/usr/lib64/lib/slurm -lslurmfull -o {{build_dir}}/cslurm_test.out -g
-  LD_LIBRARY_PATH="/usr/lib64/lib/slurm" {{build_dir}}/cslurm_test.out
+  g++ tests/cslurm_test.cpp cslurm.cpp -I{{include_path}} -I. -L{{ld_library}} -lslurmfull -o {{build_dir}}/cslurm_test.out -g
+  LD_LIBRARY_PATH="{{ld_library}}" {{build_dir}}/cslurm_test.out

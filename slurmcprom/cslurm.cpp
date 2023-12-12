@@ -12,19 +12,14 @@ PromNodeMetric::~PromNodeMetric() {}
 
 NodeMetricFetcher::NodeMetricFetcher(string conf)
 {
-    if (conf == "") {
-        cout << "conf empty\n";
+    if (conf == "")
         slurm_init(NULL);
-    }
-    else {
-        cout << conf << "\n";
+    else
         slurm_init(conf.c_str());
-    }
     new_node_ptr = NULL;
     old_node_ptr = NULL;
     new_part_ptr = NULL;
     old_part_ptr = NULL;
-    cout << "init successful\n";
 }
 
 NodeMetricFetcher::~NodeMetricFetcher() {
@@ -70,10 +65,8 @@ size_t NodeMetricFetcher::NumMetrics() {
 }
 
 int NodeMetricFetcher::CollectNodeInfo() {
-	static partition_info_msg_t *old_part_ptr = NULL;
-	static node_info_msg_t *old_node_ptr = NULL;
     int error_code;
-    if (old_node_ptr) {
+    if (old_node_ptr != nullptr) {
         error_code = slurm_load_partitions(old_part_ptr->last_update, &new_part_ptr, SHOW_ALL);
         if (SLURM_SUCCESS == error_code)
             slurm_free_partition_info_msg(old_part_ptr);
@@ -82,12 +75,12 @@ int NodeMetricFetcher::CollectNodeInfo() {
             return SLURM_SUCCESS;
         }
     } else
-       error_code = slurm_load_partitions((time_t) NULL, &new_part_ptr, SHOW_ALL);
+       error_code = slurm_load_partitions((time_t) nullptr, &new_part_ptr, SHOW_ALL);
     if (SLURM_SUCCESS != error_code) return error_code;
-    if (old_node_ptr)
+    if (old_node_ptr != nullptr)
         error_code = slurm_load_node(old_node_ptr->last_update, &new_node_ptr, SHOW_ALL);
     else
-        error_code = slurm_load_node((time_t) NULL, &new_node_ptr, SHOW_ALL);
+        error_code = slurm_load_node((time_t) nullptr, &new_node_ptr, SHOW_ALL);
     if (SLURM_SUCCESS != error_code)
         return error_code;
     slurm_free_node_info_msg(old_node_ptr);

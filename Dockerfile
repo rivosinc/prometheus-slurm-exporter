@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 FROM --platform=linux/amd64 ubuntu:20.04
+SHELL ["/bin/bash", "-c"]
 ARG SLURM_VERSION="23-02-5-1"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIRBARY_PATH=/usr/lib64/lib/slurm
@@ -21,7 +22,7 @@ RUN apt-get update -y && apt-get install -y build-essential \
     ln -s /usr/bin/swig3.0 /usr/bin/swig
 # munge
 RUN printf '#!/bin/sh\nexit 0' > /usr/sbin/policy-rc.d && apt-get install -y libmunge-dev munge && apt-get autoclean && chown 0 /var/log/munge/munged.log
-# install slurm
+# install slurm to match our local env
 RUN mkdir -p /etc/slurm && \
     mkdir -p /usr/lib64 && \
     mkdir -p /var/spool/slurmd && \
@@ -29,7 +30,8 @@ RUN mkdir -p /etc/slurm && \
     tar -xf "slurm-${SLURM_VERSION}.tar.gz" && \
     cd "slurm-slurm-${SLURM_VERSION}" && \
     ./configure --prefix=/usr/lib64 --sysconfdir=/etc/slurm/ && \
-    make install
+    make install && \
+    mv /usr/lib64/lib/*/** /usr/lib64
 
 # install go deps
 RUN arch="" && \
@@ -40,5 +42,6 @@ RUN cargo install just
 # load project and cluster configs
 ADD . .
 ARG USER=$USER
+RUN ls
 RUN mv tmp_sconfs/slurm* /etc/slurm && mv tmp_sconfs/munge.key /etc/munge && \
     sed -i '/SlurmUser=/d' /etc/slurm/slurm.conf

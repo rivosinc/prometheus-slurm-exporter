@@ -4,6 +4,7 @@
 
 build_dir := "./build"
 coverage := "coverage"
+venvdir := "venv"
 vpython := "venv/bin/python3"
 
 # Implicitly source '.env' files when running commands.
@@ -16,9 +17,10 @@ default:
 
 init:
   go mod tidy
-  rm -rf venv
-  python -m venv venv
-  {{vpython}} -m pip install -U pip pre-commit psutil requests
+  rm -rf {{venvdir}}
+  python -m venv {{venvdir}}
+  {{venvdir}}/bin/python3 -m pip install -U pip pre-commit psutil requests
+  {{venvdir}}/bin/pre-commit install --install-hooks
 
 build:
   rm -rf {{build_dir}}
