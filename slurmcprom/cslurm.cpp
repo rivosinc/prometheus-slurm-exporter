@@ -23,6 +23,7 @@ NodeMetricFetcher::NodeMetricFetcher(string conf)
 }
 
 NodeMetricFetcher::~NodeMetricFetcher() {
+
     if (new_node_ptr)
         slurm_free_node_info_msg(new_node_ptr);
     if (old_node_ptr != new_node_ptr && old_node_ptr)

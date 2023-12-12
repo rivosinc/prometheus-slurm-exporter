@@ -32,6 +32,7 @@ RUN mkdir -p /etc/slurm && \
     ./configure --prefix=/usr/lib64 --sysconfdir=/etc/slurm/ && \
     make install && \
     mv /usr/lib64/lib/*/** /usr/lib64
+    make install
 
 # install go deps
 RUN arch="" && \
@@ -42,6 +43,5 @@ RUN cargo install just
 # load project and cluster configs
 ADD . .
 ARG USER=$USER
-RUN ls
 RUN mv tmp_sconfs/slurm* /etc/slurm && mv tmp_sconfs/munge.key /etc/munge && \
     sed -i '/SlurmUser=/d' /etc/slurm/slurm.conf

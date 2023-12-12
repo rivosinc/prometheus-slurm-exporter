@@ -13,6 +13,7 @@ from typing import Generator
 import argparse as ag
 import json
 import platform
+from datetime import datetime
 
 
 # must correlate with trace info struct
@@ -47,17 +48,18 @@ class ProcWrapper:
 
     def poll_info(self) -> Generator[TraceInfo, None, None]:
         while self.proc.poll() is None:
-            io_counters = self.proc.io_counters()
+            start = datetime.now()
             yield TraceInfo(
                 pid=self.proc.pid,
-                cpus=self.proc.cpu_percent(),
-                threads=self.proc.num_threads(),
-                write_bytes=io_counters.write_bytes,
-                read_bytes=io_counters.read_bytes,
-                mem=self.proc.memory_info().rss,
+                cpus=sum(c.cpu_percent(0.1) for c in self.proc.children(True)),
+                threads=sum(c.num_threads() for c in self.proc.children(True)),
+                write_bytes=sum(c.io_counters().write_bytes for c in self.proc.children(True)),
+                read_bytes=sum(c.io_counters().read_bytes for c in self.proc.children(True)),
+                mem=sum(c.memory_info().rss for c in self.proc.children(True)),
                 job_id=self.jobid,
             )
-            sleep(self.sample_rate)
+            durr = datetime.now() - start
+            sleep(max(self.sample_rate - durr.seconds, 0))
 
 
 if __name__ == "__main__":
@@ -112,5 +114,4 @@ Or by passing explicit cmdline args, exp.
     else:
         for trace in wrapper.poll_info():
             resp = requests.post(args.endpoint, json=dataclasses.asdict(trace))
-            if args.verbose:
-                print(resp)
+            args.verbose and print(dataclasses.asdict(trace), resp)
