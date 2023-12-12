@@ -6,8 +6,26 @@ package slurmcprom
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestCGetPartitions(t *testing.T) {
-	testCGetPartitions(t)
+func TestNodeMetricFetcherInit(t *testing.T) {
+	assert := assert.New(t)
+	fetcher := NewNodeMetricFetcher("")
+	defer DeleteNodeMetricFetcher(fetcher)
+	assert.Zero(fetcher.NumMetrics())
+	err := fetcher.CollectNodeInfo()
+	assert.Zero(err)
+	assert.NotZero(fetcher.NumMetrics())
+}
+
+func TestNodeMetricFetcherCustomConf(t *testing.T) {
+	assert := assert.New(t)
+	fetcher := NewNodeMetricFetcher("/etc/slurm/slurm.conf")
+	defer DeleteNodeMetricFetcher(fetcher)
+	assert.Zero(fetcher.NumMetrics())
+	err := fetcher.CollectNodeInfo()
+	assert.Zero(err)
+	assert.NotZero(fetcher.NumMetrics())
 }

@@ -10,5 +10,11 @@ default:
   just --list
 
 gotest:
-    if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
-    CGO_CXXFLAGS="-I/usr/lib64/include" CGO_LDFLAGS="-L/usr/lib64/lib/slurm -lslurmfull" LD_LIBRARY_PATH="/usr/lib64/lib/slurm:$LD_LIBRARY_PATH" go test
+  if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
+  CGO_CXXFLAGS="-I/usr/lib64/include" CGO_LDFLAGS="-L/usr/lib64/lib/slurm -lslurmfull" LD_LIBRARY_PATH="/usr/lib64/lib/slurm:$LD_LIBRARY_PATH" go test
+
+cpptest:
+  if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
+  rm -rf {{build_dir}} && mkdir -p {{build_dir}}
+  g++ tests/cslurm_test.cpp cslurm.cpp -I/usr/lib64/include -I. -L/usr/lib64/lib/slurm -lslurmfull -o {{build_dir}}/cslurm_test.out -g
+  LD_LIBRARY_PATH="/usr/lib64/lib/slurm" {{build_dir}}/cslurm_test.out

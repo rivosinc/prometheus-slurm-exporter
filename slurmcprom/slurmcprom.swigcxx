@@ -7,4 +7,5 @@
     #include "cslurm.hpp"
 %}
 
+%include "std_string.i"
 %include "cslurm.hpp"
