@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/exp/slog"
 )
 
@@ -33,7 +34,7 @@ type SlurmByteScraper interface {
 type SlurmMetricFetcher[M SlurmPrimitiveMetric] interface {
 	FetchMetrics() ([]M, error)
 	ScrapeDuration() time.Duration
-	ScrapeError() int64
+	ScrapeError() prometheus.Counter
 }
 
 type AtomicThrottledCache struct {
