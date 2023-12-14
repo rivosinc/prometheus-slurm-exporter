@@ -7,10 +7,13 @@ ARG SLURM_VERSION="23-02-5-1"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIRBARY_PATH=/usr/lib64/lib/slurm
 ENV PATH=/usr/lib64/bin:/usr/lib64/sbin:/root/.cargo/bin:/usr/local/go/bin:$PATH
+ENV ENV=docker
 RUN apt-get update -y && apt-get install -y build-essential \
     cargo \
-    libjson-c-dev \
     gdb \
+    git \
+    git-lfs \
+    libjson-c-dev \
     python3-venv \
     python-is-python3 \
     python3-pip \
@@ -30,8 +33,6 @@ RUN mkdir -p /etc/slurm && \
     tar -xf "slurm-${SLURM_VERSION}.tar.gz" && \
     cd "slurm-slurm-${SLURM_VERSION}" && \
     ./configure --prefix=/usr/lib64 --sysconfdir=/etc/slurm/ && \
-    make install && \
-    mv /usr/lib64/lib/*/** /usr/lib64
     make install
 
 # install go deps
