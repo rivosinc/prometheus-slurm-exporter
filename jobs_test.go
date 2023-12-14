@@ -40,7 +40,7 @@ func TestNewJobsController(t *testing.T) {
 
 func TestParseJobMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockJobInfoFetcher.Fetch()
+	fixture, err := MockJobInfoFetcher.FetchRawBytes()
 	assert.Nil(err)
 	jms, err := parseJobMetrics(fixture)
 	assert.Nil(err)
@@ -60,7 +60,7 @@ func TestParseJobMetrics(t *testing.T) {
 func TestParseCliFallback(t *testing.T) {
 	assert := assert.New(t)
 	fetcher := MockFetcher{fixture: "fixtures/squeue_fallback.txt"}
-	data, err := fetcher.Fetch()
+	data, err := fetcher.FetchRawBytes()
 	assert.Nil(err)
 	counter := prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"})
 	metrics, err := parseCliFallback(data, counter)
@@ -72,7 +72,7 @@ func TestParseCliFallback(t *testing.T) {
 func TestUserJobMetric(t *testing.T) {
 	// setup
 	assert := assert.New(t)
-	fixture, err := MockJobInfoFetcher.Fetch()
+	fixture, err := MockJobInfoFetcher.FetchRawBytes()
 	assert.Nil(err)
 	jms, err := parseJobMetrics(fixture)
 	assert.Nil(err)
@@ -137,7 +137,7 @@ func TestJobCollect_Fallback(t *testing.T) {
 
 func TestParsePartitionJobMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockJobInfoFetcher.Fetch()
+	fixture, err := MockJobInfoFetcher.FetchRawBytes()
 	assert.Nil(err)
 	jms, err := parseJobMetrics(fixture)
 	assert.Nil(err)

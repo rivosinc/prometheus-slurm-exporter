@@ -16,25 +16,21 @@ import (
 var MockNodeInfoFetcher = &MockFetcher{fixture: "fixtures/sinfo_out.json"}
 
 func TestParseNodeMetrics(t *testing.T) {
-	fixture, err := MockNodeInfoFetcher.Fetch()
-	if err != nil {
-		t.Fatalf("Failed to read file with %q", err)
-	}
-	metrics, err := parseNodeMetrics(fixture)
+	fetcher := CliJsonMetricFetcher{fetcher: MockNodeInfoFetcher, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{})}
+	nodeMetrics, err := fetcher.FetchMetrics()
 	if err != nil {
 		t.Fatalf("Failed to parse metrics with %s", err)
 	}
-	if len(metrics) == 0 {
+	if len(nodeMetrics) == 0 {
 		t.Fatal("No metrics received")
 	}
-	t.Logf("Node metrics collected %d", len(metrics))
+	t.Logf("Node metrics collected %d", len(nodeMetrics))
 }
 
 func TestPartitionMetric(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockNodeInfoFetcher.Fetch()
-	assert.NoError(err)
-	nodeMetrics, err := parseNodeMetrics(fixture)
+	fetcher := CliJsonMetricFetcher{fetcher: MockNodeInfoFetcher, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{})}
+	nodeMetrics, err := fetcher.FetchMetrics()
 	assert.Nil(err)
 	metrics := fetchNodePartitionMetrics(nodeMetrics)
 	assert.Equal(1, len(metrics))
@@ -50,9 +46,8 @@ func TestPartitionMetric(t *testing.T) {
 
 func TestNodeSummaryCpuMetric(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockNodeInfoFetcher.Fetch()
-	assert.NoError(err)
-	nodeMetrics, err := parseNodeMetrics(fixture)
+	fetcher := CliJsonMetricFetcher{fetcher: MockNodeInfoFetcher, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{})}
+	nodeMetrics, err := fetcher.FetchMetrics()
 	assert.Nil(err)
 	metrics := fetchNodeTotalCpuMetrics(nodeMetrics)
 	assert.Equal(4, len(metrics.PerState))
@@ -64,9 +59,8 @@ func TestNodeSummaryCpuMetric(t *testing.T) {
 
 func TestNodeSummaryMemoryMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockNodeInfoFetcher.Fetch()
-	assert.NoError(err)
-	nodeMetrics, err := parseNodeMetrics(fixture)
+	fetcher := CliJsonMetricFetcher{fetcher: MockNodeInfoFetcher, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{})}
+	nodeMetrics, err := fetcher.FetchMetrics()
 	assert.Nil(err)
 	metrics := fetchNodeTotalMemMetrics(nodeMetrics)
 	assert.Equal(114688., metrics.AllocMemory)
@@ -80,7 +74,7 @@ func TestNodeCollector(t *testing.T) {
 	assert.Nil(err)
 	nc := NewNodeCollecter(config)
 	// cache miss, use our mock fetcher
-	nc.fetcher = MockNodeInfoFetcher
+	nc.fetcher = &CliJsonMetricFetcher{fetcher: MockNodeInfoFetcher, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{})}
 	metricChan := make(chan prometheus.Metric)
 	go func() {
 		nc.Collect(metricChan)
@@ -100,7 +94,7 @@ func TestNodeDescribe(t *testing.T) {
 	config, err := NewConfig()
 	assert.Nil(err)
 	jc := NewNodeCollecter(config)
-	jc.fetcher = MockJobInfoFetcher
+	jc.fetcher = &CliJsonMetricFetcher{fetcher: MockNodeInfoFetcher, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{})}
 	go func() {
 		jc.Describe(ch)
 		close(ch)
@@ -114,10 +108,9 @@ func TestNodeDescribe(t *testing.T) {
 
 func TestParseFallbackNodeMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fetcher := &MockFetcher{fixture: "fixtures/sinfo_fallback.txt"}
-	data, err := fetcher.Fetch()
-	assert.Nil(err)
-	metrics, err := parseNodeCliFallback(data)
+	byteFetcher := &MockFetcher{fixture: "fixtures/sinfo_fallback.txt"}
+	fetcher := CliFallbackMetricFetcher{fetcher: byteFetcher, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{})}
+	metrics, err := fetcher.FetchMetrics()
 	assert.Nil(err)
 	assert.NotEmpty(metrics)
 	cs25idx := slices.IndexFunc(metrics, func(nm NodeMetric) bool { return nm.Hostname == "cs25" })

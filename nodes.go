@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/exp/slices"
@@ -46,10 +47,19 @@ type sinfoResponse struct {
 	Nodes  []NodeMetric `json:"nodes"`
 }
 
-func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetric, error) {
-	squeue := sinfoResponse{}
-	err := json.Unmarshal(jsonNodeList, &squeue)
+type CliJsonMetricFetcher struct {
+	fetcher      SlurmByteScraper
+	errorCounter prometheus.Counter
+	duration     time.Duration
+}
+
+func (cmf *CliJsonMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
+	squeue := new(sinfoResponse)
+	cliJson, err := cmf.fetcher.FetchRawBytes()
 	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(cliJson, squeue); err != nil {
 		slog.Error("Unmarshaling node metrics %q", err)
 		return nil, err
 	}
@@ -57,9 +67,18 @@ func parseNodeMetrics(jsonNodeList []byte) ([]NodeMetric, error) {
 		for _, e := range squeue.Errors {
 			slog.Error("Api error response %q", e)
 		}
+		cmf.errorCounter.Add(float64(len(squeue.Errors)))
 		return nil, errors.New(squeue.Errors[0])
 	}
 	return squeue.Nodes, nil
+}
+
+func (cmf *CliJsonMetricFetcher) ScrapeError() prometheus.Counter {
+	return cmf.errorCounter
+}
+
+func (cmf *CliJsonMetricFetcher) ScrapeDuration() time.Duration {
+	return cmf.fetcher.Duration()
 }
 
 type NAbleFloat float64
@@ -81,7 +100,18 @@ func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func parseNodeCliFallback(sinfo []byte) ([]NodeMetric, error) {
+type CliFallbackMetricFetcher struct {
+	fetcher      SlurmByteScraper
+	errorCounter prometheus.Counter
+	duration     time.Duration
+}
+
+func (cmf *CliFallbackMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
+	sinfo, err := cmf.fetcher.FetchRawBytes()
+	if err != nil {
+		cmf.errorCounter.Inc()
+		return nil, err
+	}
 	nodeMetrics := make(map[string]*NodeMetric, 0)
 	for i, line := range bytes.Split(bytes.Trim(sinfo, "\n"), []byte("\n")) {
 		var metric struct {
@@ -102,22 +132,27 @@ func parseNodeCliFallback(sinfo []byte) ([]NodeMetric, error) {
 		metric.FreeMemory *= 1e6
 		cpuStates := strings.Split(metric.CpuState, "/")
 		if len(cpuStates) != 4 {
+			cmf.errorCounter.Inc()
 			return nil, fmt.Errorf("unexpected cpu state format. Got %s", metric.CpuState)
 		}
 		allocated, err := strconv.ParseFloat(cpuStates[0], 64)
 		if err != nil {
+			cmf.errorCounter.Inc()
 			return nil, err
 		}
 		idle, err := strconv.ParseFloat(cpuStates[1], 64)
 		if err != nil {
+			cmf.errorCounter.Inc()
 			return nil, err
 		}
 		other, err := strconv.ParseFloat(cpuStates[2], 64)
 		if err != nil {
+			cmf.errorCounter.Inc()
 			return nil, err
 		}
 		total, err := strconv.ParseFloat(cpuStates[3], 64)
 		if err != nil {
+			cmf.errorCounter.Inc()
 			return nil, err
 		}
 		_ = other
@@ -184,6 +219,14 @@ func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
 	return partitions
 }
 
+func (cmf *CliFallbackMetricFetcher) ScrapeError() prometheus.Counter {
+	return cmf.errorCounter
+}
+
+func (cmf *CliFallbackMetricFetcher) ScrapeDuration() time.Duration {
+	return cmf.fetcher.Duration()
+}
+
 type PerStateMetric struct {
 	Cpus  float64
 	Count float64
@@ -232,8 +275,7 @@ func fetchNodeTotalMemMetrics(nodes []NodeMetric) *MemSummaryMetric {
 
 type NodesCollector struct {
 	// collector state
-	fetcher  SlurmFetcher
-	fallback bool
+	fetcher SlurmMetricFetcher[NodeMetric]
 	// partition summary metrics
 	partitionCpus        *prometheus.Desc
 	partitionRealMemory  *prometheus.Desc
@@ -260,11 +302,18 @@ type NodesCollector struct {
 
 func NewNodeCollecter(config *Config) *NodesCollector {
 	cliOpts := config.cliOpts
-	fetcher := NewCliFetcher(cliOpts.sinfo...)
-	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
+	byteScraper := NewCliFetcher(cliOpts.sinfo...)
+	byteScraper.cache = NewAtomicThrottledCache(config.pollLimit)
+	errorCounter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "slurm_node_scrape_error",
+		Help: "slurm node info scrape errors",
+	})
+	fetcher := &CliJsonMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+	if cliOpts.fallback {
+		fetcher = &CliJsonMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+	}
 	return &NodesCollector{
-		fetcher:  fetcher,
-		fallback: cliOpts.fallback,
+		fetcher: fetcher,
 		// partition stats
 		partitionCpus:        prometheus.NewDesc("slurm_partition_total_cpus", "Total cpus per partition", []string{"partition"}, nil),
 		partitionRealMemory:  prometheus.NewDesc("slurm_partition_real_mem", "Real mem per partition", []string{"partition"}, nil),
@@ -286,10 +335,7 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 		totalAllocMemory: prometheus.NewDesc("slurm_mem_alloc", "Total alloc mem", nil, nil),
 		// exporter stats
 		nodeScrapeDuration: prometheus.NewDesc("slurm_node_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.sinfo), nil, nil),
-		nodeScrapeErrors: prometheus.NewCounter(prometheus.CounterOpts{
-			Name: "slurm_node_scrape_error",
-			Help: "slurm node info scrape errors",
-		}),
+		nodeScrapeErrors:   fetcher.ScrapeError(),
 	}
 }
 
@@ -314,23 +360,11 @@ func (nc *NodesCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
-		ch <- nc.nodeScrapeErrors
+		ch <- nc.fetcher.ScrapeError()
 	}()
-	sinfo, err := nc.fetcher.Fetch()
+	nodeMetrics, err := nc.fetcher.FetchMetrics()
+	ch <- prometheus.MustNewConstMetric(nc.nodeScrapeDuration, prometheus.GaugeValue, float64(nc.fetcher.ScrapeDuration().Milliseconds()))
 	if err != nil {
-		slog.Error("node fetch error" + err.Error())
-		nc.nodeScrapeErrors.Inc()
-		return
-	}
-	ch <- prometheus.MustNewConstMetric(nc.nodeScrapeDuration, prometheus.GaugeValue, float64(nc.fetcher.Duration().Milliseconds()))
-	var nodeMetrics []NodeMetric
-	if nc.fallback {
-		nodeMetrics, err = parseNodeCliFallback(sinfo)
-	} else {
-		nodeMetrics, err = parseNodeMetrics(sinfo)
-	}
-	if err != nil {
-		nc.nodeScrapeErrors.Inc()
 		slog.Error("Failed to parse node metrics: " + err.Error())
 		return
 	}

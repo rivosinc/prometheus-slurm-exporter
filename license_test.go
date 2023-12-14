@@ -15,7 +15,7 @@ var MockLicFetcher = &MockFetcher{fixture: "fixtures/license_out.json"}
 func TestParseLicMetrics(t *testing.T) {
 	assert := assert.New(t)
 	fetcher := MockFetcher{fixture: "fixtures/license_out.json"}
-	data, err := fetcher.Fetch()
+	data, err := fetcher.FetchRawBytes()
 	assert.Nil(err)
 	lics, err := parseLicenseMetrics(data)
 	assert.Nil(err)

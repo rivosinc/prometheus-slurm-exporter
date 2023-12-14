@@ -192,7 +192,7 @@ func parsePartitionJobMetrics(jobs []JobMetric) map[string]*PartitionJobMetric {
 
 type JobsCollector struct {
 	// collector state
-	fetcher      SlurmFetcher
+	fetcher      SlurmByteScraper
 	fallback     bool
 	jobAllocCpus *prometheus.Desc
 	jobAllocMem  *prometheus.Desc
@@ -253,7 +253,7 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
 		ch <- jc.jobScrapeError
 	}()
-	squeue, err := jc.fetcher.Fetch()
+	squeue, err := jc.fetcher.FetchRawBytes()
 	if err != nil {
 		jc.jobScrapeError.Inc()
 		slog.Error(fmt.Sprintf("job fetch error %q", err))
