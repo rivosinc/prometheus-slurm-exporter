@@ -44,7 +44,7 @@ func parseLicenseMetrics(licList []byte) ([]LicenseMetric, error) {
 }
 
 type LicCollector struct {
-	fetcher        SlurmFetcher
+	fetcher        SlurmByteScraper
 	licTotal       *prometheus.Desc
 	licUsed        *prometheus.Desc
 	licFree        *prometheus.Desc
@@ -81,7 +81,7 @@ func (lc *LicCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
 		ch <- lc.licScrapeError
 	}()
-	licBytes, err := lc.fetcher.Fetch()
+	licBytes, err := lc.fetcher.FetchRawBytes()
 	if err != nil {
 		slog.Error(fmt.Sprintf("fetch error %q", err))
 		lc.licScrapeError.Inc()

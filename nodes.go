@@ -232,7 +232,7 @@ func fetchNodeTotalMemMetrics(nodes []NodeMetric) *MemSummaryMetric {
 
 type NodesCollector struct {
 	// collector state
-	fetcher  SlurmFetcher
+	fetcher  SlurmByteScraper
 	fallback bool
 	// partition summary metrics
 	partitionCpus        *prometheus.Desc
@@ -316,7 +316,7 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
 		ch <- nc.nodeScrapeErrors
 	}()
-	sinfo, err := nc.fetcher.Fetch()
+	sinfo, err := nc.fetcher.FetchRawBytes()
 	if err != nil {
 		slog.Error("node fetch error" + err.Error())
 		nc.nodeScrapeErrors.Inc()

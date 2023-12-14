@@ -19,11 +19,21 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+type SlurmPrimitiveMetric interface {
+	NodeMetric | JobMetric | DiagMetric
+}
+
 // interface for getting data from slurm
 // used for dep injection/ease of testing & for add slurmrestd support later
-type SlurmFetcher interface {
-	Fetch() ([]byte, error)
+type SlurmByteScraper interface {
+	FetchRawBytes() ([]byte, error)
 	Duration() time.Duration
+}
+
+type SlurmMetricFetcher[M SlurmPrimitiveMetric] interface {
+	FetchMetrics() ([]M, error)
+	ScrapeDuration() time.Duration
+	ScrapeError() int64
 }
 
 type AtomicThrottledCache struct {
@@ -76,7 +86,7 @@ type CliFetcher struct {
 	cache   *AtomicThrottledCache
 }
 
-func (cf *CliFetcher) Fetch() ([]byte, error) {
+func (cf *CliFetcher) FetchRawBytes() ([]byte, error) {
 	return cf.cache.fetchOrThrottle(cf.captureCli)
 }
 
@@ -133,7 +143,7 @@ type MockFetcher struct {
 	duration time.Duration
 }
 
-func (f *MockFetcher) Fetch() ([]byte, error) {
+func (f *MockFetcher) FetchRawBytes() ([]byte, error) {
 	defer func(t time.Time) {
 		f.duration = time.Since(t)
 	}(time.Now())

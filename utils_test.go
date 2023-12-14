@@ -51,7 +51,7 @@ func (f *MockFetchTriggered) Duration() time.Duration {
 
 type MockFetchErrored struct{}
 
-func (f *MockFetchErrored) Fetch() ([]byte, error) {
+func (f *MockFetchErrored) FetchRawBytes() ([]byte, error) {
 	return nil, errors.New("mock fetch error")
 }
 
@@ -62,7 +62,7 @@ func (f *MockFetchErrored) Duration() time.Duration {
 func TestCliFetcher(t *testing.T) {
 	assert := assert.New(t)
 	cliFetcher := NewCliFetcher("ls")
-	data, err := cliFetcher.Fetch()
+	data, err := cliFetcher.FetchRawBytes()
 	assert.Nil(err)
 	assert.NotNil(data)
 }
@@ -71,7 +71,7 @@ func TestCliFetcher_Timeout(t *testing.T) {
 	assert := assert.New(t)
 	cliFetcher := NewCliFetcher("sleep", "100")
 	cliFetcher.timeout = 0
-	data, err := cliFetcher.Fetch()
+	data, err := cliFetcher.FetchRawBytes()
 	assert.EqualError(err, "signal: killed")
 	assert.Nil(data)
 }
@@ -79,7 +79,7 @@ func TestCliFetcher_Timeout(t *testing.T) {
 func TestCliFetcher_EmptyArgs(t *testing.T) {
 	assert := assert.New(t)
 	cliFetcher := NewCliFetcher()
-	data, err := cliFetcher.Fetch()
+	data, err := cliFetcher.FetchRawBytes()
 	assert.EqualError(err, "need at least 1 args")
 	assert.Nil(data)
 }
@@ -87,7 +87,7 @@ func TestCliFetcher_EmptyArgs(t *testing.T) {
 func TestCliFetcher_ExitCodeCmd(t *testing.T) {
 	assert := assert.New(t)
 	cliFetcher := NewCliFetcher("ls", generateRandString(64))
-	data, err := cliFetcher.Fetch()
+	data, err := cliFetcher.FetchRawBytes()
 	assert.NotNil(err)
 	assert.Nil(data)
 }
@@ -97,7 +97,7 @@ func TestCliFetcher_StdErr(t *testing.T) {
 	// the rare case where stderr is written but exit code is still 0
 	cmd := `echo -e "error" 1>&2`
 	cliFetcher := NewCliFetcher("/bin/bash", "-c", cmd)
-	data, err := cliFetcher.Fetch()
+	data, err := cliFetcher.FetchRawBytes()
 	assert.NotNil(err)
 	assert.Nil(data)
 }

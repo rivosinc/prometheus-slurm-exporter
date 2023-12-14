@@ -14,7 +14,7 @@ import (
 func TestParseDiagJson(t *testing.T) {
 	assert := assert.New(t)
 	fetcher := MockFetcher{fixture: "fixtures/sdiag.json"}
-	sdiag, err := fetcher.Fetch()
+	sdiag, err := fetcher.FetchRawBytes()
 	assert.NoError(err)
 	resp, err := parseDiagMetrics(sdiag)
 	assert.NoError(err)

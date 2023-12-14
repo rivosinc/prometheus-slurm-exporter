@@ -16,7 +16,7 @@ import (
 var MockNodeInfoFetcher = &MockFetcher{fixture: "fixtures/sinfo_out.json"}
 
 func TestParseNodeMetrics(t *testing.T) {
-	fixture, err := MockNodeInfoFetcher.Fetch()
+	fixture, err := MockNodeInfoFetcher.FetchRawBytes()
 	if err != nil {
 		t.Fatalf("Failed to read file with %q", err)
 	}
@@ -32,7 +32,7 @@ func TestParseNodeMetrics(t *testing.T) {
 
 func TestPartitionMetric(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockNodeInfoFetcher.Fetch()
+	fixture, err := MockNodeInfoFetcher.FetchRawBytes()
 	assert.NoError(err)
 	nodeMetrics, err := parseNodeMetrics(fixture)
 	assert.Nil(err)
@@ -50,7 +50,7 @@ func TestPartitionMetric(t *testing.T) {
 
 func TestNodeSummaryCpuMetric(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockNodeInfoFetcher.Fetch()
+	fixture, err := MockNodeInfoFetcher.FetchRawBytes()
 	assert.NoError(err)
 	nodeMetrics, err := parseNodeMetrics(fixture)
 	assert.Nil(err)
@@ -64,7 +64,7 @@ func TestNodeSummaryCpuMetric(t *testing.T) {
 
 func TestNodeSummaryMemoryMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockNodeInfoFetcher.Fetch()
+	fixture, err := MockNodeInfoFetcher.FetchRawBytes()
 	assert.NoError(err)
 	nodeMetrics, err := parseNodeMetrics(fixture)
 	assert.Nil(err)
@@ -115,7 +115,7 @@ func TestNodeDescribe(t *testing.T) {
 func TestParseFallbackNodeMetrics(t *testing.T) {
 	assert := assert.New(t)
 	fetcher := &MockFetcher{fixture: "fixtures/sinfo_fallback.txt"}
-	data, err := fetcher.Fetch()
+	data, err := fetcher.FetchRawBytes()
 	assert.Nil(err)
 	metrics, err := parseNodeCliFallback(data)
 	assert.Nil(err)

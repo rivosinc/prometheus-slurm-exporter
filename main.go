@@ -57,7 +57,7 @@ type TraceConfig struct {
 	enabled       bool
 	path          string
 	rate          uint64
-	sharedFetcher SlurmFetcher
+	sharedFetcher SlurmByteScraper
 }
 
 type Config struct {
@@ -145,7 +145,7 @@ func NewConfig() (*Config, error) {
 	return config, nil
 }
 
-func (c *Config) SetFetcher(fetcher SlurmFetcher) {
+func (c *Config) SetFetcher(fetcher SlurmByteScraper) {
 	c.traceConf.sharedFetcher = fetcher
 }
 

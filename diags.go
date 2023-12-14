@@ -28,6 +28,13 @@ type MessageRpcInfo struct {
 	TotalTime   int    `json:"total_time"`
 }
 
+type DiagMetric struct {
+	ServerThreadCount int              `json:"server_thread_count"`
+	DBDAgentQueueSize int              `json:"dbd_agent_queue_size"`
+	RpcByUser         []UserRpcInfo    `json:"rpcs_by_user"`
+	RpcByMessageType  []MessageRpcInfo `json:"rpcs_by_message_type"`
+}
+
 type SdiagResponse struct {
 	Meta struct {
 		SlurmVersion struct {
@@ -40,14 +47,9 @@ type SdiagResponse struct {
 		} `json:"Slurm"`
 		Plugins map[string]string
 	} `json:"meta"`
-	Statistics struct {
-		ServerThreadCount int              `json:"server_thread_count"`
-		DBDAgentQueueSize int              `json:"dbd_agent_queue_size"`
-		RpcByUser         []UserRpcInfo    `json:"rpcs_by_user"`
-		RpcByMessageType  []MessageRpcInfo `json:"rpcs_by_message_type"`
-	}
-	Errors   []string `json:"errors"`
-	Warnings []string `json:"warnings"`
+	Statistics DiagMetric
+	Errors     []string `json:"errors"`
+	Warnings   []string `json:"warnings"`
 }
 
 func parseDiagMetrics(sdiagResp []byte) (*SdiagResponse, error) {
@@ -58,7 +60,7 @@ func parseDiagMetrics(sdiagResp []byte) (*SdiagResponse, error) {
 
 type DiagnosticsCollector struct {
 	// collector state
-	fetcher            SlurmFetcher
+	fetcher            SlurmByteScraper
 	diagScrapeError    prometheus.Counter
 	diagScrapeDuration *prometheus.Desc
 	// user rpc metrics
@@ -108,7 +110,7 @@ func (sc *DiagnosticsCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
 		ch <- sc.diagScrapeError
 	}()
-	sdiag, err := sc.fetcher.Fetch()
+	sdiag, err := sc.fetcher.FetchRawBytes()
 	if err != nil {
 		sc.diagScrapeError.Inc()
 		slog.Error(fmt.Sprintf("sdiag fetch error %q", err))

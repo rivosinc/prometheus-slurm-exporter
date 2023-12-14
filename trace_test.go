@@ -184,7 +184,7 @@ func TestPython3Wrapper(t *testing.T) {
 	assert := assert.New(t)
 	fetcher := NewCliFetcher("python3", "wrappers/proctrac.py", "--cmd", "sleep", "100", "--jobid=10", "--validate")
 	t.Logf("cmd: %+v", fetcher.args)
-	wrapperOut, err := fetcher.Fetch()
+	wrapperOut, err := fetcher.FetchRawBytes()
 	assert.Nil(err)
 	var info TraceInfo
 	json.Unmarshal(wrapperOut, &info)
