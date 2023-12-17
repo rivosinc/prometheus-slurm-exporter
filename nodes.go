@@ -50,10 +50,10 @@ type sinfoResponse struct {
 type CliJsonMetricFetcher struct {
 	fetcher      SlurmByteScraper
 	errorCounter prometheus.Counter
-	duration     time.Duration
+	cache        *AtomicThrottledCache[NodeMetric]
 }
 
-func (cmf *CliJsonMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
+func (cmf *CliJsonMetricFetcher) fetch() ([]NodeMetric, error) {
 	squeue := new(sinfoResponse)
 	cliJson, err := cmf.fetcher.FetchRawBytes()
 	if err != nil {
@@ -71,6 +71,10 @@ func (cmf *CliJsonMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
 		return nil, errors.New(squeue.Errors[0])
 	}
 	return squeue.Nodes, nil
+}
+
+func (cmf *CliJsonMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
+	return cmf.cache.FetchOrThrottle(cmf.fetch)
 }
 
 func (cmf *CliJsonMetricFetcher) ScrapeError() prometheus.Counter {
@@ -103,10 +107,10 @@ func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
 type CliFallbackMetricFetcher struct {
 	fetcher      SlurmByteScraper
 	errorCounter prometheus.Counter
-	duration     time.Duration
+	cache        *AtomicThrottledCache[NodeMetric]
 }
 
-func (cmf *CliFallbackMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
+func (cmf *CliFallbackMetricFetcher) fetch() ([]NodeMetric, error) {
 	sinfo, err := cmf.fetcher.FetchRawBytes()
 	if err != nil {
 		cmf.errorCounter.Inc()
@@ -184,6 +188,10 @@ func (cmf *CliFallbackMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
 		values = append(values, *val)
 	}
 	return values, nil
+}
+
+func (cmf *CliFallbackMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
+	return cmf.cache.FetchOrThrottle(cmf.fetch)
 }
 
 type PartitionMetric struct {
@@ -303,14 +311,21 @@ type NodesCollector struct {
 func NewNodeCollecter(config *Config) *NodesCollector {
 	cliOpts := config.cliOpts
 	byteScraper := NewCliFetcher(cliOpts.sinfo...)
-	byteScraper.cache = NewAtomicThrottledCache[byte](config.pollLimit)
 	errorCounter := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "slurm_node_scrape_error",
 		Help: "slurm node info scrape errors",
 	})
-	fetcher := &CliJsonMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+	fetcher := &CliJsonMetricFetcher{
+		fetcher:      byteScraper,
+		errorCounter: errorCounter,
+		cache:        NewAtomicThrottledCache[NodeMetric](config.pollLimit),
+	}
 	if cliOpts.fallback {
-		fetcher = &CliJsonMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+		fetcher = &CliJsonMetricFetcher{
+			fetcher:      byteScraper,
+			errorCounter: errorCounter,
+			cache:        NewAtomicThrottledCache[NodeMetric](config.pollLimit),
+		}
 	}
 	return &NodesCollector{
 		fetcher: fetcher,

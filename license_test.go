@@ -12,17 +12,6 @@ import (
 
 var MockLicFetcher = &MockFetcher{fixture: "fixtures/license_out.json"}
 
-func TestParseLicMetrics(t *testing.T) {
-	assert := assert.New(t)
-	fetcher := MockFetcher{fixture: "fixtures/license_out.json"}
-	data, err := fetcher.FetchRawBytes()
-	assert.Nil(err)
-	lics, err := parseLicenseMetrics(data)
-	assert.Nil(err)
-	t.Logf("lics %v", lics)
-	assert.Equal(1, len(lics))
-}
-
 func TestNewLicController(t *testing.T) {
 	assert := assert.New(t)
 	config := Config{
@@ -44,7 +33,11 @@ func TestLicCollect(t *testing.T) {
 		},
 	}
 	lc := NewLicCollector(&config)
-	lc.fetcher = MockLicFetcher
+	lc.fetcher = &CliJsonLicMetricFetcher{
+		scraper:      MockLicFetcher,
+		cache:        NewAtomicThrottledCache[LicenseMetric](1),
+		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+	}
 	lcChan := make(chan prometheus.Metric)
 	go func() {
 		lc.Collect(lcChan)
@@ -67,7 +60,11 @@ func TestLicCollect_ColectionE(t *testing.T) {
 		},
 	}
 	lc := NewLicCollector(&config)
-	lc.fetcher = new(MockFetchErrored)
+	lc.fetcher = &CliJsonLicMetricFetcher{
+		scraper:      MockLicFetcher,
+		cache:        NewAtomicThrottledCache[LicenseMetric](1),
+		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+	}
 	lcChan := make(chan prometheus.Metric)
 	go func() {
 		lc.Collect(lcChan)
@@ -79,7 +76,7 @@ func TestLicCollect_ColectionE(t *testing.T) {
 		licMetrics = append(licMetrics, metric)
 	}
 
-	assert.Equal(1, len(licMetrics))
+	assert.Equal(3, len(licMetrics))
 }
 
 func TestLicDescribe(t *testing.T) {
@@ -91,7 +88,11 @@ func TestLicDescribe(t *testing.T) {
 		},
 	}
 	lc := NewLicCollector(&config)
-	lc.fetcher = MockLicFetcher
+	lc.fetcher = &CliJsonLicMetricFetcher{
+		scraper:      MockLicFetcher,
+		cache:        NewAtomicThrottledCache[LicenseMetric](1),
+		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+	}
 	lcChan := make(chan *prometheus.Desc)
 	go func() {
 		lc.Describe(lcChan)

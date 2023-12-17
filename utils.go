@@ -22,7 +22,7 @@ import (
 
 type SlurmPrimitiveMetric interface {
 	// TODO: remove byte type
-	NodeMetric | JobMetric | DiagMetric | byte
+	NodeMetric | JobMetric | DiagMetric | LicenseMetric | byte
 }
 
 // interface for getting data from slurm
@@ -49,7 +49,7 @@ type AtomicThrottledCache[C SlurmPrimitiveMetric] struct {
 
 // atomic fetch of either the cache or the collector
 // reset & hydrate as necessary
-func (atc *AtomicThrottledCache[C]) fetchOrThrottle(fetchFunc func() ([]C, error)) ([]C, error) {
+func (atc *AtomicThrottledCache[C]) FetchOrThrottle(fetchFunc func() ([]C, error)) ([]C, error) {
 	atc.Lock()
 	defer atc.Unlock()
 	if len(atc.cache) > 0 && time.Since(atc.t).Seconds() < atc.limit {
@@ -83,20 +83,17 @@ func duration(msg string, start time.Time) {
 
 // implements SlurmFetcher by fetch data from cli
 type CliFetcher struct {
-	args    []string
-	timeout time.Duration
-	cache   *AtomicThrottledCache[byte]
-}
-
-func (cf *CliFetcher) FetchRawBytes() ([]byte, error) {
-	return cf.cache.fetchOrThrottle(cf.captureCli)
+	args     []string
+	timeout  time.Duration
+	duration time.Duration
 }
 
 func (cf *CliFetcher) Duration() time.Duration {
-	return cf.cache.duration
+	return cf.duration
 }
 
-func (cf *CliFetcher) captureCli() ([]byte, error) {
+func (cf *CliFetcher) FetchRawBytes() ([]byte, error) {
+	defer func(t time.Time) { cf.duration = time.Since(t) }(time.Now())
 	if len(cf.args) == 0 {
 		return nil, errors.New("need at least 1 args")
 	}
@@ -134,7 +131,6 @@ func NewCliFetcher(args ...string) *CliFetcher {
 	return &CliFetcher{
 		args:    args,
 		timeout: time.Duration(limit) * time.Second,
-		cache:   NewAtomicThrottledCache[byte](1),
 	}
 }
 
