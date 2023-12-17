@@ -104,46 +104,55 @@ func TestCliFetcher_StdErr(t *testing.T) {
 
 func TestAtomicThrottledCache_CompMiss(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache[byte](10)
-	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
+	cache := NewAtomicThrottledCache[NodeMetric](10)
 	// empty cache scenario
-	info, err := cache.FetchOrThrottle(fetcher.Fetch)
+	called := false
+	host := "host1"
+	info, err := cache.FetchOrThrottle(func() ([]NodeMetric, error) {
+		called = true
+		return []NodeMetric{{Hostname: host}}, nil
+	})
 	assert.Nil(err)
-	assert.Equal(info, fetcher.msg)
+	assert.Equal(info[0].Hostname, host)
 	// assert no cache hit
-	assert.True(fetcher.called)
+	assert.True(called)
 	// assert cache populated
-	assert.Positive(cache.cache, fetcher.msg)
+	assert.Positive(cache.cache[0].Hostname, host)
 }
 
 func TestAtomicThrottledCache_Hit(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache[byte](math.MaxFloat64)
-	cache.cache = []byte("cache")
-	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
+	cache := NewAtomicThrottledCache[NodeMetric](math.MaxFloat64)
+	cache.cache = []NodeMetric{{Hostname: "host1"}}
 	// empty cache scenario
-	info, err := cache.FetchOrThrottle(fetcher.Fetch)
+	called := false
+	info, err := cache.FetchOrThrottle(func() ([]NodeMetric, error) {
+		called = true
+		return []NodeMetric{{Hostname: "host2"}}, nil
+	})
 	assert.Nil(err)
-	assert.Equal(info, cache.cache)
+	assert.Equal(info[0].Hostname, "host1")
 	// assert fetch not called
-	assert.False(fetcher.called)
+	assert.False(called)
 	// assert cache populated
-	assert.Positive(len(cache.cache))
+	assert.NotEmpty(cache.cache)
 }
 
 func TestAtomicThrottledCache_Stale(t *testing.T) {
 	assert := assert.New(t)
-	cache := NewAtomicThrottledCache[byte](0)
-	cache.cache = []byte("cache")
-	fetcher := &MockFetchTriggered{msg: []byte("mocked")}
-	// empty cache scenario
-	info, err := cache.FetchOrThrottle(fetcher.Fetch)
+	cache := NewAtomicThrottledCache[NodeMetric](0)
+	cache.cache = []NodeMetric{{Hostname: "host1"}}
+	called := false
+	info, err := cache.FetchOrThrottle(func() ([]NodeMetric, error) {
+		called = true
+		return []NodeMetric{{Hostname: "host2"}}, nil
+	})
 	assert.Nil(err)
-	assert.Equal(info, fetcher.msg)
+	assert.Equal(info[0].Hostname, "host2")
 	// assert fetch not called
-	assert.True(fetcher.called)
+	assert.True(called)
 	// assert cache populated
-	assert.Equal(cache.cache, fetcher.msg)
+	assert.Equal(cache.cache[0].Hostname, "host2")
 }
 
 func TestConvertMemToFloat(t *testing.T) {

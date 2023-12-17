@@ -22,7 +22,7 @@ import (
 
 type SlurmPrimitiveMetric interface {
 	// TODO: remove byte type
-	NodeMetric | JobMetric | DiagMetric | LicenseMetric | byte
+	NodeMetric | JobMetric | DiagMetric | LicenseMetric
 }
 
 // interface for getting data from slurm
