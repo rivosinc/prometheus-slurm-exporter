@@ -140,7 +140,7 @@ func NewConfig() (*Config, error) {
 		cliOpts.sinfo = []string{"sinfo", "-h", "-o", `{"s": "%T", "mem": %m, "n": "%n", "l": "%O", "p": "%R", "fmem": "%e", "cstate": "%C", "w": %w}`}
 	}
 	fetcher := NewCliFetcher(cliOpts.squeue...)
-	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
+	fetcher.cache = NewAtomicThrottledCache[byte](config.pollLimit)
 	config.SetFetcher(fetcher)
 	return config, nil
 }

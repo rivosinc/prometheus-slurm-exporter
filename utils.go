@@ -21,7 +21,8 @@ import (
 )
 
 type SlurmPrimitiveMetric interface {
-	NodeMetric | JobMetric | DiagMetric
+	// TODO: remove byte type
+	NodeMetric | JobMetric | DiagMetric | byte
 }
 
 // interface for getting data from slurm
@@ -37,18 +38,18 @@ type SlurmMetricFetcher[M SlurmPrimitiveMetric] interface {
 	ScrapeError() prometheus.Counter
 }
 
-type AtomicThrottledCache struct {
+type AtomicThrottledCache[C SlurmPrimitiveMetric] struct {
 	sync.Mutex
 	t     time.Time
 	limit float64
-	cache []byte
+	cache []C
 	// duration of last cache miss
 	duration time.Duration
 }
 
 // atomic fetch of either the cache or the collector
 // reset & hydrate as necessary
-func (atc *AtomicThrottledCache) fetchOrThrottle(fetchFunc func() ([]byte, error)) ([]byte, error) {
+func (atc *AtomicThrottledCache[C]) fetchOrThrottle(fetchFunc func() ([]C, error)) ([]C, error) {
 	atc.Lock()
 	defer atc.Unlock()
 	if len(atc.cache) > 0 && time.Since(atc.t).Seconds() < atc.limit {
@@ -65,8 +66,8 @@ func (atc *AtomicThrottledCache) fetchOrThrottle(fetchFunc func() ([]byte, error
 	return slurmData, nil
 }
 
-func NewAtomicThrottledCache(limit float64) *AtomicThrottledCache {
-	return &AtomicThrottledCache{
+func NewAtomicThrottledCache[C SlurmPrimitiveMetric](limit float64) *AtomicThrottledCache[C] {
+	return &AtomicThrottledCache[C]{
 		t:     time.Now(),
 		limit: limit,
 	}
@@ -84,7 +85,7 @@ func duration(msg string, start time.Time) {
 type CliFetcher struct {
 	args    []string
 	timeout time.Duration
-	cache   *AtomicThrottledCache
+	cache   *AtomicThrottledCache[byte]
 }
 
 func (cf *CliFetcher) FetchRawBytes() ([]byte, error) {
@@ -133,7 +134,7 @@ func NewCliFetcher(args ...string) *CliFetcher {
 	return &CliFetcher{
 		args:    args,
 		timeout: time.Duration(limit) * time.Second,
-		cache:   NewAtomicThrottledCache(1),
+		cache:   NewAtomicThrottledCache[byte](1),
 	}
 }
 

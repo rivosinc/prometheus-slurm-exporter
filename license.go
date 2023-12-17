@@ -55,7 +55,7 @@ type LicCollector struct {
 func NewLicCollector(config *Config) *LicCollector {
 	cliOpts := config.cliOpts
 	fetcher := NewCliFetcher(cliOpts.lic...)
-	fetcher.cache = NewAtomicThrottledCache(config.pollLimit)
+	fetcher.cache = NewAtomicThrottledCache[byte](config.pollLimit)
 	return &LicCollector{
 		fetcher:     fetcher,
 		licTotal:    prometheus.NewDesc("slurm_lic_total", "slurm license total", []string{"name"}, nil),
