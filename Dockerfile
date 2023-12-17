@@ -40,5 +40,3 @@ RUN cargo install just
 # load project and cluster configs
 ADD . .
 ARG USER=$USER
-RUN mv tmp_sconfs/slurm* /etc/slurm && mv tmp_sconfs/munge.key /etc/munge && \
-    sed -i '/SlurmUser=/d' /etc/slurm/slurm.conf
