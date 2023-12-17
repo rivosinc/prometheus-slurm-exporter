@@ -80,7 +80,7 @@ type LicCollector struct {
 func NewLicCollector(config *Config) *LicCollector {
 	cliOpts := config.cliOpts
 	fetcher := &CliJsonLicMetricFetcher{
-		scraper: NewCliFetcher(cliOpts.lic...),
+		scraper: NewCliScraper(cliOpts.lic...),
 		cache:   NewAtomicThrottledCache[LicenseMetric](config.pollLimit),
 		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_lic_scrape_error",

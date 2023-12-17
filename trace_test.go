@@ -104,7 +104,7 @@ func TestTraceControllerCollect(t *testing.T) {
 		traceConf: &TraceConfig{
 			rate: 10,
 			sharedFetcher: &JobJsonFetcher{
-				scraper:    MockJobInfoFetcher,
+				scraper:    MockJobInfoScraper,
 				cache:      NewAtomicThrottledCache[JobMetric](1),
 				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
 			},
@@ -134,7 +134,7 @@ func TestTraceControllerCollect_Fallback(t *testing.T) {
 		traceConf: &TraceConfig{
 			rate: 10,
 			sharedFetcher: &JobCliFallbackFetcher{
-				scraper:    &MockFetcher{fixture: "fixtures/squeue_fallback.txt"},
+				scraper:    &MockScraper{fixture: "fixtures/squeue_fallback.txt"},
 				cache:      NewAtomicThrottledCache[JobMetric](1),
 				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
 			},
@@ -164,7 +164,7 @@ func TestTraceControllerDescribe(t *testing.T) {
 		traceConf: &TraceConfig{
 			rate: 10,
 			sharedFetcher: &JobJsonFetcher{
-				scraper:    MockJobInfoFetcher,
+				scraper:    MockJobInfoScraper,
 				cache:      NewAtomicThrottledCache[JobMetric](1),
 				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
 			},
@@ -194,7 +194,7 @@ func TestPython3Wrapper(t *testing.T) {
 		t.Skip()
 	}
 	assert := assert.New(t)
-	fetcher := NewCliFetcher("python3", "wrappers/proctrac.py", "--cmd", "sleep", "100", "--jobid=10", "--validate")
+	fetcher := NewCliScraper("python3", "wrappers/proctrac.py", "--cmd", "sleep", "100", "--jobid=10", "--validate")
 	t.Logf("cmd: %+v", fetcher.args)
 	wrapperOut, err := fetcher.FetchRawBytes()
 	assert.Nil(err)

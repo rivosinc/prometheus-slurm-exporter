@@ -21,7 +21,6 @@ import (
 )
 
 type SlurmPrimitiveMetric interface {
-	// TODO: remove byte type
 	NodeMetric | JobMetric | DiagMetric | LicenseMetric
 }
 
@@ -81,18 +80,18 @@ func duration(msg string, start time.Time) {
 	slog.Debug(fmt.Sprintf("cmd %s took %s secs", msg, time.Since(start)))
 }
 
-// implements SlurmFetcher by fetch data from cli
-type CliFetcher struct {
+// implements SlurmByteScraper by fetch data from cli
+type CliScraper struct {
 	args     []string
 	timeout  time.Duration
 	duration time.Duration
 }
 
-func (cf *CliFetcher) Duration() time.Duration {
+func (cf *CliScraper) Duration() time.Duration {
 	return cf.duration
 }
 
-func (cf *CliFetcher) FetchRawBytes() ([]byte, error) {
+func (cf *CliScraper) FetchRawBytes() ([]byte, error) {
 	defer func(t time.Time) { cf.duration = time.Since(t) }(time.Now())
 	if len(cf.args) == 0 {
 		return nil, errors.New("need at least 1 args")
@@ -120,7 +119,7 @@ func (cf *CliFetcher) FetchRawBytes() ([]byte, error) {
 	return outb.Bytes(), nil
 }
 
-func NewCliFetcher(args ...string) *CliFetcher {
+func NewCliScraper(args ...string) *CliScraper {
 	var limit float64 = 10
 	var err error
 	if tm, ok := os.LookupEnv("CLI_TIMEOUT"); ok {
@@ -128,20 +127,20 @@ func NewCliFetcher(args ...string) *CliFetcher {
 			slog.Error("`CLI_TIMEOUT` env var parse error")
 		}
 	}
-	return &CliFetcher{
+	return &CliScraper{
 		args:    args,
 		timeout: time.Duration(limit) * time.Second,
 	}
 }
 
-// implements SlurmFetcher by pulling fixtures instead
+// implements SlurmByteScraper by pulling fixtures instead
 // used exclusively for testing
-type MockFetcher struct {
+type MockScraper struct {
 	fixture  string
 	duration time.Duration
 }
 
-func (f *MockFetcher) FetchRawBytes() ([]byte, error) {
+func (f *MockScraper) FetchRawBytes() ([]byte, error) {
 	defer func(t time.Time) {
 		f.duration = time.Since(t)
 	}(time.Now())
@@ -161,7 +160,7 @@ func (f *MockFetcher) FetchRawBytes() ([]byte, error) {
 	return bytes.Join(filtered, sep), nil
 }
 
-func (f *MockFetcher) Duration() time.Duration {
+func (f *MockScraper) Duration() time.Duration {
 	return f.duration
 }
 

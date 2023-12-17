@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var MockLicFetcher = &MockFetcher{fixture: "fixtures/license_out.json"}
+var MockLicFetcher = &MockScraper{fixture: "fixtures/license_out.json"}
 
 func TestNewLicController(t *testing.T) {
 	assert := assert.New(t)

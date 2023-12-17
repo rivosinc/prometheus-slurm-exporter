@@ -41,7 +41,7 @@ func TestPromServer(t *testing.T) {
 		traceConf: &TraceConfig{
 			enabled: false,
 			sharedFetcher: &JobJsonFetcher{
-				scraper: NewCliFetcher(cliOpts.squeue...),
+				scraper: NewCliScraper(cliOpts.squeue...),
 				cache:   NewAtomicThrottledCache[JobMetric](1),
 				errCounter: prometheus.NewCounter(prometheus.CounterOpts{
 					Name: "slurm_job_scrape_error",

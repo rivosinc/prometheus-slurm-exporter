@@ -135,7 +135,7 @@ func NewConfig() (*Config, error) {
 		cliOpts.lic = strings.Split(*slurmLicenseOverride, " ")
 	}
 	traceConf.sharedFetcher = &JobJsonFetcher{
-		scraper: NewCliFetcher(cliOpts.squeue...),
+		scraper: NewCliScraper(cliOpts.squeue...),
 		cache:   NewAtomicThrottledCache[JobMetric](config.pollLimit),
 		errCounter: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "job_scrape_errors",
@@ -147,7 +147,7 @@ func NewConfig() (*Config, error) {
 		cliOpts.squeue = []string{"squeue", "--states=all", "-h", "-o", `{"a": "%a", "id": %A, "end_time": "%e", "u": "%u", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}`}
 		cliOpts.sinfo = []string{"sinfo", "-h", "-o", `{"s": "%T", "mem": %m, "n": "%n", "l": "%O", "p": "%R", "fmem": "%e", "cstate": "%C", "w": %w}`}
 		traceConf.sharedFetcher = &JobCliFallbackFetcher{
-			scraper: NewCliFetcher(cliOpts.squeue...),
+			scraper: NewCliScraper(cliOpts.squeue...),
 			cache:   NewAtomicThrottledCache[JobMetric](config.pollLimit),
 			errCounter: prometheus.NewCounter(prometheus.CounterOpts{
 				Name: "job_scrape_errors",

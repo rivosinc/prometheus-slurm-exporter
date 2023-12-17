@@ -78,7 +78,7 @@ type DiagnosticsCollector struct {
 func NewDiagsCollector(config *Config) *DiagnosticsCollector {
 	cliOpts := config.cliOpts
 	return &DiagnosticsCollector{
-		fetcher:                NewCliFetcher(config.cliOpts.sdiag...),
+		fetcher:                NewCliScraper(config.cliOpts.sdiag...),
 		slurmUserRpcCount:      prometheus.NewDesc("slurm_rpc_user_count", "slurm rpc count per user", []string{"user"}, nil),
 		slurmUserRpcTotalTime:  prometheus.NewDesc("slurm_rpc_user_total_time", "slurm rpc avg time per user", []string{"user"}, nil),
 		slurmTypeRpcCount:      prometheus.NewDesc("slurm_rpc_msg_type_count", "slurm rpc count per message type", []string{"type"}, nil),

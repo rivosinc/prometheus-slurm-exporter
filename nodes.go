@@ -310,7 +310,7 @@ type NodesCollector struct {
 
 func NewNodeCollecter(config *Config) *NodesCollector {
 	cliOpts := config.cliOpts
-	byteScraper := NewCliFetcher(cliOpts.sinfo...)
+	byteScraper := NewCliScraper(cliOpts.sinfo...)
 	errorCounter := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "slurm_node_scrape_error",
 		Help: "slurm node info scrape errors",
