@@ -86,7 +86,7 @@ func (m *AtomicProcFetcher) Fetch() map[int64]*TraceInfo {
 
 type TraceCollector struct {
 	ProcessFetcher *AtomicProcFetcher
-	squeueFetcher  SlurmByteScraper
+	squeueFetcher  SlurmMetricFetcher[JobMetric]
 	fallback       bool
 	// actual proc monitoring
 	jobAllocMem  *prometheus.Desc
@@ -130,19 +130,8 @@ func (c *TraceCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (c *TraceCollector) Collect(ch chan<- prometheus.Metric) {
 	procs := c.ProcessFetcher.Fetch()
-	squeue, err := c.squeueFetcher.FetchRawBytes()
+	jobMetrics, err := c.squeueFetcher.FetchMetrics()
 	if err != nil {
-		slog.Debug(fmt.Sprintf("squeue fetch failed with %q", err))
-		return
-	}
-	var jobMetrics []JobMetric
-	if c.fallback {
-		jobMetrics, err = parseCliFallback(squeue, prometheus.NewCounter(prometheus.CounterOpts{}))
-	} else {
-		jobMetrics, err = parseJobMetrics(squeue)
-	}
-	if err != nil {
-		slog.Debug(fmt.Sprintf("job metric parse failed with %q", err))
 		return
 	}
 	for _, j := range jobMetrics {

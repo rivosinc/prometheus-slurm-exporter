@@ -45,6 +45,52 @@ type squeueResponse struct {
 	Jobs   []JobMetric `json:"jobs"`
 }
 
+type JobJsonFetcher struct {
+	scraper    SlurmByteScraper
+	cache      *AtomicThrottledCache[JobMetric]
+	errCounter prometheus.Counter
+}
+
+func (jjf *JobJsonFetcher) FetchMetrics() ([]JobMetric, error) {
+	data, err := jjf.scraper.FetchRawBytes()
+	if err != nil {
+		jjf.errCounter.Inc()
+		return nil, err
+	}
+	return jjf.cache.FetchOrThrottle(func() ([]JobMetric, error) { return parseJobMetrics(data) })
+}
+
+func (jjf *JobJsonFetcher) ScrapeDuration() time.Duration {
+	return jjf.scraper.Duration()
+}
+
+func (jjf *JobJsonFetcher) ScrapeError() prometheus.Counter {
+	return jjf.errCounter
+}
+
+type JobCliFallbackFetcher struct {
+	scraper    SlurmByteScraper
+	cache      *AtomicThrottledCache[JobMetric]
+	errCounter prometheus.Counter
+}
+
+func (jcf *JobCliFallbackFetcher) FetchMetrics() ([]JobMetric, error) {
+	data, err := jcf.scraper.FetchRawBytes()
+	if err != nil {
+		jcf.errCounter.Inc()
+		return nil, err
+	}
+	return jcf.cache.FetchOrThrottle(func() ([]JobMetric, error) { return parseCliFallback(data, jcf.errCounter) })
+}
+
+func (jcf *JobCliFallbackFetcher) ScrapeDuration() time.Duration {
+	return jcf.scraper.Duration()
+}
+
+func (jcf *JobCliFallbackFetcher) ScrapeError() prometheus.Counter {
+	return jcf.errCounter
+}
+
 func totalAllocMem(resource *JobResource) float64 {
 	var allocMem float64
 	for _, node := range resource.AllocNodes {
@@ -192,7 +238,7 @@ func parsePartitionJobMetrics(jobs []JobMetric) map[string]*PartitionJobMetric {
 
 type JobsCollector struct {
 	// collector state
-	fetcher      SlurmByteScraper
+	fetcher      SlurmMetricFetcher[JobMetric]
 	fallback     bool
 	jobAllocCpus *prometheus.Desc
 	jobAllocMem  *prometheus.Desc
@@ -251,28 +297,15 @@ func (jc *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
-		ch <- jc.jobScrapeError
+		ch <- jc.fetcher.ScrapeError()
 	}()
-	squeue, err := jc.fetcher.FetchRawBytes()
+	jobMetrics, err := jc.fetcher.FetchMetrics()
+	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.ScrapeDuration().Microseconds()))
 	if err != nil {
-		jc.jobScrapeError.Inc()
-		slog.Error(fmt.Sprintf("job fetch error %q", err))
-		return
-	}
-	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.Duration().Milliseconds()))
-	var jobMetrics []JobMetric
-	if jc.fallback {
-		jobMetrics, err = parseCliFallback(squeue, jc.jobScrapeError)
-	} else {
-		jobMetrics, err = parseJobMetrics(squeue)
-	}
-	if err != nil {
-		jc.jobScrapeError.Inc()
-		slog.Error(fmt.Sprintf("job failed to parse with %q", err))
+		slog.Error("fetcher failure %q", err)
 		return
 	}
 	userMetrics := parseUserJobMetrics(jobMetrics)
-
 	for user, metric := range userMetrics {
 		if metric.allocCpu > 0 {
 			ch <- prometheus.MustNewConstMetric(jc.userJobCpuAlloc, prometheus.GaugeValue, metric.allocCpu, user)

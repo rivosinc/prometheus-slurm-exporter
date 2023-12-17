@@ -102,8 +102,12 @@ func TestTraceControllerCollect(t *testing.T) {
 	config := &Config{
 		pollLimit: 10,
 		traceConf: &TraceConfig{
-			rate:          10,
-			sharedFetcher: MockJobInfoFetcher,
+			rate: 10,
+			sharedFetcher: &JobJsonFetcher{
+				scraper:    MockJobInfoFetcher,
+				cache:      NewAtomicThrottledCache[JobMetric](1),
+				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+			},
 		},
 		cliOpts: new(CliOpts),
 	}
@@ -128,8 +132,12 @@ func TestTraceControllerCollect_Fallback(t *testing.T) {
 	config := &Config{
 		pollLimit: 10,
 		traceConf: &TraceConfig{
-			rate:          10,
-			sharedFetcher: &MockFetcher{fixture: "fixtures/squeue_fallback.txt"},
+			rate: 10,
+			sharedFetcher: &JobCliFallbackFetcher{
+				scraper:    &MockFetcher{fixture: "fixtures/squeue_fallback.txt"},
+				cache:      NewAtomicThrottledCache[JobMetric](1),
+				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+			},
 		},
 		cliOpts: &CliOpts{fallback: true},
 	}
@@ -154,8 +162,12 @@ func TestTraceControllerDescribe(t *testing.T) {
 	config := &Config{
 		pollLimit: 10,
 		traceConf: &TraceConfig{
-			rate:          10,
-			sharedFetcher: MockJobInfoFetcher,
+			rate: 10,
+			sharedFetcher: &JobJsonFetcher{
+				scraper:    MockJobInfoFetcher,
+				cache:      NewAtomicThrottledCache[JobMetric](1),
+				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+			},
 		},
 		cliOpts: new(CliOpts),
 	}

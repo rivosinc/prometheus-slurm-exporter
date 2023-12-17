@@ -57,7 +57,7 @@ type TraceConfig struct {
 	enabled       bool
 	path          string
 	rate          uint64
-	sharedFetcher SlurmByteScraper
+	sharedFetcher SlurmMetricFetcher[JobMetric]
 }
 
 type Config struct {
@@ -134,16 +134,28 @@ func NewConfig() (*Config, error) {
 	if *slurmLicenseOverride != "" {
 		cliOpts.lic = strings.Split(*slurmLicenseOverride, " ")
 	}
+	traceConf.sharedFetcher = &JobJsonFetcher{
+		scraper: NewCliFetcher(cliOpts.squeue...),
+		cache:   NewAtomicThrottledCache[JobMetric](config.pollLimit),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "job_scrape_errors",
+			Help: "job scrape errors",
+		}),
+	}
 	if cliOpts.fallback {
 		// we define a custom json format that we convert back into the openapi format
 		cliOpts.squeue = []string{"squeue", "--states=all", "-h", "-o", `{"a": "%a", "id": %A, "end_time": "%e", "u": "%u", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}`}
 		cliOpts.sinfo = []string{"sinfo", "-h", "-o", `{"s": "%T", "mem": %m, "n": "%n", "l": "%O", "p": "%R", "fmem": "%e", "cstate": "%C", "w": %w}`}
+		traceConf.sharedFetcher = &JobCliFallbackFetcher{
+			scraper: NewCliFetcher(cliOpts.squeue...),
+			cache:   NewAtomicThrottledCache[JobMetric](config.pollLimit),
+			errCounter: prometheus.NewCounter(prometheus.CounterOpts{
+				Name: "job_scrape_errors",
+				Help: "job scrape errors",
+			}),
+		}
 	}
 	return config, nil
-}
-
-func (c *Config) SetFetcher(fetcher SlurmByteScraper) {
-	c.traceConf.sharedFetcher = fetcher
 }
 
 func initPromServer(config *Config) http.Handler {
