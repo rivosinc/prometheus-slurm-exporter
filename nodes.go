@@ -47,13 +47,13 @@ type sinfoResponse struct {
 	Nodes  []NodeMetric `json:"nodes"`
 }
 
-type CliJsonMetricFetcher struct {
+type NodeJsonFetcher struct {
 	fetcher      SlurmByteScraper
 	errorCounter prometheus.Counter
 	duration     time.Duration
 }
 
-func (cmf *CliJsonMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
+func (cmf *NodeJsonFetcher) FetchMetrics() ([]NodeMetric, error) {
 	squeue := new(sinfoResponse)
 	cliJson, err := cmf.fetcher.FetchRawBytes()
 	if err != nil {
@@ -73,11 +73,11 @@ func (cmf *CliJsonMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
 	return squeue.Nodes, nil
 }
 
-func (cmf *CliJsonMetricFetcher) ScrapeError() prometheus.Counter {
+func (cmf *NodeJsonFetcher) ScrapeError() prometheus.Counter {
 	return cmf.errorCounter
 }
 
-func (cmf *CliJsonMetricFetcher) ScrapeDuration() time.Duration {
+func (cmf *NodeJsonFetcher) ScrapeDuration() time.Duration {
 	return cmf.fetcher.Duration()
 }
 
@@ -100,13 +100,13 @@ func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type CliFallbackMetricFetcher struct {
+type NodeCliFallbackFetcher struct {
 	fetcher      SlurmByteScraper
 	errorCounter prometheus.Counter
 	duration     time.Duration
 }
 
-func (cmf *CliFallbackMetricFetcher) FetchMetrics() ([]NodeMetric, error) {
+func (cmf *NodeCliFallbackFetcher) FetchMetrics() ([]NodeMetric, error) {
 	sinfo, err := cmf.fetcher.FetchRawBytes()
 	if err != nil {
 		cmf.errorCounter.Inc()
@@ -219,11 +219,11 @@ func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
 	return partitions
 }
 
-func (cmf *CliFallbackMetricFetcher) ScrapeError() prometheus.Counter {
+func (cmf *NodeCliFallbackFetcher) ScrapeError() prometheus.Counter {
 	return cmf.errorCounter
 }
 
-func (cmf *CliFallbackMetricFetcher) ScrapeDuration() time.Duration {
+func (cmf *NodeCliFallbackFetcher) ScrapeDuration() time.Duration {
 	return cmf.fetcher.Duration()
 }
 
@@ -310,9 +310,9 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 	})
 	var fetcher SlurmMetricFetcher[NodeMetric]
 	if cliOpts.fallback {
-		fetcher = &CliFallbackMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+		fetcher = &NodeCliFallbackFetcher{fetcher: byteScraper, errorCounter: errorCounter}
 	} else {
-		fetcher = &CliJsonMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+		fetcher = &NodeJsonFetcher{fetcher: byteScraper, errorCounter: errorCounter}
 	}
 	return &NodesCollector{
 		fetcher: fetcher,
