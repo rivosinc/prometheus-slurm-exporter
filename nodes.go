@@ -308,8 +308,10 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 		Name: "slurm_node_scrape_error",
 		Help: "slurm node info scrape errors",
 	})
-	fetcher := &CliJsonMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+	var fetcher SlurmMetricFetcher[NodeMetric]
 	if cliOpts.fallback {
+		fetcher = &CliFallbackMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+	} else {
 		fetcher = &CliJsonMetricFetcher{fetcher: byteScraper, errorCounter: errorCounter}
 	}
 	return &NodesCollector{
