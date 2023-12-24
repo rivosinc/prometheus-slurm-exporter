@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var MockJobInfoFetcher = &MockFetcher{fixture: "fixtures/squeue_out.json"}
+var MockJobInfoScraper = &MockScraper{fixture: "fixtures/squeue_out.json"}
 
 func CollectCounterValue(counter prometheus.Counter) float64 {
 	metricChan := make(chan prometheus.Metric, 1)
@@ -28,7 +28,11 @@ func TestNewJobsController(t *testing.T) {
 	config := &Config{
 		pollLimit: 10,
 		traceConf: &TraceConfig{
-			sharedFetcher: MockJobInfoFetcher,
+			sharedFetcher: &JobCliFallbackFetcher{
+				scraper:    &MockScraper{fixture: "fixtures/squeue_fallback.txt"},
+				cache:      NewAtomicThrottledCache[JobMetric](1),
+				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+			},
 		},
 		cliOpts: &CliOpts{
 			fallback: true,
@@ -40,7 +44,7 @@ func TestNewJobsController(t *testing.T) {
 
 func TestParseJobMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockJobInfoFetcher.FetchRawBytes()
+	fixture, err := MockJobInfoScraper.FetchRawBytes()
 	assert.Nil(err)
 	jms, err := parseJobMetrics(fixture)
 	assert.Nil(err)
@@ -59,7 +63,7 @@ func TestParseJobMetrics(t *testing.T) {
 
 func TestParseCliFallback(t *testing.T) {
 	assert := assert.New(t)
-	fetcher := MockFetcher{fixture: "fixtures/squeue_fallback.txt"}
+	fetcher := MockScraper{fixture: "fixtures/squeue_fallback.txt"}
 	data, err := fetcher.FetchRawBytes()
 	assert.Nil(err)
 	counter := prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"})
@@ -72,7 +76,7 @@ func TestParseCliFallback(t *testing.T) {
 func TestUserJobMetric(t *testing.T) {
 	// setup
 	assert := assert.New(t)
-	fixture, err := MockJobInfoFetcher.FetchRawBytes()
+	fixture, err := MockJobInfoScraper.FetchRawBytes()
 	assert.Nil(err)
 	jms, err := parseJobMetrics(fixture)
 	assert.Nil(err)
@@ -89,8 +93,12 @@ func TestJobCollect(t *testing.T) {
 	config := &Config{
 		pollLimit: 10,
 		traceConf: &TraceConfig{
-			sharedFetcher: MockJobInfoFetcher,
-			rate:          10,
+			sharedFetcher: &JobJsonFetcher{
+				scraper:    &MockScraper{fixture: "fixtures/squeue_out.json"},
+				cache:      NewAtomicThrottledCache[JobMetric](1),
+				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+			},
+			rate: 10,
 		},
 		cliOpts: &CliOpts{},
 	}
@@ -113,8 +121,12 @@ func TestJobCollect_Fallback(t *testing.T) {
 	config := &Config{
 		pollLimit: 10,
 		traceConf: &TraceConfig{
-			sharedFetcher: &MockFetcher{fixture: "fixtures/squeue_fallback.txt"},
-			rate:          10,
+			sharedFetcher: &JobCliFallbackFetcher{
+				scraper:    &MockScraper{fixture: "fixtures/squeue_fallback.txt"},
+				cache:      NewAtomicThrottledCache[JobMetric](1),
+				errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+			},
+			rate: 10,
 		},
 		cliOpts: &CliOpts{
 			fallback: true,
@@ -137,7 +149,7 @@ func TestJobCollect_Fallback(t *testing.T) {
 
 func TestParsePartitionJobMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockJobInfoFetcher.FetchRawBytes()
+	fixture, err := MockJobInfoScraper.FetchRawBytes()
 	assert.Nil(err)
 	jms, err := parseJobMetrics(fixture)
 	assert.Nil(err)
@@ -151,9 +163,13 @@ func TestJobDescribe(t *testing.T) {
 	ch := make(chan *prometheus.Desc)
 	config, err := NewConfig()
 	assert.Nil(err)
-	config.SetFetcher(MockJobInfoFetcher)
+	config.traceConf.sharedFetcher = &JobJsonFetcher{
+		scraper:    MockJobInfoScraper,
+		cache:      NewAtomicThrottledCache[JobMetric](1),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+	}
+	config.traceConf.rate = 10
 	jc := NewJobsController(config)
-	jc.fetcher = MockJobInfoFetcher
 	go func() {
 		jc.Describe(ch)
 		close(ch)

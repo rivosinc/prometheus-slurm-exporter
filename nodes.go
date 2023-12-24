@@ -48,14 +48,14 @@ type sinfoResponse struct {
 }
 
 type NodeJsonFetcher struct {
-	fetcher      SlurmByteScraper
+	scraper      SlurmByteScraper
 	errorCounter prometheus.Counter
-	duration     time.Duration
+	cache        *AtomicThrottledCache[NodeMetric]
 }
 
-func (cmf *NodeJsonFetcher) FetchMetrics() ([]NodeMetric, error) {
+func (cmf *NodeJsonFetcher) fetch() ([]NodeMetric, error) {
 	squeue := new(sinfoResponse)
-	cliJson, err := cmf.fetcher.FetchRawBytes()
+	cliJson, err := cmf.scraper.FetchRawBytes()
 	if err != nil {
 		return nil, err
 	}
@@ -73,12 +73,16 @@ func (cmf *NodeJsonFetcher) FetchMetrics() ([]NodeMetric, error) {
 	return squeue.Nodes, nil
 }
 
+func (cmf *NodeJsonFetcher) FetchMetrics() ([]NodeMetric, error) {
+	return cmf.cache.FetchOrThrottle(cmf.fetch)
+}
+
 func (cmf *NodeJsonFetcher) ScrapeError() prometheus.Counter {
 	return cmf.errorCounter
 }
 
 func (cmf *NodeJsonFetcher) ScrapeDuration() time.Duration {
-	return cmf.fetcher.Duration()
+	return cmf.scraper.Duration()
 }
 
 type NAbleFloat float64
@@ -101,13 +105,13 @@ func (naf *NAbleFloat) UnmarshalJSON(data []byte) error {
 }
 
 type NodeCliFallbackFetcher struct {
-	fetcher      SlurmByteScraper
+	scraper      SlurmByteScraper
 	errorCounter prometheus.Counter
-	duration     time.Duration
+	cache        *AtomicThrottledCache[NodeMetric]
 }
 
-func (cmf *NodeCliFallbackFetcher) FetchMetrics() ([]NodeMetric, error) {
-	sinfo, err := cmf.fetcher.FetchRawBytes()
+func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
+	sinfo, err := cmf.scraper.FetchRawBytes()
 	if err != nil {
 		cmf.errorCounter.Inc()
 		return nil, err
@@ -186,6 +190,10 @@ func (cmf *NodeCliFallbackFetcher) FetchMetrics() ([]NodeMetric, error) {
 	return values, nil
 }
 
+func (cmf *NodeCliFallbackFetcher) FetchMetrics() ([]NodeMetric, error) {
+	return cmf.cache.FetchOrThrottle(cmf.fetch)
+}
+
 type PartitionMetric struct {
 	Cpus        float64
 	RealMemory  float64
@@ -224,7 +232,7 @@ func (cmf *NodeCliFallbackFetcher) ScrapeError() prometheus.Counter {
 }
 
 func (cmf *NodeCliFallbackFetcher) ScrapeDuration() time.Duration {
-	return cmf.fetcher.Duration()
+	return cmf.scraper.Duration()
 }
 
 type PerStateMetric struct {
@@ -302,17 +310,16 @@ type NodesCollector struct {
 
 func NewNodeCollecter(config *Config) *NodesCollector {
 	cliOpts := config.cliOpts
-	byteScraper := NewCliFetcher(cliOpts.sinfo...)
-	byteScraper.cache = NewAtomicThrottledCache(config.pollLimit)
+	byteScraper := NewCliScraper(cliOpts.sinfo...)
 	errorCounter := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "slurm_node_scrape_error",
 		Help: "slurm node info scrape errors",
 	})
 	var fetcher SlurmMetricFetcher[NodeMetric]
 	if cliOpts.fallback {
-		fetcher = &NodeCliFallbackFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+		fetcher = &NodeCliFallbackFetcher{scraper: byteScraper, errorCounter: errorCounter, cache: NewAtomicThrottledCache[NodeMetric](config.pollLimit)}
 	} else {
-		fetcher = &NodeJsonFetcher{fetcher: byteScraper, errorCounter: errorCounter}
+		fetcher = &NodeJsonFetcher{scraper: byteScraper, errorCounter: errorCounter, cache: NewAtomicThrottledCache[NodeMetric](config.pollLimit)}
 	}
 	return &NodesCollector{
 		fetcher: fetcher,

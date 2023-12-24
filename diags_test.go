@@ -13,7 +13,7 @@ import (
 
 func TestParseDiagJson(t *testing.T) {
 	assert := assert.New(t)
-	fetcher := MockFetcher{fixture: "fixtures/sdiag.json"}
+	fetcher := MockScraper{fixture: "fixtures/sdiag.json"}
 	sdiag, err := fetcher.FetchRawBytes()
 	assert.NoError(err)
 	resp, err := parseDiagMetrics(sdiag)
@@ -26,7 +26,7 @@ func TestDiagCollect(t *testing.T) {
 	config, err := NewConfig()
 	assert.NoError(err)
 	dc := NewDiagsCollector(config)
-	dc.fetcher = &MockFetcher{fixture: "fixtures/sdiag.json"}
+	dc.fetcher = &MockScraper{fixture: "fixtures/sdiag.json"}
 	metricChan := make(chan prometheus.Metric)
 	go func() {
 		dc.Collect(metricChan)
@@ -46,7 +46,7 @@ func TestDiagDescribe(t *testing.T) {
 	config, err := NewConfig()
 	assert.Nil(err)
 	dc := NewDiagsCollector(config)
-	dc.fetcher = &MockFetcher{fixture: "fixtures/sdiag.json"}
+	dc.fetcher = &MockScraper{fixture: "fixtures/sdiag.json"}
 	go func() {
 		dc.Describe(ch)
 		close(ch)

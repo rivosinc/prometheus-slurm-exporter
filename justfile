@@ -5,6 +5,9 @@
 build_dir := "./build"
 coverage := "coverage"
 vpython := "venv/bin/python3"
+# CHANGEME: these are common slurm locations, replace w/ local install if neccesary
+ld_library := "/usr/lib64/lib/slurm"
+include_path := "/usr/lib64/include"
 
 # Implicitly source '.env' files when running commands.
 set dotenv-load
@@ -17,8 +20,9 @@ default:
 init:
   go mod tidy
   rm -rf venv
-  python -m venv venv
+  python3 -m venv venv
   {{vpython}} -m pip install -U pip pre-commit psutil requests
+  ./venv/bin/pre-commit install --install-hooks
 
 build:
   rm -rf {{build_dir}}
@@ -41,16 +45,13 @@ prod: build
 test:
   source venv/bin/activate && CGO_ENABLED=0 go test
 
+cover:
+  CGO_ENABLED=0 go test -coverprofile=c.out
+  go tool cover -html="c.out"
+
 fmt:
   go fmt
 
-docker-ctest:
-  rm -rf {{build_dir}} && mkdir -p {{build_dir}}
-  g++ cslurm.cpp -I/usr/lib64/include -L/usr/lib64/lib/slurm -lslurmfull -g -o build/cslurm
-  # technically this should be ok to run natively...
-  if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
-  LD_LIBRARY_PATH=/usr/lib64/lib/slurm/ ./build/cslurm
-
 test-all:
   if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
-  source venv/bin/activate && CGO_CXXFLAGS="-I/usr/lib64/include" CGO_LDFLAGS="-L/usr/lib64/lib/slurm -lslurmfull" LD_LIBRARY_PATH=/usr/lib64/lib/slurm go test . ./slurmcprom
+  source venv/bin/activate && CGO_CXXFLAGS="-I{{include_path}}" CGO_LDFLAGS="-L{{ld_library}} -lslurmfull" LD_LIBRARY_PATH={{ld_library}} go test . ./slurmcprom

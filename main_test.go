@@ -12,6 +12,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/exp/slog"
 )
@@ -29,16 +30,26 @@ func TestMain(m *testing.M) {
 
 func TestPromServer(t *testing.T) {
 	assert := assert.New(t)
+	cliOpts := &CliOpts{
+		sinfo:  []string{"cat", "fixtures/sinfo_out.json"},
+		squeue: []string{"cat", "fixtures/squeue_out.json"},
+	}
+
 	config := &Config{
 		pollLimit: 10,
-		cliOpts: &CliOpts{
-			sinfo:  []string{"cat", "fixtures/sinfo_out.json"},
-			squeue: []string{"cat", "fixtures/squeue_out.json"},
+		cliOpts:   cliOpts,
+		traceConf: &TraceConfig{
+			enabled: false,
+			sharedFetcher: &JobJsonFetcher{
+				scraper: NewCliScraper(cliOpts.squeue...),
+				cache:   NewAtomicThrottledCache[JobMetric](1),
+				errCounter: prometheus.NewCounter(prometheus.CounterOpts{
+					Name: "slurm_job_scrape_error",
+					Help: "job scrape error",
+				}),
+			},
 		},
-		traceConf: new(TraceConfig),
 	}
-	cliOpts := config.cliOpts
-	config.SetFetcher(NewCliFetcher(cliOpts.squeue...))
 	server := initPromServer(config)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/metrics", nil)

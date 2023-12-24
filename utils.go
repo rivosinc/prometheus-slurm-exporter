@@ -21,7 +21,7 @@ import (
 )
 
 type SlurmPrimitiveMetric interface {
-	NodeMetric | JobMetric | DiagMetric
+	NodeMetric | JobMetric | DiagMetric | LicenseMetric
 }
 
 // interface for getting data from slurm
@@ -37,18 +37,18 @@ type SlurmMetricFetcher[M SlurmPrimitiveMetric] interface {
 	ScrapeError() prometheus.Counter
 }
 
-type AtomicThrottledCache struct {
+type AtomicThrottledCache[C SlurmPrimitiveMetric] struct {
 	sync.Mutex
 	t     time.Time
 	limit float64
-	cache []byte
+	cache []C
 	// duration of last cache miss
 	duration time.Duration
 }
 
 // atomic fetch of either the cache or the collector
 // reset & hydrate as necessary
-func (atc *AtomicThrottledCache) fetchOrThrottle(fetchFunc func() ([]byte, error)) ([]byte, error) {
+func (atc *AtomicThrottledCache[C]) FetchOrThrottle(fetchFunc func() ([]C, error)) ([]C, error) {
 	atc.Lock()
 	defer atc.Unlock()
 	if len(atc.cache) > 0 && time.Since(atc.t).Seconds() < atc.limit {
@@ -65,8 +65,8 @@ func (atc *AtomicThrottledCache) fetchOrThrottle(fetchFunc func() ([]byte, error
 	return slurmData, nil
 }
 
-func NewAtomicThrottledCache(limit float64) *AtomicThrottledCache {
-	return &AtomicThrottledCache{
+func NewAtomicThrottledCache[C SlurmPrimitiveMetric](limit float64) *AtomicThrottledCache[C] {
+	return &AtomicThrottledCache[C]{
 		t:     time.Now(),
 		limit: limit,
 	}
@@ -80,22 +80,19 @@ func duration(msg string, start time.Time) {
 	slog.Debug(fmt.Sprintf("cmd %s took %s secs", msg, time.Since(start)))
 }
 
-// implements SlurmFetcher by fetch data from cli
-type CliFetcher struct {
-	args    []string
-	timeout time.Duration
-	cache   *AtomicThrottledCache
+// implements SlurmByteScraper by fetch data from cli
+type CliScraper struct {
+	args     []string
+	timeout  time.Duration
+	duration time.Duration
 }
 
-func (cf *CliFetcher) FetchRawBytes() ([]byte, error) {
-	return cf.cache.fetchOrThrottle(cf.captureCli)
+func (cf *CliScraper) Duration() time.Duration {
+	return cf.duration
 }
 
-func (cf *CliFetcher) Duration() time.Duration {
-	return cf.cache.duration
-}
-
-func (cf *CliFetcher) captureCli() ([]byte, error) {
+func (cf *CliScraper) FetchRawBytes() ([]byte, error) {
+	defer func(t time.Time) { cf.duration = time.Since(t) }(time.Now())
 	if len(cf.args) == 0 {
 		return nil, errors.New("need at least 1 args")
 	}
@@ -122,7 +119,7 @@ func (cf *CliFetcher) captureCli() ([]byte, error) {
 	return outb.Bytes(), nil
 }
 
-func NewCliFetcher(args ...string) *CliFetcher {
+func NewCliScraper(args ...string) *CliScraper {
 	var limit float64 = 10
 	var err error
 	if tm, ok := os.LookupEnv("CLI_TIMEOUT"); ok {
@@ -130,21 +127,20 @@ func NewCliFetcher(args ...string) *CliFetcher {
 			slog.Error("`CLI_TIMEOUT` env var parse error")
 		}
 	}
-	return &CliFetcher{
+	return &CliScraper{
 		args:    args,
 		timeout: time.Duration(limit) * time.Second,
-		cache:   NewAtomicThrottledCache(1),
 	}
 }
 
-// implements SlurmFetcher by pulling fixtures instead
+// implements SlurmByteScraper by pulling fixtures instead
 // used exclusively for testing
-type MockFetcher struct {
+type MockScraper struct {
 	fixture  string
 	duration time.Duration
 }
 
-func (f *MockFetcher) FetchRawBytes() ([]byte, error) {
+func (f *MockScraper) FetchRawBytes() ([]byte, error) {
 	defer func(t time.Time) {
 		f.duration = time.Since(t)
 	}(time.Now())
@@ -164,7 +160,7 @@ func (f *MockFetcher) FetchRawBytes() ([]byte, error) {
 	return bytes.Join(filtered, sep), nil
 }
 
-func (f *MockFetcher) Duration() time.Duration {
+func (f *MockScraper) Duration() time.Duration {
 	return f.duration
 }
 
