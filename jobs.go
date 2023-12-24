@@ -300,7 +300,7 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- jc.fetcher.ScrapeError()
 	}()
 	jobMetrics, err := jc.fetcher.FetchMetrics()
-	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.ScrapeDuration().Microseconds()))
+	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.ScrapeDuration().Milliseconds()))
 	if err != nil {
 		slog.Error("fetcher failure %q", err)
 		return
