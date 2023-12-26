@@ -52,4 +52,5 @@ RUN cargo install just
 ADD . .
 RUN cp init_cgroup.conf /etc/slurm/cgroup.conf && \
     cp init_slurm.conf /etc/slurm/slurm.conf
+ENTRYPOINT [ "./entrypoint.sh" ]
 ARG USER=$USER

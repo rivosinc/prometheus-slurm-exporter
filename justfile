@@ -55,11 +55,6 @@ fmt:
 docker:
   docker build -t slurmcprom .
 
-docker-entry:
-  munged -f
-  slurmctld
-  slurmd
-
 test-all:
   if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
   source venv/bin/activate && CGO_CXXFLAGS="-I{{include_path}}" CGO_LDFLAGS="-L{{ld_library}} -lslurmfull" LD_LIBRARY_PATH={{ld_library}} go test . ./slurmcprom
