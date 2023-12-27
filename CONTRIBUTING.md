@@ -3,6 +3,18 @@ SPDX-FileCopyrightText: 2023 Rivos Inc.
 
 SPDX-License-Identifier: Apache-2.0
 -->
+# Developing the main package (Golang only)
+
+Requirements:
+  - [golang](https://go.dev/doc/install) >= 1.20
+  - [python3](https://www.python.org/downloads/) > 3.8
+    - python3-pip
+    - python3-venv
+  - [just](https://github.com/casey/just)
+
+Once the requirements are met run `just init && just test`. If all tests pass, you have a working install of the exporter.
+
+
 # Developing the C extension
 
 ## Developing w/ Docker
