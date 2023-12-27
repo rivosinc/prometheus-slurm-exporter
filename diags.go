@@ -1,8 +1,8 @@
-package main
-
 // SPDX-FileCopyrightText: 2023 Rivos Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
+
+package prometheusslurmexporter
 
 import (
 	"encoding/json"

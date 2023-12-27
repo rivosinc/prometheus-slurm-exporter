@@ -9,11 +9,8 @@
 
 using namespace std;
 
-class PromNodeMetric
+struct PromNodeMetric
 {
-private:
-
-public:
     PromNodeMetric();
     ~PromNodeMetric();
     string Hostname;
@@ -29,7 +26,7 @@ public:
     uint32_t CpuLoad;
 };
 
-struct NodeMetricFetcher
+struct NodeMetricScraper
 {
 private:
     partition_info_msg_t *new_part_ptr, *old_part_ptr;
@@ -37,8 +34,8 @@ private:
     unordered_map<string, PromNodeMetric> enrichedMetrics;
     int enrichNodeInfo(node_info_t *node_info);
 public:
-    NodeMetricFetcher(string conf);
-    ~NodeMetricFetcher();
+    NodeMetricScraper(string conf);
+    ~NodeMetricScraper();
     int CollectNodeInfo();
     size_t NumMetrics();
     void Print();

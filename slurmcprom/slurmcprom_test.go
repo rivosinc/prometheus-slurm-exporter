@@ -12,8 +12,8 @@ import (
 
 func TestNodeMetricFetcherInit(t *testing.T) {
 	assert := assert.New(t)
-	fetcher := NewNodeMetricFetcher("")
-	defer DeleteNodeMetricFetcher(fetcher)
+	fetcher := NewNodeMetricScraper("")
+	defer DeleteNodeMetricScraper(fetcher)
 	assert.Zero(fetcher.NumMetrics())
 	err := fetcher.CollectNodeInfo()
 	assert.Zero(err)

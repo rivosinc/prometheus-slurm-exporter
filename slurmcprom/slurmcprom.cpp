@@ -2,15 +2,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 #include <stdlib.h>
+#include <sstream>
+#include <iostream>
+#include <vector>
 #include <slurm/slurm.h>
 #include "slurmcprom.hpp"
-
 
 PromNodeMetric::PromNodeMetric() {}
 PromNodeMetric::~PromNodeMetric() {}
 
-
-NodeMetricFetcher::NodeMetricFetcher(string conf)
+NodeMetricScraper::NodeMetricScraper(string conf)
 {
     if (conf == "")
         slurm_init(NULL);
@@ -22,7 +23,7 @@ NodeMetricFetcher::NodeMetricFetcher(string conf)
     old_part_ptr = NULL;
 }
 
-NodeMetricFetcher::~NodeMetricFetcher() {
+NodeMetricScraper::~NodeMetricScraper() {
 
     if (new_node_ptr)
         slurm_free_node_info_msg(new_node_ptr);
@@ -39,12 +40,12 @@ NodeMetricFetcher::~NodeMetricFetcher() {
     slurm_fini();
 }
 
-int NodeMetricFetcher::enrichNodeInfo(node_info_t *node_ptr) {
-    std::string hostname(node_ptr->name);
-    std::string partitions(node_ptr->partitions);
+int NodeMetricScraper::enrichNodeInfo(node_info_t *node_ptr) {
+    string hostname(node_ptr->name);
+    string partitions(node_ptr->partitions);
     enrichedMetrics[hostname].Hostname = hostname;
     enrichedMetrics[hostname].Cpus = node_ptr->cpus;
-    enrichedMetrics[hostname].RealMemory = node_ptr->free_mem;
+    enrichedMetrics[hostname].RealMemory = node_ptr->real_memory;
     enrichedMetrics[hostname].FreeMem = node_ptr->free_mem;
     enrichedMetrics[hostname].Partitions = partitions;
 
@@ -52,20 +53,20 @@ int NodeMetricFetcher::enrichNodeInfo(node_info_t *node_ptr) {
 				     SELECT_NODEDATA_SUBCNT,
 				     NODE_STATE_ALLOCATED,
 				     &enrichedMetrics[hostname].AllocCpus);
-    if (err) std::cout << "WARNING: failed to enrich alloc cpu data\n";
+    if (err) cout << "WARNING: failed to enrich alloc cpu data\n";
     err += slurm_get_select_nodeinfo(node_ptr->select_nodeinfo,
 				     SELECT_NODEDATA_MEM_ALLOC,
 				     NODE_STATE_ALLOCATED,
 				     &enrichedMetrics[hostname].AllocMem);
-    if (err) std::cout << "WARNING: failed to enrich alloc mem data\n";
+    if (err) cout << "WARNING: failed to enrich alloc mem data\n";
     return SLURM_SUCCESS;
 }
 
-size_t NodeMetricFetcher::NumMetrics() {
+size_t NodeMetricScraper::NumMetrics() {
     return enrichedMetrics.size();
 }
 
-int NodeMetricFetcher::CollectNodeInfo() {
+int NodeMetricScraper::CollectNodeInfo() {
     int error_code;
     if (old_node_ptr != nullptr) {
         error_code = slurm_load_partitions(old_part_ptr->last_update, &new_part_ptr, SHOW_ALL);
@@ -95,7 +96,7 @@ int NodeMetricFetcher::CollectNodeInfo() {
     return slurm_get_errno();
 }
 
-void NodeMetricFetcher::Print() {
+void NodeMetricScraper::Print() {
     for (auto const& p: enrichedMetrics)
         std::cout << p.first << ":" << p.second.Partitions << "\n";
 }
