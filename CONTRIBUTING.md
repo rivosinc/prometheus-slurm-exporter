@@ -53,6 +53,12 @@ For the C/C++ extension, add the following include path to `.vscode/c_cpp_proper
 }
 ```
 
-## Developing locally
-Assuming slurm is already installed on the local machine, simply modify the include and `ld_library_path` in the just file to point to slurm.
-This implies that slurm was installed through the recomended `make` file and not through the pre-packaged `yum/apt` repos.
+### Developing Locally
+Download slurm and associated headers. This will typically involve [downloading](https://github.com/SchedMD/slurm/tags) a slurm release and
+configuring and installing the repo. Note, installing the RPM/apt packages won't install the headers that the extension needs.
+After installation, modify the variables in your `.env` file and invoke via the `justfile`
+
+| Variable          | Default Value        | Purpose                                                                     |
+|-------------------|----------------------|-----------------------------------------------------------------------------|
+| SLURM_LIB_DIR     | /usr/lib64/lib/slurm | directory where `libslurm.so` is located                                    |
+| SLURM_INCLUDE_DIR | /usr/lib64/include   | location of `slurm/slurm.h`                                                 |
