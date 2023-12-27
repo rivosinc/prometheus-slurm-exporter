@@ -22,7 +22,7 @@ func TestCtoGoNodeMetrics(t *testing.T) {
 	assert := assert.New(t)
 	collector := NewNodeFetcher()
 	defer collector.Deinit()
-	metrics, err := collector.NodeMetricConvert()
+	metrics, err := collector.CToGoMetricConvert()
 	assert.NoError(err)
 	assert.Positive(len(metrics))
 }
@@ -31,10 +31,11 @@ func TestCtoGoNodeMetricsTwice(t *testing.T) {
 	assert := assert.New(t)
 	collector := NewNodeFetcher()
 	defer collector.Deinit()
-	metrics, err := collector.NodeMetricConvert()
+	metrics, err := collector.CToGoMetricConvert()
 	assert.NoError(err)
 	assert.Positive(len(metrics))
-	metrics, err = collector.NodeMetricConvert()
+	// tests cached partition & node info data path
+	metrics, err = collector.CToGoMetricConvert()
 	assert.NoError(err)
 	assert.Positive(len(metrics))
 }

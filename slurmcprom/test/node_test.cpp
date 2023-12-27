@@ -9,12 +9,12 @@
 struct TestWrapper {
     TestWrapper(string testName, int errnum);
     string TestName;
-    int Errno;
+    int Passed;
 };
 
 TestWrapper::TestWrapper(string testName, int errnum) {
     TestName = testName;
-    Errno = errnum;
+    Passed = errnum;
 }
 
 class TestHandler
@@ -23,7 +23,7 @@ class TestHandler
     chrono::system_clock::time_point start;
     public:
     void Register(TestWrapper wrp);
-    void Report();
+    int Report();
     TestHandler();
 };
 
@@ -36,15 +36,15 @@ void TestHandler::Register(TestWrapper wrp)
     tests.push_back(wrp);
 }
 
-void TestHandler::Report()
+int TestHandler::Report()
 {
     auto duration = chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start);
     int fails = 0;
     for (auto const& tw : tests) {
-        if (!tw.Errno) continue;
+        if (tw.Passed) continue;
         fails++;
         cout << "Test " << tw.TestName;
-        cout << " errored with code " << tw.Errno << endl;
+        cout << " errored with code " << tw.Passed << endl;
     }
     cout << "Summary: " << endl;
     cout << "    Ran: " << tests.size() << endl;
@@ -52,39 +52,50 @@ void TestHandler::Report()
         cout << "    Failed: " << fails << endl;
     cout << "    Passed: " << tests.size() - fails << endl;
     cout << "Took " << duration.count() << "ms" << endl;
+    return fails;
 }
 
 void NodeMetricScraper_CollectHappy(TestHandler &th) {
     auto scraper = NodeMetricScraper("");
     int errnum = scraper.CollectNodeInfo();
     string testname("Node Metric Scraper Collect Happy");
-    th.Register(TestWrapper(testname, errnum));
+    th.Register(TestWrapper(testname, errnum == 0));
 }
 
 void NodeMetricScraper_CollectTwice(TestHandler &th) {
     auto scraper = NodeMetricScraper("");
     int errnum = scraper.CollectNodeInfo();
     int errnum2 = scraper.CollectNodeInfo();
-    string testname("Node Metric Scraper Collect Happy");
-    th.Register(TestWrapper(testname, errnum + errnum2));
+    string testname("Node Metric Scraper Cache hit Works");
+    th.Register(TestWrapper(testname, errnum == 0 && errnum2 == 0));
 }
 
 void TestIter(TestHandler &th) {
     auto scraper = NodeMetricScraper("");
     int errnum = scraper.CollectNodeInfo();
+    scraper.IterReset();
     PromNodeMetric metric;
     int count = 0;
-    while (scraper.IterNext(&metric) == 0) {
-        cout << metric.Hostname << endl;
+    assert(errnum == 0);
+    while (scraper.IterNext(&metric) == 0)
         count++;
-    }
     string testname("Test Map Iteration After Collection");
     th.Register(TestWrapper(testname, count > 0));
 }
 
+void TestIter_Empty(TestHandler &th) {
+    auto scraper = NodeMetricScraper("");
+    PromNodeMetric metric;
+    int count = 0;
+    string testname("Test Map Iteration After Collection");
+    th.Register(TestWrapper(testname, scraper.IterNext(&metric) != 0));
+}
+
 int main() {
     TestHandler handler;
-    // NodeMetricScraper_CollectHappy(handler);
+    NodeMetricScraper_CollectHappy(handler);
+    NodeMetricScraper_CollectTwice(handler);
     TestIter(handler);
-    handler.Report();
+    TestIter_Empty(handler);
+    return handler.Report();
 }

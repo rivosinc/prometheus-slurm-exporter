@@ -40,7 +40,7 @@ public:
     ~NodeMetricScraper();
     int CollectNodeInfo();
     void Print();
-    // public iterator exposure for swig
+    // public iterator exposure. Swig doesn't properly expose the iterator subclass
     // expects to be IterReset always
     int IterNext(PromNodeMetric *metric);
     void IterReset();

@@ -27,7 +27,7 @@ func (cni *CNodeFetcher) Deinit() {
 	DeleteNodeMetricScraper(cni.scraper)
 }
 
-func (cni *CNodeFetcher) NodeMetricConvert() ([]psm.NodeMetric, error) {
+func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
 	if errno := cni.scraper.CollectNodeInfo(); errno != 0 {
 		cni.errorCounter.Inc()
 		return nil, fmt.Errorf("Node Info CPP errno: %d", errno)
