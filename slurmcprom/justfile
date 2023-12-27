@@ -23,3 +23,7 @@ cpptest:
   g++ test/node_test.cpp slurmcprom.cpp -I. -I${SLURM_INCLUDE_DIR} -L${SLURM_LIB_DIR} -lslurmfull -o {{build_dir}}/test/node_test
   @echo Testing Node Fetcher
   LD_LIBRARY_PATH=$SLURM_LIB_DIR {{build_dir}}/test/node_test
+
+swigdebug:
+  rm -rf {{build_dir}}/swig && mkdir -p {{build_dir}}/swig
+  swig -c++ -go -intgosize 64 -outdir {{build_dir}}/swig -o {{build_dir}}/swig/slurmcprom_wrap.cpp slurmcprom.swigcxx

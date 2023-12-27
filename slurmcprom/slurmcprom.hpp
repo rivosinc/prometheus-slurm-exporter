@@ -4,7 +4,8 @@
 
 #include <slurm/slurm.h>
 #include <string>
-#include <unordered_map>
+#include <map>
+#include <vector>
 #include <iostream>
 
 using namespace std;
@@ -31,12 +32,13 @@ struct NodeMetricScraper
 private:
     partition_info_msg_t *new_part_ptr, *old_part_ptr;
     node_info_msg_t *new_node_ptr, *old_node_ptr;
-    unordered_map<string, PromNodeMetric> enrichedMetrics;
+    map<string, PromNodeMetric> enrichedMetrics;
     int enrichNodeInfo(node_info_t *node_info);
 public:
     NodeMetricScraper(string conf);
     ~NodeMetricScraper();
     int CollectNodeInfo();
+    vector<PromNodeMetric> EnrichedMetricsView();
     size_t NumMetrics();
     void Print();
 };

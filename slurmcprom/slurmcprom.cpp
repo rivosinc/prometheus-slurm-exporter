@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <sstream>
 #include <iostream>
-#include <vector>
 #include <slurm/slurm.h>
 #include "slurmcprom.hpp"
 
@@ -94,6 +93,14 @@ int NodeMetricScraper::CollectNodeInfo() {
         alloc_errs += enrichNodeInfo(&new_node_ptr->node_array[i]);
     if (alloc_errs) std::cout << "enable to enrich " << alloc_errs << " with fail stats";
     return slurm_get_errno();
+}
+
+vector<PromNodeMetric> NodeMetricScraper::EnrichedMetricsView()
+{
+    vector<PromNodeMetric> enrichNodeInfoValues;
+    for (auto const& p: enrichedMetrics)
+        enrichNodeInfoValues.push_back(p.second);
+    return enrichNodeInfoValues;
 }
 
 void NodeMetricScraper::Print() {
