@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 build_dir := "./build"
+set dotenv-path := "../.env"
 set dotenv-load
 set shell := ["bash", "-ceo", "pipefail"]
 
@@ -10,5 +11,9 @@ default:
   just --list
 
 gotest:
-    if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
-    CGO_CXXFLAGS="-I/usr/lib64/include" CGO_LDFLAGS="-L/usr/lib64/lib/slurm -lslurmfull" LD_LIBRARY_PATH="/usr/lib64/lib/slurm:$LD_LIBRARY_PATH" go test
+  #!/bin/bash
+  set -aeuxo pipefail
+  CGO_CXXFLAGS="-I${SLURM_INCLUDE_DIR}"
+  CGO_LDFLAGS="-L${SLURM_LIB_DIR} -lslurmfull"
+  LD_LIBRARY_PATH="$SLURM_LIB_DIR"
+  go test

@@ -5,11 +5,10 @@
 build_dir := "./build"
 coverage := "coverage"
 vpython := "venv/bin/python3"
-# CHANGEME: these are common slurm locations, replace w/ local install if neccesary
+# default ld_library and include paths that work within container
 ld_library := "/usr/lib64/lib/slurm"
 include_path := "/usr/lib64/include"
 
-# Implicitly source '.env' files when running commands.
 set dotenv-load
 set shell := ["bash", "-ceuo", "pipefail"]
 
@@ -23,6 +22,7 @@ init:
   python3 -m venv venv
   {{vpython}} -m pip install -U pip pre-commit psutil requests
   ./venv/bin/pre-commit install --install-hooks
+  if ! [ -f .env ]; then printf "SLURM_LIB_DIR={{ld_library}}\nSLURM_INCLUDE_DIR={{include_path}}\n" > .env; fi
 
 build:
   rm -rf {{build_dir}}
@@ -52,6 +52,12 @@ cover:
 fmt:
   go fmt
 
+docker:
+  docker build -t slurmcprom .
+
 test-all:
-  if ! [[ `stat /run/munge/munge.socket.2 2> /dev/null` ]]; then munged -f; fi
-  source venv/bin/activate && CGO_CXXFLAGS="-I{{include_path}}" CGO_LDFLAGS="-L{{ld_library}} -lslurmfull" LD_LIBRARY_PATH={{ld_library}} go test . ./slurmcprom
+  #!/bin/bash
+  set -aeuxo pipefail
+  CGO_CXXFLAGS="-I${SLURM_INCLUDE_DIR}"
+  CGO_LDFLAGS="-L${SLURM_LIB_DIR} -lslurmfull"
+  go test . ./slurmcprom
