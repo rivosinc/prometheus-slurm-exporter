@@ -10,18 +10,6 @@
 PromNodeMetric::PromNodeMetric() {}
 PromNodeMetric::~PromNodeMetric() {}
 
-NodeMetricScraper::NodeMetricScraper(string conf)
-{
-    if (conf == "")
-        slurm_init(NULL);
-    else
-        slurm_init(conf.c_str());
-    new_node_ptr = NULL;
-    old_node_ptr = NULL;
-    new_part_ptr = NULL;
-    old_part_ptr = NULL;
-}
-
 NodeMetricScraper::~NodeMetricScraper() {
 
     if (new_node_ptr)
@@ -61,10 +49,6 @@ int NodeMetricScraper::enrichNodeInfo(node_info_t *node_ptr) {
     return SLURM_SUCCESS;
 }
 
-size_t NodeMetricScraper::NumMetrics() {
-    return enrichedMetrics.size();
-}
-
 int NodeMetricScraper::CollectNodeInfo() {
     int error_code;
     if (old_node_ptr != nullptr) {
@@ -91,19 +75,38 @@ int NodeMetricScraper::CollectNodeInfo() {
     int alloc_errs = 0;
     for (int i = 0; i < new_node_ptr->record_count; i++)
         alloc_errs += enrichNodeInfo(&new_node_ptr->node_array[i]);
-    if (alloc_errs) cout << "enable to enrich " << alloc_errs << " with fail stats";
+
     return slurm_get_errno();
 }
 
-vector<PromNodeMetric> NodeMetricScraper::EnrichedMetricsView()
-{
-    vector<PromNodeMetric> enrichNodeInfoValues;
+void NodeMetricScraper::Print() {
+    cout << "NodeMetrics: [";
     for (auto const& p: enrichedMetrics)
-        enrichNodeInfoValues.push_back(p.second);
-    return enrichNodeInfoValues;
+        cout << "{" << p.first << "," << p.second.Partitions << "},";
+    cout << "]" << endl;
 }
 
-void NodeMetricScraper::Print() {
-    for (auto const& p: enrichedMetrics)
-        std::cout << p.first << ":" << p.second.Partitions << "\n";
+int NodeMetricScraper::IterNext(PromNodeMetric &metric) {
+    if (it == enrichedMetrics.cend())
+        return 1;
+    metric = it->second;
+    it++;
+    return 0;
+}
+
+void NodeMetricScraper::IterReset() {
+    it = enrichedMetrics.cbegin();
+}
+
+NodeMetricScraper::NodeMetricScraper(string conf)
+{
+    if (conf == "")
+        slurm_init(nullptr);
+    else
+        slurm_init(conf.c_str());
+    new_node_ptr = nullptr;
+    old_node_ptr = nullptr;
+    new_part_ptr = nullptr;
+    old_part_ptr = nullptr;
+    IterReset();
 }

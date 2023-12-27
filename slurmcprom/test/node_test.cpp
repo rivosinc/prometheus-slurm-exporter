@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Rivos Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
+#include <chrono>
 #include <slurmcprom.hpp>
 #include <assert.h>
 
@@ -19,10 +20,16 @@ TestWrapper::TestWrapper(string testName, int errnum) {
 class TestHandler
 {
     vector<TestWrapper> tests;
+    chrono::system_clock::time_point start;
     public:
     void Register(TestWrapper wrp);
     void Report();
+    TestHandler();
 };
+
+TestHandler::TestHandler() {
+    start = chrono::high_resolution_clock::now();
+}
 
 void TestHandler::Register(TestWrapper wrp)
 {
@@ -31,6 +38,7 @@ void TestHandler::Register(TestWrapper wrp)
 
 void TestHandler::Report()
 {
+    auto duration = chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start);
     int fails = 0;
     for (auto const& tw : tests) {
         if (!tw.Errno) continue;
@@ -43,6 +51,7 @@ void TestHandler::Report()
     if (fails)
         cout << "    Failed: " << fails << endl;
     cout << "    Passed: " << tests.size() - fails << endl;
+    cout << "Took " << duration.count() << "ms" << endl;
 }
 
 void NodeMetricScraper_CollectHappy(TestHandler &th) {
@@ -52,21 +61,22 @@ void NodeMetricScraper_CollectHappy(TestHandler &th) {
     th.Register(TestWrapper(testname, errnum));
 }
 
-void NodeMetricScrape_EnrichedMetricsView(TestHandler &th) {
+void TestIter(TestHandler &th) {
     auto scraper = NodeMetricScraper("");
-    scraper.Print();
-    scraper.CollectNodeInfo();
-    scraper.Print();
-    for (auto const& p: scraper.EnrichedMetricsView()) {
-        cout << p.Hostname << endl;
+    int errnum = scraper.CollectNodeInfo();
+    PromNodeMetric metric;
+    int count = 0;
+    while (scraper.IterNext(metric) == 0) {
+        cout << metric.Hostname << endl;
+        count++;
     }
-    auto metrics = scraper.EnrichedMetricsView();
-    th.Register(TestWrapper("Node Metrics Vector View Happy", (int)(metrics.size() != scraper.NumMetrics())));
+    string testname("Test Map Iteration After Collection");
+    th.Register(TestWrapper(testname, count > 0));
 }
 
 int main() {
     TestHandler handler;
     NodeMetricScraper_CollectHappy(handler);
-    NodeMetricScrape_EnrichedMetricsView(handler);
+    TestIter(handler);
     handler.Report();
 }

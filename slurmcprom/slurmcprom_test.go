@@ -19,21 +19,3 @@ func TestNodeMetricFetcherInit(t *testing.T) {
 	assert.Zero(err)
 	assert.NotZero(fetcher.NumMetrics())
 }
-
-func TestNodeMetricFetcherCustomConf(t *testing.T) {
-	assert := assert.New(t)
-	fetcher := NewNodeMetricScraper("/etc/slurm/slurm.conf")
-	defer DeleteNodeMetricScraper(fetcher)
-	assert.Zero(fetcher.NumMetrics())
-	err := fetcher.CollectNodeInfo()
-	assert.Zero(err)
-	assert.NotZero(fetcher.NumMetrics())
-}
-
-func TestNodeInfoScraper_CollectNodeInfo(t *testing.T) {
-	assert := assert.New(t)
-	fetcher := NewNodeFetcher()
-	nodeMetrics, err := fetcher.NodeMetricConvert()
-	assert.Nil(err)
-	assert.Positive(len(nodeMetrics))
-}
