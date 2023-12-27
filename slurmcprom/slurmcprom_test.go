@@ -36,5 +36,4 @@ func TestNodeInfoScraper_CollectNodeInfo(t *testing.T) {
 	nodeMetrics, err := fetcher.NodeMetricConvert()
 	assert.Nil(err)
 	assert.Positive(len(nodeMetrics))
-
 }

@@ -91,7 +91,7 @@ int NodeMetricScraper::CollectNodeInfo() {
     int alloc_errs = 0;
     for (int i = 0; i < new_node_ptr->record_count; i++)
         alloc_errs += enrichNodeInfo(&new_node_ptr->node_array[i]);
-    if (alloc_errs) std::cout << "enable to enrich " << alloc_errs << " with fail stats";
+    if (alloc_errs) cout << "enable to enrich " << alloc_errs << " with fail stats";
     return slurm_get_errno();
 }
 
