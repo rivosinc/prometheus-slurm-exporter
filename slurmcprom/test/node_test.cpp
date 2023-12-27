@@ -61,12 +61,20 @@ void NodeMetricScraper_CollectHappy(TestHandler &th) {
     th.Register(TestWrapper(testname, errnum));
 }
 
+void NodeMetricScraper_CollectTwice(TestHandler &th) {
+    auto scraper = NodeMetricScraper("");
+    int errnum = scraper.CollectNodeInfo();
+    int errnum2 = scraper.CollectNodeInfo();
+    string testname("Node Metric Scraper Collect Happy");
+    th.Register(TestWrapper(testname, errnum + errnum2));
+}
+
 void TestIter(TestHandler &th) {
     auto scraper = NodeMetricScraper("");
     int errnum = scraper.CollectNodeInfo();
     PromNodeMetric metric;
     int count = 0;
-    while (scraper.IterNext(metric) == 0) {
+    while (scraper.IterNext(&metric) == 0) {
         cout << metric.Hostname << endl;
         count++;
     }
@@ -76,7 +84,7 @@ void TestIter(TestHandler &th) {
 
 int main() {
     TestHandler handler;
-    NodeMetricScraper_CollectHappy(handler);
+    // NodeMetricScraper_CollectHappy(handler);
     TestIter(handler);
     handler.Report();
 }

@@ -35,7 +35,6 @@ int NodeMetricScraper::enrichNodeInfo(node_info_t *node_ptr) {
     enrichedMetrics[hostname].RealMemory = node_ptr->real_memory;
     enrichedMetrics[hostname].FreeMem = node_ptr->free_mem;
     enrichedMetrics[hostname].Partitions = partitions;
-
     int err = slurm_get_select_nodeinfo(node_ptr->select_nodeinfo,
 				     SELECT_NODEDATA_SUBCNT,
 				     NODE_STATE_ALLOCATED,
@@ -51,7 +50,7 @@ int NodeMetricScraper::enrichNodeInfo(node_info_t *node_ptr) {
 
 int NodeMetricScraper::CollectNodeInfo() {
     int error_code;
-    if (old_node_ptr != nullptr) {
+    if (old_node_ptr && old_part_ptr) {
         error_code = slurm_load_partitions(old_part_ptr->last_update, &new_part_ptr, SHOW_ALL);
         if (SLURM_SUCCESS == error_code)
             slurm_free_partition_info_msg(old_part_ptr);
@@ -68,14 +67,15 @@ int NodeMetricScraper::CollectNodeInfo() {
         error_code = slurm_load_node((time_t) nullptr, &new_node_ptr, SHOW_ALL);
     if (SLURM_SUCCESS != error_code)
         return error_code;
-    slurm_free_node_info_msg(old_node_ptr);
-    old_node_ptr = new_node_ptr;
     // enrich with node info
     slurm_populate_node_partitions(new_node_ptr, new_part_ptr);
     int alloc_errs = 0;
     for (int i = 0; i < new_node_ptr->record_count; i++)
         alloc_errs += enrichNodeInfo(&new_node_ptr->node_array[i]);
-
+    slurm_free_node_info_msg(old_node_ptr);
+    slurm_free_partition_info_msg(old_part_ptr);
+    old_node_ptr = new_node_ptr;
+    old_part_ptr = new_part_ptr;
     return slurm_get_errno();
 }
 

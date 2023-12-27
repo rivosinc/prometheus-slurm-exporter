@@ -22,15 +22,20 @@ type CNodeFetcher struct {
 	errorCounter prometheus.Counter
 }
 
+// should be defer'd immediately after new cmd to prevent mem leaks
+func (cni *CNodeFetcher) Deinit() {
+	DeleteNodeMetricScraper(cni.scraper)
+}
+
 func (cni *CNodeFetcher) NodeMetricConvert() ([]psm.NodeMetric, error) {
 	if errno := cni.scraper.CollectNodeInfo(); errno != 0 {
 		cni.errorCounter.Inc()
 		return nil, fmt.Errorf("Node Info CPP errno: %d", errno)
 	}
-	cni.scraper.CollectNodeInfo()
 	cni.scraper.IterReset()
 	nodeMetrics := make([]psm.NodeMetric, 0)
 	metric := NewPromNodeMetric()
+	defer DeletePromNodeMetric(metric)
 	nodeStates := map[uint]string{
 		0: "UNKNOWN",
 		1: "DOWN",
@@ -42,7 +47,7 @@ func (cni *CNodeFetcher) NodeMetricConvert() ([]psm.NodeMetric, error) {
 		// used by the C api to detect end of enum. Shouldn't ever be emitted
 		7: "END",
 	}
-	for cni.scraper.IterNext(metric) != 0 {
+	for cni.scraper.IterNext(metric) == 0 {
 		nodeMetric := psm.NodeMetric{
 			Hostname:    metric.GetHostname(),
 			Cpus:        float64(metric.GetCpus()),
