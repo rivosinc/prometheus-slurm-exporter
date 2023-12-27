@@ -7,19 +7,21 @@
 #include <unordered_map>
 #include <iostream>
 
+using namespace std;
+
 class PromNodeMetric
 {
 private:
 
 public:
-    PromNodeMetric() {};
-    ~PromNodeMetric() {};
-    std::string Hostname;
+    PromNodeMetric();
+    ~PromNodeMetric();
+    string Hostname;
     uint16_t Cpus;
     uint64_t RealMemory;
     uint64_t FreeMem;
     // csv formated list
-    std::string Partitions;
+    string Partitions;
     uint32_t NodeState;
     uint16_t AllocCpus;
     uint64_t AllocMem;
@@ -27,16 +29,16 @@ public:
     uint32_t CpuLoad;
 };
 
-class MetricExporter
+struct NodeMetricFetcher
 {
 private:
     partition_info_msg_t *new_part_ptr, *old_part_ptr;
     node_info_msg_t *new_node_ptr, *old_node_ptr;
-    std::unordered_map<std::string, PromNodeMetric> enrichedMetrics;
+    unordered_map<string, PromNodeMetric> enrichedMetrics;
     int enrichNodeInfo(node_info_t *node_info);
 public:
-    MetricExporter();
-    ~MetricExporter();
+    NodeMetricFetcher(string conf);
+    ~NodeMetricFetcher();
     int CollectNodeInfo();
     size_t NumMetrics();
     void Print();

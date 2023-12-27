@@ -4,7 +4,8 @@
 
 %module main
 %{
-    #include "cslurm.hpp"
+    #include "slurmcprom.hpp"
 %}
 
-%include "cslurm.hpp"
+%include "std_string.i"
+%include "slurmcprom.hpp"

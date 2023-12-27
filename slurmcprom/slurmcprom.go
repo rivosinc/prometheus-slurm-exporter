@@ -4,10 +4,4 @@ package slurmcprom
 //
 // SPDX-License-Identifier: Apache-2.0
 
-import (
-	"testing"
-)
-
-func TestCGetPartitions(t *testing.T) {
-	testCGetPartitions(t)
-}
+import "C"
