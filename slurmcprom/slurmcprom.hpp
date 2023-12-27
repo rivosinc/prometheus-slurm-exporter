@@ -10,21 +10,27 @@
 
 using namespace std;
 
-struct PromNodeMetric
+class PromNodeMetric
 {
+    private:
+    node_info_t node_info;
+    uint16_t alloc_cpus;
+    uint64_t alloc_mem;
+    public:
+    PromNodeMetric(node_info_t &node_info);
     PromNodeMetric();
     ~PromNodeMetric();
-    string Hostname;
-    uint16_t Cpus;
-    uint64_t RealMemory;
-    uint64_t FreeMem;
-    // csv formated list
-    string Partitions;
-    uint32_t NodeState;
-    uint16_t AllocCpus;
-    uint64_t AllocMem;
-    uint32_t Weight;
-    uint32_t CpuLoad;
+    // return double to easily coerce to go float64
+    double GetCpus();
+    double GetRealMemory();
+    double GetFreeMem();
+    double NodeState();
+    double GetAllocCpus();
+    double GetAllocMem();
+    double GetWeight();
+    double GetCpuLoad();
+    string GetHostname();
+    string GetPartitions();
 };
 
 struct NodeMetricScraper
@@ -33,7 +39,7 @@ private:
     partition_info_msg_t *new_part_ptr, *old_part_ptr;
     node_info_msg_t *new_node_ptr, *old_node_ptr;
     int enrichNodeInfo(node_info_t *node_info);
-    map<string, PromNodeMetric> enrichedMetrics;
+    map<string, PromNodeMetric> enriched_metrics;
     map<string, PromNodeMetric>::const_iterator it;
 public:
     NodeMetricScraper(string conf);

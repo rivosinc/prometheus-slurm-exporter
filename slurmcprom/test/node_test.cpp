@@ -74,10 +74,10 @@ void TestIter(TestHandler &th) {
     auto scraper = NodeMetricScraper("");
     int errnum = scraper.CollectNodeInfo();
     scraper.IterReset();
-    PromNodeMetric metric;
+    PromNodeMetric *metric;
     int count = 0;
     assert(errnum == 0);
-    while (scraper.IterNext(&metric) == 0)
+    while (scraper.IterNext(metric) == 0)
         count++;
     string testname("Test Map Iteration After Collection");
     th.Register(TestWrapper(testname, count > 0));
@@ -85,10 +85,10 @@ void TestIter(TestHandler &th) {
 
 void TestIter_Empty(TestHandler &th) {
     auto scraper = NodeMetricScraper("");
-    PromNodeMetric metric;
+    PromNodeMetric *metric;
     int count = 0;
     string testname("Test Map Iteration After Collection");
-    th.Register(TestWrapper(testname, scraper.IterNext(&metric) != 0));
+    th.Register(TestWrapper(testname, scraper.IterNext(metric) != 0));
 }
 
 int main() {
