@@ -86,10 +86,10 @@ void NodeMetricScraper::Print() {
     cout << "]" << endl;
 }
 
-int NodeMetricScraper::IterNext(PromNodeMetric &metric) {
+int NodeMetricScraper::IterNext(PromNodeMetric *metric) {
     if (it == enrichedMetrics.cend())
         return 1;
-    metric = it->second;
+    *metric = it->second;
     it++;
     return 0;
 }

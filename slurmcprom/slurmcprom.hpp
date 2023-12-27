@@ -42,6 +42,6 @@ public:
     void Print();
     // public iterator exposure for swig
     // expects to be IterReset always
-    int IterNext(PromNodeMetric &metric);
+    int IterNext(PromNodeMetric *metric);
     void IterReset();
 };
