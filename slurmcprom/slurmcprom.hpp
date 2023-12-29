@@ -7,7 +7,7 @@
 #include <map>
 #include <vector>
 #include <iostream>
-
+#include <memory>
 using namespace std;
 
 class PromNodeMetric
@@ -24,7 +24,7 @@ class PromNodeMetric
     double GetCpus();
     double GetRealMemory();
     double GetFreeMem();
-    double NodeState();
+    uint64_t GetNodeState();
     double GetAllocCpus();
     double GetAllocMem();
     double GetWeight();
@@ -38,7 +38,6 @@ struct NodeMetricScraper
 private:
     partition_info_msg_t *new_part_ptr, *old_part_ptr;
     node_info_msg_t *new_node_ptr, *old_node_ptr;
-    int enrichNodeInfo(node_info_t *node_info);
     map<string, PromNodeMetric> enriched_metrics;
     map<string, PromNodeMetric>::const_iterator it;
 public:

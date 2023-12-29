@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package prometheusslurmexporter
+package exporter
 
 import (
 	"bytes"
@@ -317,9 +317,9 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 	})
 	var fetcher SlurmMetricFetcher[NodeMetric]
 	if cliOpts.fallback {
-		fetcher = &NodeCliFallbackFetcher{scraper: byteScraper, errorCounter: errorCounter, cache: NewAtomicThrottledCache[NodeMetric](config.pollLimit)}
+		fetcher = &NodeCliFallbackFetcher{scraper: byteScraper, errorCounter: errorCounter, cache: NewAtomicThrottledCache[NodeMetric](config.PollLimit)}
 	} else {
-		fetcher = &NodeJsonFetcher{scraper: byteScraper, errorCounter: errorCounter, cache: NewAtomicThrottledCache[NodeMetric](config.pollLimit)}
+		fetcher = &NodeJsonFetcher{scraper: byteScraper, errorCounter: errorCounter, cache: NewAtomicThrottledCache[NodeMetric](config.PollLimit)}
 	}
 	return &NodesCollector{
 		fetcher: fetcher,
@@ -419,4 +419,8 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(nc.totalRealMemory, prometheus.GaugeValue, memMetrics.RealMemory)
 	ch <- prometheus.MustNewConstMetric(nc.totalFreeMemory, prometheus.GaugeValue, memMetrics.FreeMemory)
 	ch <- prometheus.MustNewConstMetric(nc.totalAllocMemory, prometheus.GaugeValue, memMetrics.AllocMemory)
+}
+
+func (nc *NodesCollector) SetFetcher(fetcher SlurmMetricFetcher[NodeMetric]) {
+	nc.fetcher = fetcher
 }

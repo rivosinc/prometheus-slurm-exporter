@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package prometheusslurmexporter
+package exporter
 
 import (
 	"testing"
@@ -23,7 +23,7 @@ func TestParseDiagJson(t *testing.T) {
 
 func TestDiagCollect(t *testing.T) {
 	assert := assert.New(t)
-	config, err := NewConfig()
+	config, err := NewConfig(new(CliFlags))
 	assert.NoError(err)
 	dc := NewDiagsCollector(config)
 	dc.fetcher = &MockScraper{fixture: "fixtures/sdiag.json"}
@@ -43,7 +43,7 @@ func TestDiagCollect(t *testing.T) {
 func TestDiagDescribe(t *testing.T) {
 	assert := assert.New(t)
 	ch := make(chan *prometheus.Desc)
-	config, err := NewConfig()
+	config, err := NewConfig(new(CliFlags))
 	assert.Nil(err)
 	dc := NewDiagsCollector(config)
 	dc.fetcher = &MockScraper{fixture: "fixtures/sdiag.json"}

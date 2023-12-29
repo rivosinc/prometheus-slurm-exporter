@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package prometheusslurmexporter
+package exporter
 
 import (
 	"testing"
@@ -26,8 +26,8 @@ func CollectCounterValue(counter prometheus.Counter) float64 {
 func TestNewJobsController(t *testing.T) {
 	assert := assert.New(t)
 	config := &Config{
-		pollLimit: 10,
-		traceConf: &TraceConfig{
+		PollLimit: 10,
+		TraceConf: &TraceConfig{
 			sharedFetcher: &JobCliFallbackFetcher{
 				scraper:    &MockScraper{fixture: "fixtures/squeue_fallback.txt"},
 				cache:      NewAtomicThrottledCache[JobMetric](1),
@@ -91,8 +91,8 @@ func TestUserJobMetric(t *testing.T) {
 func TestJobCollect(t *testing.T) {
 	assert := assert.New(t)
 	config := &Config{
-		pollLimit: 10,
-		traceConf: &TraceConfig{
+		PollLimit: 10,
+		TraceConf: &TraceConfig{
 			sharedFetcher: &JobJsonFetcher{
 				scraper:    &MockScraper{fixture: "fixtures/squeue_out.json"},
 				cache:      NewAtomicThrottledCache[JobMetric](1),
@@ -119,8 +119,8 @@ func TestJobCollect(t *testing.T) {
 func TestJobCollect_Fallback(t *testing.T) {
 	assert := assert.New(t)
 	config := &Config{
-		pollLimit: 10,
-		traceConf: &TraceConfig{
+		PollLimit: 10,
+		TraceConf: &TraceConfig{
 			sharedFetcher: &JobCliFallbackFetcher{
 				scraper:    &MockScraper{fixture: "fixtures/squeue_fallback.txt"},
 				cache:      NewAtomicThrottledCache[JobMetric](1),
@@ -161,14 +161,14 @@ func TestParsePartitionJobMetrics(t *testing.T) {
 func TestJobDescribe(t *testing.T) {
 	assert := assert.New(t)
 	ch := make(chan *prometheus.Desc)
-	config, err := NewConfig()
+	config, err := NewConfig(new(CliFlags))
 	assert.Nil(err)
-	config.traceConf.sharedFetcher = &JobJsonFetcher{
+	config.TraceConf.sharedFetcher = &JobJsonFetcher{
 		scraper:    MockJobInfoScraper,
 		cache:      NewAtomicThrottledCache[JobMetric](1),
 		errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
 	}
-	config.traceConf.rate = 10
+	config.TraceConf.rate = 10
 	jc := NewJobsController(config)
 	go func() {
 		jc.Describe(ch)

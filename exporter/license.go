@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Rivos Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-package prometheusslurmexporter
+package exporter
 
 import (
 	"encoding/json"
@@ -81,7 +81,7 @@ func NewLicCollector(config *Config) *LicCollector {
 	cliOpts := config.cliOpts
 	fetcher := &CliJsonLicMetricFetcher{
 		scraper: NewCliScraper(cliOpts.lic...),
-		cache:   NewAtomicThrottledCache[LicenseMetric](config.pollLimit),
+		cache:   NewAtomicThrottledCache[LicenseMetric](config.PollLimit),
 		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_lic_scrape_error",
 			Help: "slurm license scrape error",

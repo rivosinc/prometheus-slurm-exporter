@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	psm "github.com/rivosinc/prometheus-slurm-exporter"
+	psm "github.com/rivosinc/prometheus-slurm-exporter/exporter"
 )
 
 type CNodeFetcher struct {
@@ -36,7 +36,7 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
 	nodeMetrics := make([]psm.NodeMetric, 0)
 	metric := NewPromNodeMetric()
 	defer DeletePromNodeMetric(metric)
-	nodeStates := map[uint]string{
+	nodeStates := map[uint64]string{
 		0: "UNKNOWN",
 		1: "DOWN",
 		2: "IDLE",
@@ -47,6 +47,9 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
 		// used by the C api to detect end of enum. Shouldn't ever be emitted
 		7: "END",
 	}
+	defer func(t time.Time) {
+		cni.duration = time.Since(t)
+	}(time.Now())
 	for cni.scraper.IterNext(metric) == 0 {
 		nodeMetric := psm.NodeMetric{
 			Hostname:    metric.GetHostname(),
@@ -68,12 +71,20 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
 }
 
 func (cni *CNodeFetcher) FetchMetrics() ([]psm.NodeMetric, error) {
-	return nil, nil
+	return cni.cache.FetchOrThrottle(cni.CToGoMetricConvert)
 }
 
-func NewNodeFetcher() *CNodeFetcher {
+func (cni *CNodeFetcher) ScrapeDuration() time.Duration {
+	return cni.duration
+}
+
+func (cni *CNodeFetcher) ScrapeError() prometheus.Counter {
+	return cni.errorCounter
+}
+
+func NewNodeFetcher(pollLimit float64) *CNodeFetcher {
 	return &CNodeFetcher{
-		cache:   psm.NewAtomicThrottledCache[psm.NodeMetric](1),
+		cache:   psm.NewAtomicThrottledCache[psm.NodeMetric](pollLimit),
 		scraper: NewNodeMetricScraper(""),
 		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_cplugin_node_fetch_error",

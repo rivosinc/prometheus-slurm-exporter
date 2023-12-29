@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package prometheusslurmexporter
+package exporter
 
 import (
 	"bytes"
@@ -259,7 +259,7 @@ type JobsCollector struct {
 
 func NewJobsController(config *Config) *JobsCollector {
 	cliOpts := config.cliOpts
-	fetcher := config.traceConf.sharedFetcher
+	fetcher := config.TraceConf.sharedFetcher
 	return &JobsCollector{
 		fetcher:  fetcher,
 		fallback: cliOpts.fallback,

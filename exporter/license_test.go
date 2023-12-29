@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Rivos Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-package prometheusslurmexporter
+package exporter
 
 import (
 	"testing"
@@ -15,7 +15,7 @@ var MockLicFetcher = &MockScraper{fixture: "fixtures/license_out.json"}
 func TestNewLicController(t *testing.T) {
 	assert := assert.New(t)
 	config := Config{
-		pollLimit: 10,
+		PollLimit: 10,
 		cliOpts: &CliOpts{
 			licEnabled: true,
 		},
@@ -27,7 +27,7 @@ func TestNewLicController(t *testing.T) {
 func TestLicCollect(t *testing.T) {
 	assert := assert.New(t)
 	config := Config{
-		pollLimit: 10,
+		PollLimit: 10,
 		cliOpts: &CliOpts{
 			licEnabled: true,
 		},
@@ -54,7 +54,7 @@ func TestLicCollect(t *testing.T) {
 func TestLicCollect_ColectionE(t *testing.T) {
 	assert := assert.New(t)
 	config := Config{
-		pollLimit: 10,
+		PollLimit: 10,
 		cliOpts: &CliOpts{
 			licEnabled: true,
 		},
@@ -82,7 +82,7 @@ func TestLicCollect_ColectionE(t *testing.T) {
 func TestLicDescribe(t *testing.T) {
 	assert := assert.New(t)
 	config := Config{
-		pollLimit: 10,
+		PollLimit: 10,
 		cliOpts: &CliOpts{
 			licEnabled: true,
 		},

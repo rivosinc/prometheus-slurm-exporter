@@ -4,6 +4,7 @@
 #include <chrono>
 #include <slurmcprom.hpp>
 #include <assert.h>
+#include <memory>
 
 
 struct TestWrapper {
@@ -71,10 +72,10 @@ void NodeMetricScraper_CollectTwice(TestHandler &th) {
 }
 
 void TestIter(TestHandler &th) {
-    auto scraper = NodeMetricScraper("");
+    NodeMetricScraper scraper("");
     int errnum = scraper.CollectNodeInfo();
     scraper.IterReset();
-    PromNodeMetric *metric;
+    auto metric = new PromNodeMetric;
     int count = 0;
     assert(errnum == 0);
     while (scraper.IterNext(metric) == 0)
@@ -85,9 +86,8 @@ void TestIter(TestHandler &th) {
 
 void TestIter_Empty(TestHandler &th) {
     auto scraper = NodeMetricScraper("");
-    PromNodeMetric *metric;
-    int count = 0;
-    string testname("Test Map Iteration After Collection");
+    auto metric = new PromNodeMetric;
+    string testname("Test Map Iteration Before Collection");
     th.Register(TestWrapper(testname, scraper.IterNext(metric) != 0));
 }
 

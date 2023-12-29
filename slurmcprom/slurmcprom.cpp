@@ -24,18 +24,15 @@ PromNodeMetric::PromNodeMetric(node_info_t &node_ptr) {
 }
 
 PromNodeMetric::PromNodeMetric() {
-    node_info_t *dummy = (node_info_t*)malloc(sizeof(node_info_msg_t));
-
+    node_info = node_info_t();
 }
 
 string PromNodeMetric::GetHostname() {
-    string hostname(node_info.node_hostname);
-    return hostname;
+    return node_info.node_hostname;
 }
 
 string PromNodeMetric::GetPartitions() {
-    string partitions(node_info.partitions);
-    return partitions;
+    return node_info.partitions;
 }
 
 double PromNodeMetric::GetCpuLoad() {
@@ -64,6 +61,10 @@ double PromNodeMetric::GetAllocCpus() {
 
 double PromNodeMetric::GetAllocMem() {
     return (double) alloc_mem;
+}
+
+uint64_t PromNodeMetric::GetNodeState() {
+    return (uint64_t) node_info.node_state;
 }
 
 // destruction should happen slurm_free_node_info_msg not via individual destructors
@@ -109,7 +110,7 @@ int NodeMetricScraper::CollectNodeInfo() {
     int alloc_errs = 0;
     for (int i = 0; i < new_node_ptr->record_count; i++) {
         PromNodeMetric metric(new_node_ptr->node_array[i]);
-        enriched_metrics.insert_or_assign(metric.GetHostname(), metric);
+        enriched_metrics[metric.GetHostname()] =  metric;
     }
     slurm_free_node_info_msg(old_node_ptr);
     slurm_free_partition_info_msg(old_part_ptr);

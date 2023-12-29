@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-%module main
+%module cslurm
 
 %include <stdint.i>
 %include "std_string.i"
