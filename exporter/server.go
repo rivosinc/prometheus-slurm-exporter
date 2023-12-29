@@ -176,7 +176,3 @@ func InitPromServer(config *Config) http.Handler {
 	}
 	return promhttp.Handler()
 }
-
-func RunPromServer(handler http.Handler) {
-
-}

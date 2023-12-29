@@ -5,7 +5,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -31,15 +30,10 @@ var (
 	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
 	slurmDiagEnabled     = flag.Bool("slurm.collect-diags", false, "Collect daemon diagnostics stats from slurm")
 	slurmCliFallback     = flag.Bool("slurm.cli-fallback", false, "drop the --json arg and revert back to standard squeue for performance reasons")
-	logLevelMap          = map[string]slog.Level{
-		"debug": slog.LevelDebug,
-		"info":  slog.LevelInfo,
-		"warn":  slog.LevelWarn,
-		"error": slog.LevelError,
-	}
 )
 
 func main() {
+	flag.Parse()
 	cliFlags := exporter.CliFlags{
 		ListenAddress:        *listenAddress,
 		MetricsPath:          *metricsPath,
@@ -54,13 +48,13 @@ func main() {
 		SlurmLicEnabled:      *slurmLicEnabled,
 		SlurmDiagEnabled:     *slurmDiagEnabled,
 		SlurmCliFallback:     *slurmCliFallback,
+		TraceRate:            *traceRate,
 	}
 	config, err := exporter.NewConfig(&cliFlags)
 	if err != nil {
 		log.Fatalf("failed to init config with %q", err)
 	}
 	handler := exporter.InitPromServer(config)
-	fmt.Println("Hello World")
 	http.Handle(config.MetricsPath, handler)
 	slog.Info("serving metrics at " + config.ListenAddress + config.MetricsPath)
 	log.Fatalf("server exited with %q", http.ListenAndServe(config.ListenAddress, nil))

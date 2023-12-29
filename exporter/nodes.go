@@ -129,6 +129,7 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 			Weight     float64    `json:"w"`
 		}
 		if err := json.Unmarshal(line, &metric); err != nil {
+			cmf.errorCounter.Inc()
 			return nil, fmt.Errorf("sinfo failed to parse line %d: %s, got %q", i, line, err)
 		}
 		// convert mem units from MB to Bytes

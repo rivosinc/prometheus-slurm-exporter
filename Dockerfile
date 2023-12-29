@@ -38,7 +38,7 @@ RUN mkdir -p /etc/slurm && \
     rm "slurm-${SLURM_VERSION}.tar.gz"
 # install go deps
 RUN arch="" && \
-    if [ `uname -m` == "aarch64" ]; then arch="arm64"; else arch="amd64";fi && \
+    if [ `uname -m` == "aarch64" ]; then arch="arm64"; else arch=`uname -m`;fi && \
     wget "https://go.dev/dl/go1.20.12.linux-${arch}.tar.gz" && \
     tar -C /usr/local -xzf "go1.20.12.linux-${arch}.tar.gz" && \
     rm "go1.20.12.linux-${arch}.tar.gz" && \
