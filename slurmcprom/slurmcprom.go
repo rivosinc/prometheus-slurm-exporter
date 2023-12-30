@@ -47,9 +47,8 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
 		// used by the C api to detect end of enum. Shouldn't ever be emitted
 		7: "END",
 	}
-	defer func(t time.Time) {
-		cni.duration = time.Since(t)
-	}(time.Now())
+
+	now := time.Now()
 	for cni.scraper.IterNext(metric) == 0 {
 		nodeMetric := psm.NodeMetric{
 			Hostname:    metric.GetHostname(),
@@ -66,7 +65,7 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
 		}
 		nodeMetrics = append(nodeMetrics, nodeMetric)
 	}
-
+	cni.duration = time.Since(now)
 	return nodeMetrics, nil
 }
 
