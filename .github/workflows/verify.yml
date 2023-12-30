@@ -25,4 +25,4 @@ jobs:
     - uses: actions/setup-python@v3
     - uses: actions/setup-go@v4
     - run: pip install psutil requests
-    - run: go test
+    - run: CGO_ENABLED=0 go test ./exporter

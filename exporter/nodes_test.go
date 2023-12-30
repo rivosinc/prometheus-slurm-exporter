@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package exporter
 
 import (
 	"fmt"
@@ -85,7 +85,7 @@ func TestNodeSummaryMemoryMetrics(t *testing.T) {
 
 func TestNodeCollector(t *testing.T) {
 	assert := assert.New(t)
-	config, err := NewConfig()
+	config, err := NewConfig(new(CliFlags))
 	assert.Nil(err)
 	nc := NewNodeCollecter(config)
 	// cache miss, use our mock fetcher
@@ -106,7 +106,7 @@ func TestNodeCollector(t *testing.T) {
 func TestNodeDescribe(t *testing.T) {
 	assert := assert.New(t)
 	ch := make(chan *prometheus.Desc)
-	config, err := NewConfig()
+	config, err := NewConfig(new(CliFlags))
 	assert.Nil(err)
 	jc := NewNodeCollecter(config)
 	jc.fetcher = &NodeJsonFetcher{scraper: MockNodeInfoScraper, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}), cache: NewAtomicThrottledCache[NodeMetric](1)}

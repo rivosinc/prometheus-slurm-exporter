@@ -1,21 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Rivos Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-
 package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
-	"strings"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/exp/slog"
+
+	"github.com/rivosinc/prometheus-slurm-exporter/exporter"
 )
 
 var (
@@ -35,161 +30,33 @@ var (
 	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
 	slurmDiagEnabled     = flag.Bool("slurm.collect-diags", false, "Collect daemon diagnostics stats from slurm")
 	slurmCliFallback     = flag.Bool("slurm.cli-fallback", false, "drop the --json arg and revert back to standard squeue for performance reasons")
-	logLevelMap          = map[string]slog.Level{
-		"debug": slog.LevelDebug,
-		"info":  slog.LevelInfo,
-		"warn":  slog.LevelWarn,
-		"error": slog.LevelError,
-	}
 )
-
-type CliOpts struct {
-	sinfo        []string
-	squeue       []string
-	lic          []string
-	sdiag        []string
-	licEnabled   bool
-	diagsEnabled bool
-	fallback     bool
-}
-
-type TraceConfig struct {
-	enabled       bool
-	path          string
-	rate          uint64
-	sharedFetcher SlurmMetricFetcher[JobMetric]
-}
-
-type Config struct {
-	traceConf     *TraceConfig
-	pollLimit     float64
-	logLevel      slog.Level
-	listenAddress string
-	metricsPath   string
-	cliOpts       *CliOpts
-}
-
-func NewConfig() (*Config, error) {
-	// defaults
-	cliOpts := CliOpts{
-		squeue:       []string{"squeue", "--json"},
-		sinfo:        []string{"sinfo", "--json"},
-		lic:          []string{"scontrol", "show", "lic", "--json"},
-		sdiag:        []string{"sdiag", "--json"},
-		licEnabled:   *slurmLicEnabled,
-		diagsEnabled: *slurmDiagEnabled,
-		fallback:     *slurmCliFallback,
-	}
-	traceConf := TraceConfig{
-		enabled: *traceEnabled,
-		path:    "/trace",
-		rate:    10,
-	}
-	config := &Config{
-		pollLimit:     10,
-		logLevel:      slog.LevelInfo,
-		listenAddress: ":9092",
-		metricsPath:   "/metrics",
-		traceConf:     &traceConf,
-		cliOpts:       &cliOpts,
-	}
-	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
-		if limit, err := strconv.ParseFloat(lm, 64); err != nil {
-			return nil, err
-		} else {
-			config.pollLimit = limit
-		}
-	}
-	if *slurmPollLimit > 0 {
-		config.pollLimit = *slurmPollLimit
-	}
-	if lvl, ok := os.LookupEnv("LOGLEVEL"); ok {
-		config.logLevel = logLevelMap[strings.ToLower(lvl)]
-	}
-	if *logLevel != "" {
-		config.logLevel = logLevelMap[*logLevel]
-	}
-	if *listenAddress != "" {
-		config.listenAddress = *listenAddress
-	}
-	if *metricsPath != "" {
-		fmt.Println(*metricsPath)
-		config.metricsPath = *metricsPath
-	}
-	if *slurmSqueueOverride != "" {
-		cliOpts.squeue = strings.Split(*slurmSqueueOverride, " ")
-	}
-	if *slurmSinfoOverride != "" {
-		cliOpts.sinfo = strings.Split(*slurmSinfoOverride, " ")
-	}
-	if *slurmDiagOverride != "" {
-		cliOpts.sdiag = strings.Split(*slurmDiagOverride, " ")
-	}
-	if *traceRate != 0 {
-		traceConf.rate = *traceRate
-	}
-	if *tracePath != "" {
-		traceConf.path = *tracePath
-	}
-	if *slurmLicenseOverride != "" {
-		cliOpts.lic = strings.Split(*slurmLicenseOverride, " ")
-	}
-	traceConf.sharedFetcher = &JobJsonFetcher{
-		scraper: NewCliScraper(cliOpts.squeue...),
-		cache:   NewAtomicThrottledCache[JobMetric](config.pollLimit),
-		errCounter: prometheus.NewCounter(prometheus.CounterOpts{
-			Name: "job_scrape_errors",
-			Help: "job scrape errors",
-		}),
-	}
-	if cliOpts.fallback {
-		// we define a custom json format that we convert back into the openapi format
-		cliOpts.squeue = []string{"squeue", "--states=all", "-h", "-o", `{"a": "%a", "id": %A, "end_time": "%e", "u": "%u", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}`}
-		cliOpts.sinfo = []string{"sinfo", "-h", "-o", `{"s": "%T", "mem": %m, "n": "%n", "l": "%O", "p": "%R", "fmem": "%e", "cstate": "%C", "w": %w}`}
-		traceConf.sharedFetcher = &JobCliFallbackFetcher{
-			scraper: NewCliScraper(cliOpts.squeue...),
-			cache:   NewAtomicThrottledCache[JobMetric](config.pollLimit),
-			errCounter: prometheus.NewCounter(prometheus.CounterOpts{
-				Name: "job_scrape_errors",
-				Help: "job scrape errors",
-			}),
-		}
-	}
-	return config, nil
-}
-
-func initPromServer(config *Config) http.Handler {
-	textHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: config.logLevel,
-	})
-	slog.SetDefault(slog.New(textHandler))
-	prometheus.MustRegister(NewNodeCollecter(config), NewJobsController(config))
-	if traceconf := config.traceConf; traceconf.enabled {
-		slog.Info("trace path enabled at path: " + config.listenAddress + traceconf.path)
-		traceController := NewTraceCollector(config)
-		http.HandleFunc(traceconf.path, traceController.uploadTrace)
-		prometheus.MustRegister(traceController)
-	}
-	cliOpts := config.cliOpts
-	if cliOpts.licEnabled {
-		slog.Info("licence collection enabled")
-		prometheus.MustRegister(NewLicCollector(config))
-	}
-	if cliOpts.diagsEnabled {
-		slog.Info("daemon diagnostic collection enabled")
-		prometheus.MustRegister(NewDiagsCollector(config))
-	}
-	return promhttp.Handler()
-}
 
 func main() {
 	flag.Parse()
-
-	config, err := NewConfig()
-	if err != nil {
-		log.Fatalf("config failed to load with error %q", err)
+	cliFlags := exporter.CliFlags{
+		ListenAddress:        *listenAddress,
+		MetricsPath:          *metricsPath,
+		LogLevel:             *logLevel,
+		TraceEnabled:         *traceEnabled,
+		TracePath:            *tracePath,
+		SlurmPollLimit:       *slurmPollLimit,
+		SlurmSinfoOverride:   *slurmSinfoOverride,
+		SlurmSqueueOverride:  *slurmSqueueOverride,
+		SlurmLicenseOverride: *slurmLicenseOverride,
+		SlurmDiagOverride:    *slurmDiagOverride,
+		SlurmLicEnabled:      *slurmLicEnabled,
+		SlurmDiagEnabled:     *slurmDiagEnabled,
+		SlurmCliFallback:     *slurmCliFallback,
+		TraceRate:            *traceRate,
 	}
-	http.Handle(config.metricsPath, initPromServer(config))
-	slog.Info("serving metrics at " + config.listenAddress + config.metricsPath)
-	log.Fatalf("server exited with %q", http.ListenAndServe(config.listenAddress, nil))
+	config, err := exporter.NewConfig(&cliFlags)
+	if err != nil {
+		log.Fatalf("failed to init config with %q", err)
+	}
+	handler := exporter.InitPromServer(config)
+	http.Handle(config.MetricsPath, handler)
+	slog.Info("serving metrics at " + config.ListenAddress + config.MetricsPath)
+	log.Fatalf("server exited with %q", http.ListenAndServe(config.ListenAddress, nil))
+
 }

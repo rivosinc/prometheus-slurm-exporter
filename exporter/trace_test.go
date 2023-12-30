@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package exporter
 
 import (
 	"bytes"
@@ -75,7 +75,7 @@ func TestUploadTracePost(t *testing.T) {
 	assert := assert.New(t)
 	fixture, err := os.ReadFile("fixtures/trace_info_body.json")
 	assert.Nil(err)
-	config, err := NewConfig()
+	config, err := NewConfig(new(CliFlags))
 	assert.Nil(err)
 	r := httptest.NewRequest(http.MethodPost, "dummy.url:8092/trace", bytes.NewBuffer(fixture))
 	w := httptest.NewRecorder()
@@ -88,7 +88,7 @@ func TestUploadTraceGet(t *testing.T) {
 	assert := assert.New(t)
 	r := httptest.NewRequest(http.MethodGet, "dummy.url:8092/trace", nil)
 	w := httptest.NewRecorder()
-	config, err := NewConfig()
+	config, err := NewConfig(new(CliFlags))
 	assert.Nil(err)
 	c := NewTraceCollector(config)
 	c.ProcessFetcher.Info[10] = &TraceInfo{}
@@ -100,8 +100,8 @@ func TestUploadTraceGet(t *testing.T) {
 func TestTraceControllerCollect(t *testing.T) {
 	assert := assert.New(t)
 	config := &Config{
-		pollLimit: 10,
-		traceConf: &TraceConfig{
+		PollLimit: 10,
+		TraceConf: &TraceConfig{
 			rate: 10,
 			sharedFetcher: &JobJsonFetcher{
 				scraper:    MockJobInfoScraper,
@@ -130,8 +130,8 @@ func TestTraceControllerCollect(t *testing.T) {
 func TestTraceControllerCollect_Fallback(t *testing.T) {
 	assert := assert.New(t)
 	config := &Config{
-		pollLimit: 10,
-		traceConf: &TraceConfig{
+		PollLimit: 10,
+		TraceConf: &TraceConfig{
 			rate: 10,
 			sharedFetcher: &JobCliFallbackFetcher{
 				scraper:    &MockScraper{fixture: "fixtures/squeue_fallback.txt"},
@@ -160,8 +160,8 @@ func TestTraceControllerCollect_Fallback(t *testing.T) {
 func TestTraceControllerDescribe(t *testing.T) {
 	assert := assert.New(t)
 	config := &Config{
-		pollLimit: 10,
-		traceConf: &TraceConfig{
+		PollLimit: 10,
+		TraceConf: &TraceConfig{
 			rate: 10,
 			sharedFetcher: &JobJsonFetcher{
 				scraper:    MockJobInfoScraper,
@@ -194,7 +194,7 @@ func TestPython3Wrapper(t *testing.T) {
 		t.Skip()
 	}
 	assert := assert.New(t)
-	fetcher := NewCliScraper("python3", "wrappers/proctrac.py", "--cmd", "sleep", "100", "--jobid=10", "--validate")
+	fetcher := NewCliScraper("python3", "../wrappers/proctrac.py", "--cmd", "sleep", "100", "--jobid=10", "--validate")
 	t.Logf("cmd: %+v", fetcher.args)
 	wrapperOut, err := fetcher.FetchRawBytes()
 	assert.Nil(err)

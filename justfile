@@ -34,16 +34,16 @@ devel: build
   -trace.enabled \
   -slurm.collect-diags \
   -slurm.collect-licenses \
-  -slurm.squeue-cli "cat fixtures/squeue_out.json" \
-  -slurm.sinfo-cli "cat fixtures/sinfo_out.json" \
-  -slurm.diag-cli "cat fixtures/sdiag.json" \
-  -slurm.lic-cli "cat fixtures/license_out.json"
+  -slurm.squeue-cli "cat exporter/fixtures/squeue_out.json" \
+  -slurm.sinfo-cli "cat exporter/fixtures/sinfo_out.json" \
+  -slurm.diag-cli "cat exporter/fixtures/sdiag.json" \
+  -slurm.lic-cli "cat exporter/fixtures/license_out.json"
 
 prod: build
   {{build_dir}}/slurm_exporter -slurm.cli-fallback
 
-test:
-  source venv/bin/activate && CGO_ENABLED=0 go test
+test-exporter:
+  source venv/bin/activate && CGO_ENABLED=0 go test ./exporter
 
 cover:
   CGO_ENABLED=0 go test -coverprofile=c.out
@@ -60,4 +60,5 @@ test-all:
   set -aeuxo pipefail
   CGO_CXXFLAGS="-I${SLURM_INCLUDE_DIR}"
   CGO_LDFLAGS="-L${SLURM_LIB_DIR} -lslurmfull"
-  go test . ./slurmcprom
+  LD_LIBRARY_PATH="${SLURM_LIB_DIR}"
+  go test ./exporter ./slurmcprom

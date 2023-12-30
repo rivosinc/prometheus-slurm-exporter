@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package exporter
 
 import (
-	"flag"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -36,9 +35,9 @@ func TestPromServer(t *testing.T) {
 	}
 
 	config := &Config{
-		pollLimit: 10,
+		PollLimit: 10,
 		cliOpts:   cliOpts,
-		traceConf: &TraceConfig{
+		TraceConf: &TraceConfig{
 			enabled: false,
 			sharedFetcher: &JobJsonFetcher{
 				scraper: NewCliScraper(cliOpts.squeue...),
@@ -50,7 +49,7 @@ func TestPromServer(t *testing.T) {
 			},
 		},
 	}
-	server := initPromServer(config)
+	server := InitPromServer(config)
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	server.ServeHTTP(w, r)
@@ -62,20 +61,18 @@ func TestPromServer(t *testing.T) {
 
 func TestNewConfig_Default(t *testing.T) {
 	assert := assert.New(t)
-	config, err := NewConfig()
+	config, err := NewConfig(new(CliFlags))
 	assert.Nil(err)
 	assert.Equal([]string{"sinfo", "--json"}, config.cliOpts.sinfo)
 	assert.Equal([]string{"squeue", "--json"}, config.cliOpts.squeue)
 	assert.Equal([]string{"scontrol", "show", "lic", "--json"}, config.cliOpts.lic)
-	assert.Equal(uint64(10), config.traceConf.rate)
+	assert.Equal(uint64(10), config.TraceConf.rate)
 }
 
 func TestNewConfig_NonDefault(t *testing.T) {
 	assert := assert.New(t)
-	err := flag.Set("slurm.cli-fallback", "true")
-	assert.Nil(err)
-	config, err := NewConfig()
-	t.Log(slurmCliFallback)
+	cliFlags := CliFlags{SlurmCliFallback: true}
+	config, err := NewConfig(&cliFlags)
 	assert.Nil(err)
 	expected := []string{"squeue", "--states=all", "-h", "-o", `{"a": "%a", "id": %A, "end_time": "%e", "u": "%u", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}`}
 	assert.Equal(expected, config.cliOpts.squeue)

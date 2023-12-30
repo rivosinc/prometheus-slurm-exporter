@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-%module main
-%{
-    #include "cslurm.hpp"
-%}
+%module cslurm
 
-%include "cslurm.hpp"
+%include <stdint.i>
+%include "std_string.i"
+%include "std_vector.i"
+%include "std_map.i"
+%{
+    #include "slurmcprom.hpp"
+%}
+%include "slurmcprom.hpp"

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package exporter
 
 import (
 	"encoding/json"
@@ -100,7 +100,7 @@ type TraceCollector struct {
 }
 
 func NewTraceCollector(config *Config) *TraceCollector {
-	traceConfig := config.traceConf
+	traceConfig := config.TraceConf
 	return &TraceCollector{
 		ProcessFetcher: NewAtomicProFetcher(traceConfig.rate),
 		squeueFetcher:  traceConfig.sharedFetcher,
@@ -165,7 +165,7 @@ func (c *TraceCollector) uploadTrace(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if r.Method == http.MethodGet {
-		tmpl := template.Must(template.ParseFiles("templates/proc_traces.html"))
+		tmpl := template.Must(template.ParseFiles("./templates/proc_traces.html"))
 		procs := c.ProcessFetcher.Fetch()
 		traces := make([]TraceInfo, 0, len(procs))
 		for _, info := range procs {
