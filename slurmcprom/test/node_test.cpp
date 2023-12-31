@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 #include <chrono>
-#include <slurmcprom.hpp>
+#include <cnodefetcher.hpp>
 #include <assert.h>
 #include <memory>
 

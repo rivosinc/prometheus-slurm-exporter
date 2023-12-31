@@ -12,11 +12,12 @@ using namespace std;
 
 class PromNodeMetric
 {
-    private:
+private:
     node_info_t node_info;
     uint16_t alloc_cpus;
     uint64_t alloc_mem;
-    public:
+
+public:
     PromNodeMetric(node_info_t &node_info);
     PromNodeMetric();
     ~PromNodeMetric();
@@ -40,6 +41,7 @@ private:
     node_info_msg_t *new_node_ptr, *old_node_ptr;
     map<string, PromNodeMetric> enriched_metrics;
     map<string, PromNodeMetric>::const_iterator it;
+
 public:
     NodeMetricScraper(string conf);
     ~NodeMetricScraper();

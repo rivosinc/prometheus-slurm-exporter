@@ -9,6 +9,6 @@
 %include "std_vector.i"
 %include "std_map.i"
 %{
-    #include "slurmcprom.hpp"
+    #include "cnodefetcher.hpp"
 %}
-%include "slurmcprom.hpp"
+%include "cnodefetcher.hpp"
