@@ -12,11 +12,16 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	psm "github.com/rivosinc/prometheus-slurm-exporter/exporter"
+	"github.com/rivosinc/prometheus-slurm-exporter/exporter"
 )
 
+type CMetricFetcher[M exporter.SlurmPrimitiveMetric] interface {
+	exporter.SlurmMetricFetcher[M]
+	Deinit()
+}
+
 type CNodeFetcher struct {
-	cache        *psm.AtomicThrottledCache[psm.NodeMetric]
+	cache        *exporter.AtomicThrottledCache[exporter.NodeMetric]
 	scraper      NodeMetricScraper
 	duration     time.Duration
 	errorCounter prometheus.Counter
@@ -27,13 +32,13 @@ func (cni *CNodeFetcher) Deinit() {
 	DeleteNodeMetricScraper(cni.scraper)
 }
 
-func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
+func (cni *CNodeFetcher) CToGoMetricConvert() ([]exporter.NodeMetric, error) {
 	if errno := cni.scraper.CollectNodeInfo(); errno != 0 {
 		cni.errorCounter.Inc()
 		return nil, fmt.Errorf("Node Info CPP errno: %d", errno)
 	}
 	cni.scraper.IterReset()
-	nodeMetrics := make([]psm.NodeMetric, 0)
+	nodeMetrics := make([]exporter.NodeMetric, 0)
 	metric := NewPromNodeMetric()
 	defer DeletePromNodeMetric(metric)
 	nodeStates := map[uint64]string{
@@ -50,7 +55,7 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
 
 	now := time.Now()
 	for cni.scraper.IterNext(metric) == 0 {
-		nodeMetric := psm.NodeMetric{
+		nodeMetric := exporter.NodeMetric{
 			Hostname:    metric.GetHostname(),
 			Cpus:        float64(metric.GetCpus()),
 			RealMemory:  float64(metric.GetRealMemory()),
@@ -69,7 +74,7 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]psm.NodeMetric, error) {
 	return nodeMetrics, nil
 }
 
-func (cni *CNodeFetcher) FetchMetrics() ([]psm.NodeMetric, error) {
+func (cni *CNodeFetcher) FetchMetrics() ([]exporter.NodeMetric, error) {
 	return cni.cache.FetchOrThrottle(cni.CToGoMetricConvert)
 }
 
@@ -83,7 +88,7 @@ func (cni *CNodeFetcher) ScrapeError() prometheus.Counter {
 
 func NewNodeFetcher(pollLimit float64) *CNodeFetcher {
 	return &CNodeFetcher{
-		cache:   psm.NewAtomicThrottledCache[psm.NodeMetric](pollLimit),
+		cache:   exporter.NewAtomicThrottledCache[exporter.NodeMetric](pollLimit),
 		scraper: NewNodeMetricScraper(""),
 		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_cplugin_node_fetch_error",

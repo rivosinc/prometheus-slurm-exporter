@@ -75,36 +75,34 @@ NodeMetricScraper::~NodeMetricScraper() {
         slurm_free_node_info_msg(new_node_ptr);
     if (old_node_ptr != new_node_ptr && old_node_ptr)
         slurm_free_node_info_msg(old_node_ptr);
-    old_node_ptr = NULL;
-    new_node_ptr = NULL;
+    old_node_ptr = nullptr;
+    new_node_ptr = nullptr;
     if (new_part_ptr)
         slurm_free_partition_info_msg(new_part_ptr);
     if (old_part_ptr != new_part_ptr && old_part_ptr)
         slurm_free_partition_info_msg(old_part_ptr);
-    old_part_ptr = NULL;
-    new_part_ptr = NULL;
+    old_part_ptr = nullptr;
+    new_part_ptr = nullptr;
     slurm_fini();
 }
 
 int NodeMetricScraper::CollectNodeInfo() {
     int error_code;
-    if (old_node_ptr && old_part_ptr) {
-        error_code = slurm_load_partitions(old_part_ptr->last_update, &new_part_ptr, SHOW_ALL);
-        if (SLURM_SUCCESS == error_code)
-            slurm_free_partition_info_msg(old_part_ptr);
-        else if (SLURM_NO_CHANGE_IN_DATA == slurm_get_errno()) {
-            new_part_ptr = old_part_ptr;
-            return SLURM_SUCCESS;
-        }
-    } else
-       error_code = slurm_load_partitions((time_t) nullptr, &new_part_ptr, SHOW_ALL);
+    time_t part_update_at, node_update_at;
+    part_update_at = old_part_ptr ? old_part_ptr->last_update: (time_t) nullptr;
+    error_code = slurm_load_partitions(part_update_at, &new_part_ptr, SHOW_ALL);
+    if (SLURM_SUCCESS != error_code  && SLURM_NO_CHANGE_IN_DATA == slurm_get_errno()) {
+        error_code = SLURM_SUCCESS;
+        new_part_ptr = old_part_ptr;
+    }
+    if (SLURM_SUCCESS != error_code) return slurm_get_errno();
+    node_update_at = old_node_ptr ? old_node_ptr->last_update: (time_t) nullptr;
+    error_code = slurm_load_node(node_update_at, &new_node_ptr, SHOW_ALL);
+    if (SLURM_SUCCESS != error_code  && SLURM_NO_CHANGE_IN_DATA == slurm_get_errno()) {
+        error_code = SLURM_SUCCESS;
+        new_node_ptr = old_node_ptr;
+    }
     if (SLURM_SUCCESS != error_code) return error_code;
-    if (old_node_ptr != nullptr)
-        error_code = slurm_load_node(old_node_ptr->last_update, &new_node_ptr, SHOW_ALL);
-    else
-        error_code = slurm_load_node((time_t) nullptr, &new_node_ptr, SHOW_ALL);
-    if (SLURM_SUCCESS != error_code)
-        return error_code;
     // enrich with node info
     slurm_populate_node_partitions(new_node_ptr, new_part_ptr);
     int alloc_errs = 0;
@@ -112,11 +110,13 @@ int NodeMetricScraper::CollectNodeInfo() {
         PromNodeMetric metric(new_node_ptr->node_array[i]);
         enriched_metrics[metric.GetHostname()] =  metric;
     }
-    slurm_free_node_info_msg(old_node_ptr);
-    slurm_free_partition_info_msg(old_part_ptr);
+    if (old_node_ptr != new_node_ptr)
+        slurm_free_node_info_msg(old_node_ptr);
+    if (old_part_ptr != new_part_ptr)
+        slurm_free_partition_info_msg(old_part_ptr);
     old_node_ptr = new_node_ptr;
     old_part_ptr = new_part_ptr;
-    return slurm_get_errno();
+    return SLURM_SUCCESS;
 }
 
 void NodeMetricScraper::Print() {
@@ -127,11 +127,10 @@ void NodeMetricScraper::Print() {
 }
 
 int NodeMetricScraper::IterNext(PromNodeMetric *metric) {
-    if (it == enriched_metrics.cend())
-        return 1;
+    if (it == enriched_metrics.cend()) return SLURM_ERROR;
     *metric = it->second;
     it++;
-    return 0;
+    return SLURM_SUCCESS;
 }
 
 void NodeMetricScraper::IterReset() {
