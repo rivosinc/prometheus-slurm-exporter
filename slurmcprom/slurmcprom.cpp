@@ -71,6 +71,18 @@ uint64_t PromNodeMetric::GetNodeState() {
 PromNodeMetric::~PromNodeMetric() {}
 
 NodeMetricScraper::~NodeMetricScraper() {
+    if (new_node_ptr)
+        slurm_free_node_info_msg(new_node_ptr);
+    if (old_node_ptr != new_node_ptr && old_node_ptr)
+        slurm_free_node_info_msg(old_node_ptr);
+    old_node_ptr = nullptr;
+    new_node_ptr = nullptr;
+    if (new_part_ptr)
+        slurm_free_partition_info_msg(new_part_ptr);
+    if (old_part_ptr != new_part_ptr && old_part_ptr)
+        slurm_free_partition_info_msg(old_part_ptr);
+    old_part_ptr = nullptr;
+    new_part_ptr = nullptr;
     slurm_fini();
 }
 
@@ -115,11 +127,10 @@ void NodeMetricScraper::Print() {
 }
 
 int NodeMetricScraper::IterNext(PromNodeMetric *metric) {
-    if (it == enriched_metrics.cend())
-        return 1;
+    if (it == enriched_metrics.cend()) return SLURM_ERROR;
     *metric = it->second;
     it++;
-    return 0;
+    return SLURM_SUCCESS;
 }
 
 void NodeMetricScraper::IterReset() {
