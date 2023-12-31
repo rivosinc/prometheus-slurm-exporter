@@ -62,3 +62,15 @@ test-all:
   CGO_LDFLAGS="-L${SLURM_LIB_DIR} -lslurmfull"
   LD_LIBRARY_PATH="${SLURM_LIB_DIR}"
   go test ./exporter ./slurmcprom
+
+crun:
+  #!/bin/bash
+  set -aeuxo pipefail
+  rm -rf {{build_dir}}
+  mkdir -p {{build_dir}}
+  CGO_CXXFLAGS="-I${SLURM_INCLUDE_DIR}"
+  CGO_LDFLAGS="-L${SLURM_LIB_DIR} -lslurmfull"
+  POLL_LIMIT=1
+  LD_LIBRARY_PATH="${SLURM_LIB_DIR}"
+  go build -o {{build_dir}}/cexporter cmain.go
+  {{build_dir}}/cexporter

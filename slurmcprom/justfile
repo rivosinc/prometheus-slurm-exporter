@@ -23,7 +23,8 @@ gotest:
   set -aeuxo pipefail
   CGO_CXXFLAGS="-I${SLURM_INCLUDE_DIR}"
   CGO_LDFLAGS="-L${SLURM_LIB_DIR} -lslurmfull"
-  LD_LIBRARY_PATH="$SLURM_LIB_DIR"
+  LD_LIBRARY_PATH="${SLURM_LIB_DIR}"
+  TEST_CLUSTER=true
   go test
 
 cpptest:

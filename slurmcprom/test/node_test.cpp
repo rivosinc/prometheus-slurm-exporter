@@ -71,6 +71,16 @@ void NodeMetricScraper_CollectTwice(TestHandler &th) {
     th.Register(TestWrapper(testname, errnum == 0 && errnum2 == 0));
 }
 
+void NodeMetricScraper_CollectThrice(TestHandler &th) {
+    auto scraper = NodeMetricScraper("");
+    int errnum = scraper.CollectNodeInfo();
+    int errnum2 = scraper.CollectNodeInfo();
+    int errnum3 = scraper.CollectNodeInfo();
+    cout << "end" << endl;
+    string testname("Node Metric Catch Seg");
+    th.Register(TestWrapper(testname, errnum == 0 && errnum2 == 0 && errnum3 == 0));
+}
+
 void TestIter(TestHandler &th) {
     NodeMetricScraper scraper("");
     int errnum = scraper.CollectNodeInfo();
@@ -95,6 +105,7 @@ int main() {
     TestHandler handler;
     NodeMetricScraper_CollectHappy(handler);
     NodeMetricScraper_CollectTwice(handler);
+    NodeMetricScraper_CollectThrice(handler);
     TestIter(handler);
     TestIter_Empty(handler);
     return handler.Report();
