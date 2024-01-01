@@ -34,6 +34,20 @@ func TestCtoGoJobMetrics(t *testing.T) {
 	assert.NoError(err)
 	assert.Positive(len(metrics))
 }
+func TestCtoGoJobMetricsTwice(t *testing.T) {
+	assert := assert.New(t)
+	fetcher := NewJobFetcher(0)
+	defer fetcher.Deinit()
+	cmd := exec.Command("srun", "sleep", "100")
+	cmd.Start()
+	defer cmd.Process.Kill()
+	metrics, err := fetcher.CToGoMetricConvert()
+	assert.NoError(err)
+	assert.Positive(len(metrics))
+	metrics, err = fetcher.CToGoMetricConvert()
+	assert.NoError(err)
+	assert.Positive(len(metrics))
+}
 
 func TestCtoGoNodeMetricsTwice(t *testing.T) {
 	assert := assert.New(t)

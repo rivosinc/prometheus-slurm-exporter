@@ -19,7 +19,7 @@ PromJobMetric::~PromJobMetric() {}
 
 string PromJobMetric::GetAccount()
 {
-    return job_info.account;
+    return job_info.account ? job_info.account : "nil";
 }
 
 int PromJobMetric::GetJobId()
@@ -49,12 +49,12 @@ int PromJobMetric::GetJobState()
 
 string PromJobMetric::GetPartitions()
 {
-    return job_info.partition;
+    return job_info.partition ? job_info.partition : "nil";
 }
 
 string PromJobMetric::GetUserName()
 {
-    return job_info.user_name ? job_info.user_name : "";
+    return job_info.user_name ? job_info.user_name : "nil";
 }
 
 JobMetricScraper::JobMetricScraper(string conf)
