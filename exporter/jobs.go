@@ -257,6 +257,10 @@ type JobsCollector struct {
 	jobScrapeError    prometheus.Counter
 }
 
+func (jc *JobsCollector) SetFetcher(fetcher SlurmMetricFetcher[JobMetric]) {
+	jc.fetcher = fetcher
+}
+
 func NewJobsController(config *Config) *JobsCollector {
 	cliOpts := config.cliOpts
 	fetcher := config.TraceConf.sharedFetcher

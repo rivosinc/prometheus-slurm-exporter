@@ -40,7 +40,7 @@ devel: build
   -slurm.lic-cli "cat exporter/fixtures/license_out.json"
 
 prod: build
-  {{build_dir}}/slurm_exporter -slurm.cli-fallback
+  {{build_dir}}/slurm_exporter -slurm.cli-fallback -web.listen-address :9093
 
 test-exporter:
   source venv/bin/activate && CGO_ENABLED=0 go test ./exporter

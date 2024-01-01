@@ -35,7 +35,11 @@ func main() {
 		log.Fatalf("failed to init config with %q", err)
 	}
 	handler, fetchersToFree := slurmcprom.InitPromServer(config)
-	defer fetchersToFree.Deinit()
+	defer func() {
+		for _, fetcher := range fetchersToFree {
+			fetcher.Deinit()
+		}
+	}()
 	http.Handle(config.MetricsPath, handler)
 	slog.Info("serving metrics at " + config.ListenAddress + config.MetricsPath)
 	log.Fatalf("server exited with %q", http.ListenAndServe(config.ListenAddress, nil))

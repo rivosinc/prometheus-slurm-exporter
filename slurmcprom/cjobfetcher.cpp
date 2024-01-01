@@ -87,7 +87,7 @@ int JobMetricScraper::CollectJobInfo()
         PromJobMetric metric(new_job_ptr->job_array[i]);
         job_metric_map[metric.GetJobId()] = metric;
     }
-    if (new_job_ptr == old_job_ptr)
+    if (new_job_ptr != old_job_ptr)
         slurm_free_job_info_msg(old_job_ptr);
     old_job_ptr = new_job_ptr;
     return SLURM_SUCCESS;

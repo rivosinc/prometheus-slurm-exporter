@@ -15,8 +15,7 @@ import (
 	"github.com/rivosinc/prometheus-slurm-exporter/exporter"
 )
 
-type CMetricFetcher[M exporter.SlurmPrimitiveMetric] interface {
-	exporter.SlurmMetricFetcher[M]
+type Destructor interface {
 	Deinit()
 }
 
