@@ -4,10 +4,15 @@
 
 #include <slurm/slurm.h>
 #include <cjobfetcher.hpp>
+#include <iostream>
 
 PromJobMetric::PromJobMetric(slurm_job_info_t &job_ref)
 {
     job_info = job_ref;
+    slurm_job_cpus_allocated_on_node(job_info.job_resrcs, job_info.nodes);
+    int error_code = slurm_get_errno();
+    if (SLURM_SUCCESS != error_code && SLURM_NO_CHANGE_IN_DATA != error_code)
+        printf("failed to add alloc cpus with errno %d no change = %d \n", error_code, SLURM_NO_CHANGE_IN_DATA);
 }
 
 PromJobMetric::PromJobMetric()
@@ -19,7 +24,7 @@ PromJobMetric::~PromJobMetric() {}
 
 string PromJobMetric::GetAccount()
 {
-    return job_info.account ? job_info.account : "nil";
+    return job_info.account ? job_info.account : "(null)";
 }
 
 int PromJobMetric::GetJobId()
@@ -34,12 +39,26 @@ double PromJobMetric::GetEndTime()
 
 double PromJobMetric::GetAllocCpus()
 {
-    return job_info.num_cpus;
+    cout << "alloc start" << endl;
+    if (job_info.job_resrcs == nullptr)
+        return 0;
+    cout << "job resrcs not null" << endl;
+    job_resrcs *resc = (job_resrcs *)job_info.job_resrcs;
+    return (double)resc->ncpus;
 }
 
 double PromJobMetric::GetAllocMem()
 {
-    return job_info.pn_min_memory;
+    if (job_info.job_resrcs == nullptr)
+        return 0;
+    if ((job_info.job_state & JOB_STATE_BASE) != JOB_RUNNING)
+        return 0;
+    job_resrcs *resc = (job_resrcs *)job_info.job_resrcs;
+    uint64_t alloc_mem = 0;
+    printf("alloc_memory exists %d\n", resc->nhosts);
+    for (int i = 0; i < resc->nhosts; i++)
+        alloc_mem += resc->memory_allocated[i];
+    return (double)alloc_mem;
 }
 
 int PromJobMetric::GetJobState()
@@ -49,12 +68,12 @@ int PromJobMetric::GetJobState()
 
 string PromJobMetric::GetPartitions()
 {
-    return job_info.partition ? job_info.partition : "nil";
+    return job_info.partition ? job_info.partition : "(null)";
 }
 
 string PromJobMetric::GetUserName()
 {
-    return job_info.user_name ? job_info.user_name : "nil";
+    return job_info.user_name ? job_info.user_name : "(null)";
 }
 
 JobMetricScraper::JobMetricScraper(string conf)
@@ -69,12 +88,13 @@ JobMetricScraper::JobMetricScraper(string conf)
     }
     new_job_ptr = nullptr;
     old_job_ptr = nullptr;
+    IterReset();
 }
 
 int JobMetricScraper::CollectJobInfo()
 {
     time_t updated_at = old_job_ptr ? old_job_ptr->last_update : (time_t) nullptr;
-    int error_code = slurm_load_jobs(updated_at, &new_job_ptr, SHOW_ALL);
+    int error_code = slurm_load_jobs(updated_at, &new_job_ptr, SHOW_DETAIL);
     if (SLURM_SUCCESS != error_code && SLURM_NO_CHANGE_IN_DATA == slurm_get_errno())
     {
         error_code = SLURM_SUCCESS;
