@@ -4,6 +4,7 @@
 
 #include <slurm/slurm.h>
 #include <string>
+#include <map>
 
 using namespace std;
 
@@ -16,7 +17,7 @@ public:
     PromJobMetric();
     ~PromJobMetric();
     string GetAccount();
-    double GetJobId();
+    int GetJobId();
     double GetEndTime();
     double GetAllocCpus();
     double GetAllocMem();
@@ -29,10 +30,11 @@ class JobMetricScraper
 {
 private:
     job_info_msg_t *new_job_ptr, *old_job_ptr;
+    map<int, PromJobMetric> job_metric_map;
+    map<int, PromJobMetric>::const_iterator it;
 
 public:
     JobMetricScraper(string conf);
-    ~JobMetricScraper();
     int CollectJobInfo();
     int IterNext(PromJobMetric *metric);
     void IterReset();

@@ -10,5 +10,7 @@
 %include "std_map.i"
 %{
     #include "cnodefetcher.hpp"
+    #include "cjobfetcher.hpp"
 %}
 %include "cnodefetcher.hpp"
+%include "cjobfetcher.hpp"
