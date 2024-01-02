@@ -6,6 +6,7 @@
 #include <test/test_util.hpp>
 #include <assert.h>
 #include <memory>
+#include <cstdio>
 
 void NodeMetricScraper_CollectHappy(TestHandler &th)
 {
@@ -30,7 +31,6 @@ void NodeMetricScraper_CollectThrice(TestHandler &th)
     int errnum = scraper.CollectNodeInfo();
     int errnum2 = scraper.CollectNodeInfo();
     int errnum3 = scraper.CollectNodeInfo();
-    cout << "end" << endl;
     string testname("Node Metric Catch Seg");
     th.Register(TestWrapper(testname, errnum == 0 && errnum2 == 0 && errnum3 == 0));
 }
