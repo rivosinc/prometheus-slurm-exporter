@@ -6,13 +6,17 @@
 #include <cjobfetcher.hpp>
 #include <iostream>
 
+const string STRING_NULL = "(null)";
+
 PromJobMetric::PromJobMetric(slurm_job_info_t &job_ref)
 {
     job_info = job_ref;
+    if ((JOB_STATE_BASE & job_info.job_state) != JOB_RUNNING)
+        return;
     slurm_job_cpus_allocated_on_node(job_info.job_resrcs, job_info.nodes);
     int error_code = slurm_get_errno();
     if (SLURM_SUCCESS != error_code && SLURM_NO_CHANGE_IN_DATA != error_code)
-        printf("failed to add alloc cpus with errno %d no change = %d \n", error_code, SLURM_NO_CHANGE_IN_DATA);
+        printf("failed to add alloc cpus with errno %d \n", error_code);
 }
 
 PromJobMetric::PromJobMetric()
@@ -24,7 +28,7 @@ PromJobMetric::~PromJobMetric() {}
 
 string PromJobMetric::GetAccount()
 {
-    return job_info.account ? job_info.account : "(null)";
+    return job_info.account ? job_info.account : STRING_NULL;
 }
 
 int PromJobMetric::GetJobId()
@@ -39,10 +43,8 @@ double PromJobMetric::GetEndTime()
 
 double PromJobMetric::GetAllocCpus()
 {
-    cout << "alloc start" << endl;
     if (job_info.job_resrcs == nullptr)
         return 0;
-    cout << "job resrcs not null" << endl;
     job_resrcs *resc = (job_resrcs *)job_info.job_resrcs;
     return (double)resc->ncpus;
 }
@@ -50,12 +52,11 @@ double PromJobMetric::GetAllocCpus()
 double PromJobMetric::GetAllocMem()
 {
     if (job_info.job_resrcs == nullptr)
-        return 0;
-    if ((job_info.job_state & JOB_STATE_BASE) != JOB_RUNNING)
+        return SLURM_ERROR;
+    if ((JOB_STATE_BASE & job_info.job_state) != JOB_RUNNING)
         return 0;
     job_resrcs *resc = (job_resrcs *)job_info.job_resrcs;
     uint64_t alloc_mem = 0;
-    printf("alloc_memory exists %d\n", resc->nhosts);
     for (int i = 0; i < resc->nhosts; i++)
         alloc_mem += resc->memory_allocated[i];
     return (double)alloc_mem;
@@ -68,12 +69,12 @@ int PromJobMetric::GetJobState()
 
 string PromJobMetric::GetPartitions()
 {
-    return job_info.partition ? job_info.partition : "(null)";
+    return job_info.partition ? job_info.partition : STRING_NULL;
 }
 
 string PromJobMetric::GetUserName()
 {
-    return job_info.user_name ? job_info.user_name : "(null)";
+    return job_info.user_name ? job_info.user_name : STRING_NULL;
 }
 
 JobMetricScraper::JobMetricScraper(string conf)
