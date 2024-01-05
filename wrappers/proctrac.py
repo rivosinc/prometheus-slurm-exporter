@@ -48,16 +48,19 @@ class ProcWrapper:
 
     def poll_info(self) -> Generator[TraceInfo, None, None]:
         while self.proc.poll() is None:
+            trace = TraceInfo(0, 0, 0, 0, 0, 0, self.jobid)
             start = datetime.now()
-            yield TraceInfo(
-                pid=self.proc.pid,
-                cpus=sum(c.cpu_percent(0.1) for c in self.proc.children(True)),
-                threads=sum(c.num_threads() for c in self.proc.children(True)),
-                write_bytes=sum(c.io_counters().write_bytes for c in self.proc.children(True)),
-                read_bytes=sum(c.io_counters().read_bytes for c in self.proc.children(True)),
-                mem=sum(c.memory_info().rss for c in self.proc.children(True)),
-                job_id=self.jobid,
-            )
+            for p in self.proc.children(True):
+                try:
+                    io_counters = p.io_counters()
+                    trace.cpus += p.cpu_percent(0.1)
+                    trace.threads += p.num_threads()
+                    trace.write_bytes += io_counters.write_bytes
+                    trace.read_bytes += io_counters.read_bytes
+                except psutil.Error as e:
+                    print(f"failed to poll child process with error {e}")
+                    continue
+            yield trace
             durr = datetime.now() - start
             sleep(max(self.sample_rate - durr.seconds, 0))
 
