@@ -84,23 +84,23 @@ void TestGetAllocMem(TestHandler &th)
     scraper.IterReset();
     scraper.IterNext(&metric);
 
-    string testname("Test Get Alloc Cpus");
+    string testname("Test Get Alloc Mem");
     int mem = metric.GetAllocMem();
     printf("mem = %d\n", mem);
     // this is identical to whats reported by squeue --json ??
     // with a running job
-    th.Register(TestWrapper(testname, mem == 1));
+    th.Register(TestWrapper(testname, mem == 0));
 }
 
 int main()
 {
     TestHandler handler;
     JobMetricScraper_CollectHappy(handler);
-    // JobMetricScraper_CollectTwice(handler);
-    // JobMetricScraper_CollectThrice(handler);
-    // TestGetAllocCpus(handler);
-    // TestGetAllocMem(handler);
-    // TestIter(handler);
-    // TestIter_Empty(handler);
+    JobMetricScraper_CollectTwice(handler);
+    JobMetricScraper_CollectThrice(handler);
+    TestGetAllocCpus(handler);
+    TestGetAllocMem(handler);
+    TestIter(handler);
+    TestIter_Empty(handler);
     return handler.Report();
 }

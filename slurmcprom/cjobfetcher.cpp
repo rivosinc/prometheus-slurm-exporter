@@ -103,13 +103,23 @@ int JobMetricScraper::CollectJobInfo()
     }
     if (SLURM_SUCCESS != error_code)
         return slurm_get_errno();
+
+    // want to ensure stale members aren't kept in the map i.e new job array is a subset of old job array
+    // also old_job_array + new_job_array could still be a subset of collection map
+    // delete all stale members in map
+    if (old_job_ptr && new_job_ptr != old_job_ptr){
+        for (int i = 0; i < old_job_ptr->record_count; i++) {
+            job_info_t stale_job = old_job_ptr->job_array[i];
+            job_metric_map.erase(stale_job.job_id);
+        }
+        slurm_free_job_info_msg(old_job_ptr);
+    }
+    // enrich with new members
     for (int i = 0; i < new_job_ptr->record_count; i++)
     {
         PromJobMetric metric(new_job_ptr->job_array[i]);
         job_metric_map[metric.GetJobId()] = metric;
     }
-    if (new_job_ptr != old_job_ptr)
-        slurm_free_job_info_msg(old_job_ptr);
     old_job_ptr = new_job_ptr;
     return SLURM_SUCCESS;
 }
