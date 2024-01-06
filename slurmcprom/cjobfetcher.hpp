@@ -11,6 +11,8 @@ using namespace std;
 class PromJobMetric
 {
     slurm_job_info_t job_info;
+    // unfortunately reveal opaque data type: https://github.com/SchedMD/slurm/blob/master/src/common/job_resources.h#L106-L128
+    // slurm library doesn't expose enough information for us to scrape
     struct job_resrcs
     {
         bitstr_t *core_bitmap;
