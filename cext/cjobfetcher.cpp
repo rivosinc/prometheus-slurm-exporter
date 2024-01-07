@@ -7,6 +7,7 @@
 #include <iostream>
 
 const string STRING_NULL = "(null)";
+const int MB = 1000000;
 
 PromJobMetric::PromJobMetric(slurm_job_info_t &job_ref)
 {
@@ -59,7 +60,7 @@ double PromJobMetric::GetAllocMem()
     uint64_t alloc_mem = 0;
     for (int i = 0; i < resc->nhosts; i++)
         alloc_mem += resc->memory_allocated[i];
-    return (double)alloc_mem;
+    return (double)alloc_mem * MB;
 }
 
 int PromJobMetric::GetJobState()

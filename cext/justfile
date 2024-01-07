@@ -39,7 +39,6 @@ cppjobtest:
   rm -rf {{build_dir}}/test && mkdir -p {{build_dir}}/test
   g++ test/test_util.cpp test/job_test.cpp *.cpp -I. -I${SLURM_INCLUDE_DIR} -L${SLURM_LIB_DIR} -lslurmfull -o {{build_dir}}/test/job_test -g
   # this is assumed to be on the test cluster w/o other running slurm jobs
-  scancel -u
   SID=`sbatch test/sleep.sh  | awk '{print $4}'`
   while [[ `squeue -j ${SID} --noheader -o %t` != "R" ]]; do echo "waiting for job to start..." && sleep 1; done
   LD_LIBRARY_PATH=$SLURM_LIB_DIR {{build_dir}}/test/job_test
