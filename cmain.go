@@ -10,8 +10,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/rivosinc/prometheus-slurm-exporter/cext"
 	"github.com/rivosinc/prometheus-slurm-exporter/exporter"
-	"github.com/rivosinc/prometheus-slurm-exporter/slurmcprom"
 	"golang.org/x/exp/slog"
 )
 
@@ -34,7 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init config with %q", err)
 	}
-	handler, fetchersToFree := slurmcprom.InitPromServer(config)
+	handler, fetchersToFree := cext.InitPromServer(config)
 	defer func() {
 		for _, fetcher := range fetchersToFree {
 			fetcher.Deinit()

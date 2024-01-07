@@ -1,4 +1,4 @@
-package slurmcprom
+package cext
 
 // SPDX-FileCopyrightText: 2023 Rivos Inc.
 //
