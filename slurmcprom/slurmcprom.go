@@ -15,8 +15,7 @@ import (
 	"github.com/rivosinc/prometheus-slurm-exporter/exporter"
 )
 
-type CMetricFetcher[M exporter.SlurmPrimitiveMetric] interface {
-	exporter.SlurmMetricFetcher[M]
+type Destructor interface {
 	Deinit()
 }
 
@@ -55,7 +54,7 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]exporter.NodeMetric, error) {
 
 	now := time.Now()
 	for cni.scraper.IterNext(metric) == 0 {
-		nodeMetric := exporter.NodeMetric{
+		nodeMetrics = append(nodeMetrics, exporter.NodeMetric{
 			Hostname:    metric.GetHostname(),
 			Cpus:        float64(metric.GetCpus()),
 			RealMemory:  float64(metric.GetRealMemory()),
@@ -67,8 +66,7 @@ func (cni *CNodeFetcher) CToGoMetricConvert() ([]exporter.NodeMetric, error) {
 			IdleCpus:    float64(metric.GetCpus()) - float64(metric.GetAllocCpus()),
 			Weight:      float64(metric.GetWeight()),
 			CpuLoad:     float64(metric.GetCpuLoad()),
-		}
-		nodeMetrics = append(nodeMetrics, nodeMetric)
+		})
 	}
 	cni.duration = time.Since(now)
 	return nodeMetrics, nil
@@ -93,6 +91,84 @@ func NewNodeFetcher(pollLimit float64) *CNodeFetcher {
 		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_cplugin_node_fetch_error",
 			Help: "slurm cplugin fetch error",
+		}),
+	}
+}
+
+type CJobFetcher struct {
+	cache        *exporter.AtomicThrottledCache[exporter.JobMetric]
+	scraper      JobMetricScraper
+	duration     time.Duration
+	errorCounter prometheus.Counter
+}
+
+func (cjf *CJobFetcher) CToGoMetricConvert() ([]exporter.JobMetric, error) {
+	if errno := cjf.scraper.CollectJobInfo(); errno != 0 {
+		cjf.errorCounter.Inc()
+		return nil, fmt.Errorf("Job Info CPP errno: %d", errno)
+	}
+	jobStates := map[int]string{
+		0:  "PENDING",
+		1:  "RUNNING",
+		2:  "SUSPENDED",
+		3:  "COMPLETE",
+		4:  "CANCELLED",
+		5:  "FAILED",
+		6:  "TIMEOUT",
+		7:  "NODE_FAIL",
+		8:  "PREEMPTED",
+		9:  "BOOT_FAIL",
+		10: "DEADLINE",
+		11: "OOM",
+		// should never happen
+		12: "END",
+	}
+	metrics := make([]exporter.JobMetric, 0)
+	cmetric := NewPromJobMetric()
+	defer DeletePromJobMetric(cmetric)
+	cjf.scraper.IterReset()
+	for cjf.scraper.IterNext(cmetric) == 0 {
+		metrics = append(metrics, exporter.JobMetric{
+			Account:   cmetric.GetAccount(),
+			JobId:     float64(cmetric.GetJobId()),
+			EndTime:   cmetric.GetEndTime(),
+			JobState:  jobStates[cmetric.GetJobState()],
+			Partition: cmetric.GetPartitions(),
+			JobResources: exporter.JobResource{
+				AllocCpus: cmetric.GetAllocCpus(),
+				AllocNodes: map[string]struct {
+					Mem float64 "json:\"memory\""
+				}{"0": {Mem: cmetric.GetAllocMem()}},
+			},
+		})
+	}
+
+	return metrics, nil
+}
+
+func (cjf *CJobFetcher) FetchMetrics() ([]exporter.JobMetric, error) {
+	return cjf.cache.FetchOrThrottle(cjf.CToGoMetricConvert)
+}
+
+func (cjf *CJobFetcher) ScrapeDuration() time.Duration {
+	return cjf.duration
+}
+
+func (cjf *CJobFetcher) ScrapeError() prometheus.Counter {
+	return cjf.errorCounter
+}
+
+func (cjf *CJobFetcher) Deinit() {
+	DeleteJobMetricScraper(cjf.scraper)
+}
+
+func NewJobFetcher(pollLimit float64) *CJobFetcher {
+	return &CJobFetcher{
+		cache:   exporter.NewAtomicThrottledCache[exporter.JobMetric](pollLimit),
+		scraper: NewJobMetricScraper(""),
+		errorCounter: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "slurm_cplugin_job_fetch_error",
+			Help: "slurm cplugin job fetch error",
 		}),
 	}
 }

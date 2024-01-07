@@ -13,7 +13,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-func InitPromServer(config *exporter.Config) (http.Handler, CMetricFetcher[exporter.NodeMetric]) {
+func InitPromServer(config *exporter.Config) (http.Handler, []Destructor) {
 	textHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
 	})
@@ -22,5 +22,9 @@ func InitPromServer(config *exporter.Config) (http.Handler, CMetricFetcher[expor
 	cNodeFetcher := NewNodeFetcher(config.PollLimit)
 	nodeCollector.SetFetcher(cNodeFetcher)
 	prometheus.MustRegister(nodeCollector)
-	return promhttp.Handler(), cNodeFetcher
+	CJobFetcher := NewJobFetcher(config.PollLimit)
+	jobCollector := exporter.NewJobsController(config)
+	jobCollector.SetFetcher(CJobFetcher)
+	prometheus.MustRegister(jobCollector)
+	return promhttp.Handler(), []Destructor{cNodeFetcher, CJobFetcher}
 }
