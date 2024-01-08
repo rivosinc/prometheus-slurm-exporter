@@ -9,8 +9,10 @@
 %include "std_vector.i"
 %include "std_map.i"
 %{
+    #include "common.hpp"
     #include "cnodefetcher.hpp"
     #include "cjobfetcher.hpp"
 %}
+%include "common.hpp"
 %include "cnodefetcher.hpp"
 %include "cjobfetcher.hpp"

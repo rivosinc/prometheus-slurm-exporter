@@ -24,6 +24,7 @@ PromNodeMetric::PromNodeMetric(node_info_t &node_ptr)
                                      &alloc_mem);
     if (err)
         cout << "WARNING: failed to enrich alloc mem data\n";
+    printf("instantiated alloc mem %ld\n", alloc_mem);
 }
 
 PromNodeMetric::PromNodeMetric()
@@ -73,6 +74,7 @@ double PromNodeMetric::GetAllocCpus()
 
 double PromNodeMetric::GetAllocMem()
 {
+    printf("getter alloc mem %ld\n", *(uint64_t*)alloc_mem);
     return (double)alloc_mem * MB;
 }
 
@@ -101,7 +103,7 @@ NodeMetricScraper::~NodeMetricScraper()
     slurm_fini();
 }
 
-int NodeMetricScraper::CollectNodeInfo()
+int NodeMetricScraper::Scrape()
 {
     int error_code;
     time_t part_update_at, node_update_at;
@@ -154,7 +156,7 @@ void NodeMetricScraper::Print()
     cout << "]" << endl;
 }
 
-int NodeMetricScraper::IterNext(PromNodeMetric *metric)
+int NodeMetricScraper::IterNext(CextPromMetric *metric)
 {
     if (it == enriched_metrics.cend())
         return SLURM_ERROR;
