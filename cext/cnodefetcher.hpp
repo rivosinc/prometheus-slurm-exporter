@@ -8,11 +8,12 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include "common.hpp"
 using namespace std;
 
 constexpr int MB = 1000000;
 
-class PromNodeMetric
+class PromNodeMetric : public CextPromMetric
 {
 private:
     node_info_t node_info;
@@ -36,7 +37,7 @@ public:
     string GetPartitions();
 };
 
-struct NodeMetricScraper
+struct NodeMetricScraper : public CextScraper
 {
 private:
     partition_info_msg_t *new_part_ptr, *old_part_ptr;
@@ -47,10 +48,10 @@ private:
 public:
     NodeMetricScraper(string conf);
     ~NodeMetricScraper();
-    int CollectNodeInfo();
+    int Scrape() override;
     void Print();
     // public iterator exposure. Swig doesn't properly expose the iterator subclass
     // expects to be IterReset always
-    int IterNext(PromNodeMetric *metric);
-    void IterReset();
+    int IterNext(CextPromMetric *metric) override;
+    void IterReset() override;
 };

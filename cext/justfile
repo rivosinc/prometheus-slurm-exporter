@@ -45,10 +45,12 @@ cppjobtest:
   # this is assumed to be on the test cluster w/o other running slurm jobs
   SID=`sbatch test/sleep.sh  | awk '{print $4}'`
   while [[ `squeue -j ${SID} --noheader -o %t` != "R" ]]; do echo "waiting for job to start..." && sleep 1; done
+  unset -e
   LD_LIBRARY_PATH=$SLURM_LIB_DIR {{build_dir}}/test/job_test
+  set -e
   scancel $SID
 
 
 swigdebug:
   rm -rf {{build_dir}}/swig && mkdir -p {{build_dir}}/swig
-  swig -c++ -go -intgosize 64 -outdir {{build_dir}}/swig -o {{build_dir}}/swig/slurmcprom_wrap.cpp -verbose slurmcprom.swigcxx
+  swig -c++ -go -intgosize 64 -outdir {{build_dir}}/swig -o {{build_dir}}/swig/cext.cpp -verbose cext.swigcxx
