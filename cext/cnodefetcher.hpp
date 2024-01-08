@@ -10,6 +10,8 @@
 #include <memory>
 using namespace std;
 
+constexpr int MB = 1000000;
+
 class PromNodeMetric
 {
 private:

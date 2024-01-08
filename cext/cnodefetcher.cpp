@@ -43,7 +43,7 @@ string PromNodeMetric::GetPartitions()
 
 double PromNodeMetric::GetCpuLoad()
 {
-    return (double)node_info.cpu_load;
+    return (double)node_info.cpu_load / 100;
 }
 
 double PromNodeMetric::GetCpus()
@@ -53,12 +53,12 @@ double PromNodeMetric::GetCpus()
 
 double PromNodeMetric::GetFreeMem()
 {
-    return (double)node_info.free_mem;
+    return (double)node_info.free_mem * MB;
 }
 
 double PromNodeMetric::GetRealMemory()
 {
-    return (double)node_info.real_memory;
+    return (double)node_info.real_memory * MB;
 }
 
 double PromNodeMetric::GetWeight()
@@ -73,7 +73,7 @@ double PromNodeMetric::GetAllocCpus()
 
 double PromNodeMetric::GetAllocMem()
 {
-    return (double)alloc_mem;
+    return (double)alloc_mem * MB;
 }
 
 uint64_t PromNodeMetric::GetNodeState()

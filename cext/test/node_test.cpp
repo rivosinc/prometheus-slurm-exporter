@@ -7,6 +7,9 @@
 #include <assert.h>
 #include <memory>
 #include <cstdio>
+#include <cmath>
+
+constexpr double epsilon = 0.0001;
 
 void NodeMetricScraper_CollectHappy(TestHandler &th)
 {
@@ -33,6 +36,19 @@ void NodeMetricScraper_CollectThrice(TestHandler &th)
     int errnum3 = scraper.CollectNodeInfo();
     string testname("Node Metric Catch Seg");
     th.Register(TestWrapper(testname, errnum == 0 && errnum2 == 0 && errnum3 == 0));
+}
+
+void TestGetAllocMem(TestHandler &th)
+{
+    auto scraper = NodeMetricScraper("");
+    int errnum = scraper.CollectNodeInfo();
+    assert(0 == errnum);
+    scraper.IterReset();
+    PromNodeMetric metric;
+    scraper.IterNext(&metric);
+    string testname("Node Metric Scraper Mem Alloc");
+    double diff = fabs(1000000 - metric.GetAllocMem());
+    th.Register(TestWrapper(testname, diff < epsilon));
 }
 
 void TestIter(TestHandler &th)
@@ -63,6 +79,7 @@ int main()
     NodeMetricScraper_CollectHappy(handler);
     NodeMetricScraper_CollectTwice(handler);
     NodeMetricScraper_CollectThrice(handler);
+    TestGetAllocMem(handler);
     TestIter(handler);
     TestIter_Empty(handler);
     return handler.Report();
