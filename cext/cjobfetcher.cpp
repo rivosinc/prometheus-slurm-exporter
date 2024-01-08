@@ -7,7 +7,7 @@
 #include <iostream>
 
 const string STRING_NULL = "(null)";
-const int MB = 1000000;
+constexpr int MB = 1000000;
 
 PromJobMetric::PromJobMetric(slurm_job_info_t &job_ref)
 {

@@ -73,7 +73,7 @@ double PromNodeMetric::GetAllocCpus()
 
 double PromNodeMetric::GetAllocMem()
 {
-    return (double)alloc_mem;
+    return (double)alloc_mem * MB;
 }
 
 uint64_t PromNodeMetric::GetNodeState()
