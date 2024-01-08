@@ -92,6 +92,18 @@ void TestGetAllocMem(TestHandler &th)
     th.Register(TestWrapper(testname, mem == 0));
 }
 
+void TestGetUserName(TestHandler &th)
+{
+    auto scraper = JobMetricScraper("");
+    scraper.CollectJobInfo();
+    auto metric = PromJobMetric();
+    scraper.IterReset();
+    scraper.IterNext(&metric);
+    string testname("Test Get Alloc Hostname");
+    string username = metric.GetUserName();
+    th.Register(TestWrapper(testname, username == "root"));
+}
+
 int main()
 {
     TestHandler handler;
@@ -100,6 +112,7 @@ int main()
     JobMetricScraper_CollectThrice(handler);
     TestGetAllocCpus(handler);
     TestGetAllocMem(handler);
+    TestGetUserName(handler);
     TestIter(handler);
     TestIter_Empty(handler);
     return handler.Report();

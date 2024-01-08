@@ -29,7 +29,7 @@ gotest:
 
 cppnodetest:
   rm -rf {{build_dir}}/test && mkdir -p {{build_dir}}/test
-  g++ test/test_util.cpp test/node_test.cpp *.cpp -I. -I${SLURM_INCLUDE_DIR} -L${SLURM_LIB_DIR} -lslurmfull -o {{build_dir}}/test/node_test -g
+  g++ test/test_util.cpp test/node_test.cpp *.cpp -I. -I${SLURM_INCLUDE_DIR} -L${SLURM_LIB_DIR} -lslurmfull -o {{build_dir}}/test/node_test
   @echo Testing Node Fetcher
   LD_LIBRARY_PATH=$SLURM_LIB_DIR {{build_dir}}/test/node_test
 
@@ -37,7 +37,7 @@ cppjobtest:
   #!/bin/bash
   set -axu
   rm -rf {{build_dir}}/test && mkdir -p {{build_dir}}/test
-  g++ test/test_util.cpp test/job_test.cpp *.cpp -I. -I${SLURM_INCLUDE_DIR} -L${SLURM_LIB_DIR} -lslurmfull -o {{build_dir}}/test/job_test -g
+  g++ test/test_util.cpp test/job_test.cpp *.cpp -I. -I${SLURM_INCLUDE_DIR} -L${SLURM_LIB_DIR} -lslurmfull -o {{build_dir}}/test/job_test
   # this is assumed to be on the test cluster w/o other running slurm jobs
   SID=`sbatch test/sleep.sh  | awk '{print $4}'`
   while [[ `squeue -j ${SID} --noheader -o %t` != "R" ]]; do echo "waiting for job to start..." && sleep 1; done

@@ -75,7 +75,11 @@ string PromJobMetric::GetPartitions()
 
 string PromJobMetric::GetUserName()
 {
-    return job_info.user_name ? job_info.user_name : STRING_NULL;
+    if (0 == job_info.user_id)
+        return "root";
+    if (nullptr == job_info.user_name)
+        return STRING_NULL;
+    return job_info.user_name;
 }
 
 JobMetricScraper::JobMetricScraper(string conf)
