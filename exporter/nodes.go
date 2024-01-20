@@ -58,6 +58,38 @@ type sinfoDataParserResponse struct {
 	} `json:"sinfo"`
 }
 
+type sinfoDataParserResponse struct {
+	Meta struct {
+		Plugins map[string]string `json:"plugins"`
+	} `json:"meta"`
+	SlurmVersion struct {
+		Version struct {
+			Major int `json:"major"`
+			Micro int `json:"micro"`
+			Minor int `json:"minor"`
+		} `json:"version"`
+		Release string `json:"release"`
+	} `json:"Slurm"`
+	Sinfo []struct {
+		Node struct {
+			State []string `json:"state"`
+		} `json:"node"`
+		Nodes struct {
+			Allocated int      `json:"allocated"`
+			Idle      int      `json:"idle"`
+			Other     int      `json:"other"`
+			Total     int      `json:"total"`
+			Nodes     []string `json:"nodes"`
+		} `json:"nodes"`
+		Cpus struct {
+			Allocated int `json:"allocated"`
+			Idle      int `json:"idle"`
+			Other     int `json:"other"`
+			Total     int `json:"total"`
+		}
+	} `json:"sinfo"`
+}
+
 type sinfoResponse struct {
 	Meta struct {
 		SlurmVersion struct {
