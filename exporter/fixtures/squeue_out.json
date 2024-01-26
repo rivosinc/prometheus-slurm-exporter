@@ -57,7 +57,7 @@
             "end_time": 1686633833,
             "excluded_nodes": "",
             "exit_code": 0,
-            "features": "",
+            "features": "a100-80gb&preemptible&gpu-1",
             "federation_origin": "",
             "federation_siblings_active": "",
             "federation_siblings_viable": "",

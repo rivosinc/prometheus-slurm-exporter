@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,6 +28,7 @@ type JobMetric struct {
 	JobState     string      `json:"job_state"`
 	Partition    string      `json:"partition"`
 	UserName     string      `json:"user_name"`
+	Features     string      `json:"features"`
 	JobResources JobResource `json:"job_resources"`
 }
 
@@ -238,6 +240,29 @@ func parsePartitionJobMetrics(jobs []JobMetric) map[string]*PartitionJobMetric {
 	return partitionMetric
 }
 
+type FeatureJobMetric struct {
+	allocMem float64
+	allocCpu float64
+	total    float64
+}
+
+func parseFeatureMetric(jobs []JobMetric) map[string]*FeatureJobMetric {
+	featureMap := make(map[string]*FeatureJobMetric)
+	for _, job := range jobs {
+		for _, feature := range strings.Split(job.Features, "&") {
+			metric, ok := featureMap[feature]
+			if !ok {
+				metric = new(FeatureJobMetric)
+				featureMap[feature] = metric
+			}
+			metric.allocCpu += job.JobResources.AllocCpus
+			metric.allocMem += totalAllocMem(&job.JobResources)
+			metric.total++
+		}
+	}
+	return featureMap
+}
+
 type JobsCollector struct {
 	// collector state
 	fetcher      SlurmMetricFetcher[JobMetric]
@@ -254,6 +279,10 @@ type JobsCollector struct {
 	accountJobMemAlloc   *prometheus.Desc
 	accountJobCpuAlloc   *prometheus.Desc
 	accountJobStateTotal *prometheus.Desc
+	// feature metrics
+	featureJobMemAlloc *prometheus.Desc
+	featureJobCpuAlloc *prometheus.Desc
+	featureJobTotal    *prometheus.Desc
 	// exporter metrics
 	jobScrapeDuration *prometheus.Desc
 	jobScrapeError    prometheus.Counter
@@ -279,6 +308,9 @@ func NewJobsController(config *Config) *JobsCollector {
 		accountJobMemAlloc:     prometheus.NewDesc("slurm_account_mem_alloc", "alloc mem consumed per account", []string{"account"}, nil),
 		accountJobCpuAlloc:     prometheus.NewDesc("slurm_account_cpu_alloc", "alloc cpu consumed per account", []string{"account"}, nil),
 		accountJobStateTotal:   prometheus.NewDesc("slurm_account_job_state_total", "total jobs per account per job state", []string{"account", "state"}, nil),
+		featureJobMemAlloc:     prometheus.NewDesc("slurm_feature_mem_alloc", "alloc mem consumed per feature", []string{"feature"}, nil),
+		featureJobCpuAlloc:     prometheus.NewDesc("slurm_feature_cpu_alloc", "alloc cpu consumed per feature", []string{"feature"}, nil),
+		featureJobTotal:        prometheus.NewDesc("slurm_feature_total", "alloc cpu consumed per feature", []string{"feature"}, nil),
 		jobScrapeDuration:      prometheus.NewDesc("slurm_job_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.squeue), nil, nil),
 		jobScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_job_scrape_error",
@@ -297,6 +329,9 @@ func (jc *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.accountJobMemAlloc
 	ch <- jc.accountJobCpuAlloc
 	ch <- jc.accountJobStateTotal
+	ch <- jc.featureJobMemAlloc
+	ch <- jc.featureJobCpuAlloc
+	ch <- jc.featureJobTotal
 	ch <- jc.jobScrapeDuration
 	ch <- jc.jobScrapeError.Desc()
 }
@@ -341,6 +376,19 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	for partition, stateTotals := range partitionJobMetrics {
 		for state, totalJobs := range stateTotals.partitionState {
 			ch <- prometheus.MustNewConstMetric(jc.partitionJobStateTotal, prometheus.GaugeValue, totalJobs, partition, state)
+		}
+	}
+
+	featureJobMetric := parseFeatureMetric(jobMetrics)
+	for feature, metric := range featureJobMetric {
+		if metric.allocCpu > 0 {
+			ch <- prometheus.MustNewConstMetric(jc.featureJobCpuAlloc, prometheus.GaugeValue, metric.allocCpu, feature)
+		}
+		if metric.allocMem > 0 {
+			ch <- prometheus.MustNewConstMetric(jc.featureJobMemAlloc, prometheus.GaugeValue, metric.allocMem, feature)
+		}
+		if metric.total > 0 {
+			ch <- prometheus.MustNewConstMetric(jc.featureJobTotal, prometheus.GaugeValue, metric.total, feature)
 		}
 	}
 }
