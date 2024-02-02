@@ -130,7 +130,8 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		}
 		if err := json.Unmarshal(line, &metric); err != nil {
 			cmf.errorCounter.Inc()
-			return nil, fmt.Errorf("sinfo failed to parse line %d: %s, got %q", i, line, err)
+			slog.Error(fmt.Sprintf("sinfo failed to parse line %d: %s, got %q", i, line, err))
+			continue
 		}
 		// convert mem units from MB to Bytes
 		metric.RealMemory *= 1e6
