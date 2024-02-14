@@ -5,6 +5,7 @@
 package exporter
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -156,6 +157,19 @@ func TestParsePartitionJobMetrics(t *testing.T) {
 
 	partitionJobMetrics := parsePartitionJobMetrics(jms)
 	assert.Equal(float64(1), partitionJobMetrics["hw-l"].partitionState["RUNNING"])
+}
+
+func TestParsePartMetrics(t *testing.T) {
+	assert := assert.New(t)
+	fixture, err := MockJobInfoScraper.FetchRawBytes()
+	assert.Nil(err)
+	jms, err := parseJobMetrics(fixture)
+	assert.Nil(err)
+
+	featureMetrics := parseFeatureMetric(jms)
+	fmt.Println(featureMetrics)
+	assert.Equal(1., featureMetrics["a100-80gb"].total)
+	assert.Equal(1., featureMetrics["preemptible"].allocCpu)
 }
 
 func TestJobDescribe(t *testing.T) {
