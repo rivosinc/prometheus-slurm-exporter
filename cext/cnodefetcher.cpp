@@ -106,6 +106,7 @@ int NodeMetricScraper::CollectNodeInfo()
     int error_code;
     time_t part_update_at, node_update_at;
     part_update_at = old_part_ptr ? old_part_ptr->last_update : (time_t) nullptr;
+    node_update_at = old_node_ptr ? old_node_ptr->last_update : (time_t) nullptr;
     error_code = slurm_load_partitions(part_update_at, &new_part_ptr, SHOW_ALL);
     if (SLURM_SUCCESS != error_code && SLURM_NO_CHANGE_IN_DATA == slurm_get_errno())
     {
@@ -126,10 +127,7 @@ int NodeMetricScraper::CollectNodeInfo()
     // enrich with node info
     slurm_populate_node_partitions(new_node_ptr, new_part_ptr);
     if (old_node_ptr && old_node_ptr != new_node_ptr){
-        for (int i = 0; i < old_node_ptr->record_count; i++) {
-            node_info_t stale_node_info = old_node_ptr->node_array[i];
-            enriched_metrics.erase(stale_node_info.node_hostname);
-        }
+        enriched_metrics.clear();
         slurm_free_node_info_msg(old_node_ptr);
     }
     if (old_part_ptr != new_part_ptr)
