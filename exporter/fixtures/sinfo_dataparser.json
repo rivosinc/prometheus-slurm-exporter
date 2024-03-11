@@ -21,18 +21,7 @@
         "total": 10,
         "hostnames": [],
         "addresses": [],
-        "nodes": [
-          "cs62",
-          "cs63",
-          "cs64",
-          "cs65",
-          "cs66",
-          "cs68",
-          "cs71",
-          "cs200",
-          "cs201",
-          "cs204"
-        ]
+        "nodes": ["cs62"]
       },
       "cpus": {
         "allocated": 114,
