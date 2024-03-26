@@ -148,7 +148,9 @@ func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetr
 		}
 		mem, err := MemToFloat(metric.Mem)
 		if err != nil {
-			return nil, err
+			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s` with err `%q`", i, line, err))
+			errorCounter.Inc()
+			continue
 		}
 		openapiJobMetric := JobMetric{
 			Account:   metric.Account,

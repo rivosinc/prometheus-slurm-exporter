@@ -55,7 +55,81 @@ type sinfoDataParserResponse struct {
 			Total     int      `json:"total"`
 			Nodes     []string `json:"nodes"`
 		} `json:"nodes"`
+		Cpus struct {
+			Allocated int `json:"allocated"`
+			Idle      int `json:"idle"`
+			Other     int `json:"other"`
+			Total     int `json:"total"`
+		}
+		Memory struct {
+			Minimum   int `json:"minimum"`
+			Maximum   int `json:"maximum"`
+			Allocated int `json:"allocated"`
+			Free      struct {
+				Minimum struct {
+					Set    bool `json:"set"`
+					Number int  `json:"number"`
+				} `json:"minimum"`
+				Maximum struct {
+					Set    bool `json:"set"`
+					Number int  `json:"number"`
+				} `json:"maximum"`
+			} `json:"free"`
+		}
+		Partition struct {
+			Name      string `json:"name"`
+			Alternate string `json:"alternate"`
+		} `json:"parittion"`
 	} `json:"sinfo"`
+}
+
+type DataParserJsonFetcher struct {
+	scraper      SlurmByteScraper
+	errorCounter prometheus.Counter
+	cache        *AtomicThrottledCache[NodeMetric]
+}
+
+func (dpj *DataParserJsonFetcher) fetch() ([]NodeMetric, error) {
+	squeue := new(sinfoDataParserResponse)
+	cliJson, err := dpj.scraper.FetchRawBytes()
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(cliJson, squeue); err != nil {
+		return nil, err
+	}
+	nodeMetrics := make([]NodeMetric, 0)
+	for _, entry := range squeue.Sinfo {
+		nodes := entry.Nodes
+		// validate single node parse
+		if nodes.Total != 1 {
+			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
+		}
+		if entry.Memory.Free.Maximum.Set && entry.Memory.Free.Minimum.Set {
+			return nil, fmt.Errorf("unable to scrape free mem metrics")
+		}
+		if entry.Memory.Free.Minimum.Number != entry.Memory.Free.Maximum.Number {
+			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
+		}
+		if entry.Memory.Minimum != entry.Memory.Maximum {
+			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
+		}
+		metric := NodeMetric{
+			Hostname:   nodes.Nodes[0],
+			Cpus:       float64(entry.Cpus.Total),
+			RealMemory: float64(entry.Memory.Maximum),
+			FreeMemory: float64(entry.Memory.Free.Maximum.Number),
+			State:      strings.Join(entry.Node.State, "&"),
+		}
+		if !slices.Contains(metric.Partitions, entry.Partition.Name) {
+			metric.Partitions = append(metric.Partitions, entry.Partition.Name)
+		}
+		if entry.Partition.Alternate != "" && !slices.Contains(metric.Partitions, entry.Partition.Alternate) {
+			metric.Partitions = append(metric.Partitions, entry.Partition.Alternate)
+		}
+		nodeMetrics = append(nodeMetrics, metric)
+	}
+	return nodeMetrics, nil
 }
 
 type sinfoResponse struct {
@@ -156,7 +230,8 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		}
 		if err := json.Unmarshal(line, &metric); err != nil {
 			cmf.errorCounter.Inc()
-			return nil, fmt.Errorf("sinfo failed to parse line %d: %s, got %q", i, line, err)
+			slog.Error(fmt.Sprintf("sinfo failed to parse line %d: %s, got %q", i, line, err))
+			continue
 		}
 		// convert mem units from MB to Bytes
 		metric.RealMemory *= 1e6
