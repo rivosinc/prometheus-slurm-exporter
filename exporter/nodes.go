@@ -105,13 +105,14 @@ type sinfoDataParserResponse struct {
 		Partition struct {
 			Name      string `json:"name"`
 			Alternate string `json:"alternate"`
-		} `json:"parittion"`
+		} `json:"partition"`
 	} `json:"sinfo"`
 }
 
 type DataParserJsonFetcher struct {
 	scraper      SlurmByteScraper
 	errorCounter prometheus.Counter
+	duration     time.Duration
 	cache        *AtomicThrottledCache[NodeMetric]
 }
 
@@ -119,9 +120,11 @@ func (dpj *DataParserJsonFetcher) fetch() ([]NodeMetric, error) {
 	squeue := new(sinfoDataParserResponse)
 	cliJson, err := dpj.scraper.FetchRawBytes()
 	if err != nil {
+		dpj.errorCounter.Inc()
 		return nil, err
 	}
 	if err := json.Unmarshal(cliJson, squeue); err != nil {
+		dpj.errorCounter.Inc()
 		return nil, err
 	}
 	nodeMetrics := make([]NodeMetric, 0)
@@ -129,15 +132,19 @@ func (dpj *DataParserJsonFetcher) fetch() ([]NodeMetric, error) {
 		nodes := entry.Nodes
 		// validate single node parse
 		if nodes.Total != 1 {
+			dpj.errorCounter.Inc()
 			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
 		}
 		if entry.Memory.Free.Maximum.Set && entry.Memory.Free.Minimum.Set {
+			dpj.errorCounter.Inc()
 			return nil, fmt.Errorf("unable to scrape free mem metrics")
 		}
 		if entry.Memory.Free.Minimum.Number != entry.Memory.Free.Maximum.Number {
+			dpj.errorCounter.Inc()
 			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
 		}
 		if entry.Memory.Minimum != entry.Memory.Maximum {
+			dpj.errorCounter.Inc()
 			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
 		}
 		metric := NodeMetric{
@@ -156,6 +163,21 @@ func (dpj *DataParserJsonFetcher) fetch() ([]NodeMetric, error) {
 		nodeMetrics = append(nodeMetrics, metric)
 	}
 	return nodeMetrics, nil
+}
+
+func (dpj *DataParserJsonFetcher) Fetch() ([]NodeMetric, error) {
+	t := time.Now()
+	metrics, err := dpj.cache.FetchOrThrottle(dpj.fetch)
+	dpj.duration = time.Since(t)
+	return metrics, err
+}
+
+func (dpj *DataParserJsonFetcher) ScrapeDuration() time.Duration {
+	return dpj.duration
+}
+
+func (dpj *DataParserJsonFetcher) ScrapeError() prometheus.Counter {
+	return dpj.errorCounter
 }
 
 type sinfoResponse struct {

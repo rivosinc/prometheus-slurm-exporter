@@ -63,7 +63,7 @@ func TestNewConfig_Default(t *testing.T) {
 	assert := assert.New(t)
 	config, err := NewConfig(new(CliFlags))
 	assert.Nil(err)
-	assert.Equal([]string{"sinfo", "--json"}, config.cliOpts.sinfo)
+	assert.Equal([]string{"sinfo", "-N", "--json"}, config.cliOpts.sinfo)
 	assert.Equal([]string{"squeue", "--json"}, config.cliOpts.squeue)
 	assert.Equal([]string{"scontrol", "show", "lic", "--json"}, config.cliOpts.lic)
 	assert.Equal(uint64(10), config.TraceConf.rate)
