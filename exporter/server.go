@@ -69,7 +69,7 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	// defaults
 	cliOpts := CliOpts{
 		squeue:       []string{"squeue", "--json"},
-		sinfo:        []string{"sinfo", "--json"},
+		sinfo:        []string{"sinfo", "-N", "--json"},
 		lic:          []string{"scontrol", "show", "lic", "--json"},
 		sdiag:        []string{"sdiag", "--json"},
 		licEnabled:   cliFlags.SlurmLicEnabled,
