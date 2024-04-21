@@ -15,6 +15,7 @@ import (
 
 var MockNodeInfoScraper = &MockScraper{fixture: "fixtures/sinfo_out.json"}
 var MockNodeInfoDataParserScraper = &MockScraper{fixture: "fixtures/sinfo_dataparser.json"}
+var MockNodeDataParserScraper = &MockScraper{fixture: "fixtures/sinfo_dataparser.json"}
 
 func TestNewNodeCollector(t *testing.T) {
 	assert := assert.New(t)
@@ -85,6 +86,18 @@ func TestNodeSummaryMemoryMetrics(t *testing.T) {
 	assert := assert.New(t)
 	fetcher := NodeJsonFetcher{scraper: MockNodeInfoScraper, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}), cache: NewAtomicThrottledCache[NodeMetric](1)}
 	nodeMetrics, err := fetcher.FetchMetrics()
+	assert.Nil(err)
+	metrics := fetchNodeTotalMemMetrics(nodeMetrics)
+	assert.Equal(114688., metrics.AllocMemory)
+	assert.Equal(1.823573e+06, metrics.FreeMemory)
+	assert.Equal(2e+06, metrics.RealMemory)
+}
+
+func TestDataParserNodeSummaryMemoryMetrics(t *testing.T) {
+	assert := assert.New(t)
+	fetcher := DataParserJsonFetcher{scraper: MockNodeDataParserScraper, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}), cache: NewAtomicThrottledCache[NodeMetric](1)}
+	nodeMetrics, err := fetcher.FetchMetrics()
+	fmt.Println(nodeMetrics)
 	assert.Nil(err)
 	metrics := fetchNodeTotalMemMetrics(nodeMetrics)
 	assert.Equal(114688., metrics.AllocMemory)

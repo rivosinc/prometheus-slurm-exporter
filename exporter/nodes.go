@@ -55,32 +55,6 @@ type sinfoDataParserResponse struct {
 			Total     int      `json:"total"`
 			Nodes     []string `json:"nodes"`
 		} `json:"nodes"`
-	} `json:"sinfo"`
-}
-
-type sinfoDataParserResponse struct {
-	Meta struct {
-		Plugins map[string]string `json:"plugins"`
-	} `json:"meta"`
-	SlurmVersion struct {
-		Version struct {
-			Major int `json:"major"`
-			Micro int `json:"micro"`
-			Minor int `json:"minor"`
-		} `json:"version"`
-		Release string `json:"release"`
-	} `json:"Slurm"`
-	Sinfo []struct {
-		Node struct {
-			State []string `json:"state"`
-		} `json:"node"`
-		Nodes struct {
-			Allocated int      `json:"allocated"`
-			Idle      int      `json:"idle"`
-			Other     int      `json:"other"`
-			Total     int      `json:"total"`
-			Nodes     []string `json:"nodes"`
-		} `json:"nodes"`
 		Cpus struct {
 			Allocated int `json:"allocated"`
 			Idle      int `json:"idle"`
@@ -135,13 +109,10 @@ func (dpj *DataParserJsonFetcher) fetch() ([]NodeMetric, error) {
 			dpj.errorCounter.Inc()
 			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
 		}
-		if entry.Memory.Free.Maximum.Set && entry.Memory.Free.Minimum.Set {
+		freeMemSet := entry.Memory.Free.Maximum.Set && entry.Memory.Free.Minimum.Set
+		if freeMemSet && entry.Memory.Free.Minimum.Number != entry.Memory.Free.Maximum.Number {
 			dpj.errorCounter.Inc()
-			return nil, fmt.Errorf("unable to scrape free mem metrics")
-		}
-		if entry.Memory.Free.Minimum.Number != entry.Memory.Free.Maximum.Number {
-			dpj.errorCounter.Inc()
-			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
+			slog.Error("unable to scrape free mem set")
 		}
 		if entry.Memory.Minimum != entry.Memory.Maximum {
 			dpj.errorCounter.Inc()
@@ -165,7 +136,7 @@ func (dpj *DataParserJsonFetcher) fetch() ([]NodeMetric, error) {
 	return nodeMetrics, nil
 }
 
-func (dpj *DataParserJsonFetcher) Fetch() ([]NodeMetric, error) {
+func (dpj *DataParserJsonFetcher) FetchMetrics() ([]NodeMetric, error) {
 	t := time.Now()
 	metrics, err := dpj.cache.FetchOrThrottle(dpj.fetch)
 	dpj.duration = time.Since(t)
