@@ -5,7 +5,6 @@
 package exporter
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -83,9 +82,11 @@ func TestUserJobMetric(t *testing.T) {
 	assert.Nil(err)
 
 	//test
+	state := "RUNNING"
 	for _, metric := range parseUserJobMetrics(jms) {
-		assert.Positive(metric.allocCpu)
-		assert.Positive(metric.allocMemory)
+		assert.Positive(metric.allocCpu[state])
+		assert.Positive(metric.allocMemory[state])
+		assert.Positive(metric.stateJobCount[state])
 	}
 }
 
@@ -167,7 +168,6 @@ func TestParsePartMetrics(t *testing.T) {
 	assert.Nil(err)
 
 	featureMetrics := parseFeatureMetric(jms)
-	fmt.Println(featureMetrics)
 	assert.Equal(1., featureMetrics["a100-80gb"].total)
 	assert.Equal(1., featureMetrics["preemptible"].allocCpu)
 }

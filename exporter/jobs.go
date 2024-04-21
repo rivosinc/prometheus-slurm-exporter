@@ -176,8 +176,8 @@ func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetr
 type UserJobMetric struct {
 	stateJobCount map[string]float64
 	totalJobCount float64
-	allocMemory   float64
-	allocCpu      float64
+	allocMemory   map[string]float64
+	allocCpu      map[string]float64
 }
 
 func parseUserJobMetrics(jobMetrics []JobMetric) map[string]*UserJobMetric {
@@ -187,12 +187,14 @@ func parseUserJobMetrics(jobMetrics []JobMetric) map[string]*UserJobMetric {
 		if !ok {
 			metric = &UserJobMetric{
 				stateJobCount: make(map[string]float64),
+				allocMemory:   make(map[string]float64),
+				allocCpu:      make(map[string]float64),
 			}
 		}
 		metric.stateJobCount[jobMetric.JobState]++
 		metric.totalJobCount++
-		metric.allocMemory += totalAllocMem(&jobMetric.JobResources)
-		metric.allocCpu += jobMetric.JobResources.AllocCpus
+		metric.allocMemory[jobMetric.JobState] += totalAllocMem(&jobMetric.JobResources)
+		metric.allocCpu[jobMetric.JobState] += jobMetric.JobResources.AllocCpus
 		userMetricMap[jobMetric.UserName] = metric
 	}
 	return userMetricMap
@@ -302,8 +304,8 @@ func NewJobsController(config *Config) *JobsCollector {
 		jobAllocCpus:           prometheus.NewDesc("slurm_job_alloc_cpus", "amount of cpus allocated per job", []string{"jobid"}, nil),
 		jobAllocMem:            prometheus.NewDesc("slurm_job_alloc_mem", "amount of mem allocated per job", []string{"jobid"}, nil),
 		userJobStateTotal:      prometheus.NewDesc("slurm_user_state_total", "total jobs per state per user", []string{"username", "state"}, nil),
-		userJobMemAlloc:        prometheus.NewDesc("slurm_user_mem_alloc", "total mem alloc per user", []string{"username"}, nil),
-		userJobCpuAlloc:        prometheus.NewDesc("slurm_user_cpu_alloc", "total cpu alloc per user", []string{"username"}, nil),
+		userJobMemAlloc:        prometheus.NewDesc("slurm_user_mem_alloc", "total mem alloc per user", []string{"username", "state"}, nil),
+		userJobCpuAlloc:        prometheus.NewDesc("slurm_user_cpu_alloc", "total cpu alloc per user", []string{"username", "state"}, nil),
 		partitionJobStateTotal: prometheus.NewDesc("slurm_partition_job_state_total", "total jobs per partition per state", []string{"partition", "state"}, nil),
 		accountJobMemAlloc:     prometheus.NewDesc("slurm_account_mem_alloc", "alloc mem consumed per account", []string{"account"}, nil),
 		accountJobCpuAlloc:     prometheus.NewDesc("slurm_account_cpu_alloc", "alloc cpu consumed per account", []string{"account"}, nil),
@@ -348,11 +350,15 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	userMetrics := parseUserJobMetrics(jobMetrics)
 	for user, metric := range userMetrics {
-		if metric.allocCpu > 0 {
-			ch <- prometheus.MustNewConstMetric(jc.userJobCpuAlloc, prometheus.GaugeValue, metric.allocCpu, user)
+		for state, allocCpu := range metric.allocCpu {
+			if allocCpu > 0 {
+				ch <- prometheus.MustNewConstMetric(jc.userJobCpuAlloc, prometheus.GaugeValue, allocCpu, user, state)
+			}
 		}
-		if metric.allocMemory > 0 {
-			ch <- prometheus.MustNewConstMetric(jc.userJobMemAlloc, prometheus.GaugeValue, metric.allocMemory, user)
+		for state, allocMem := range metric.allocMemory {
+			if allocMem > 0 {
+				ch <- prometheus.MustNewConstMetric(jc.userJobMemAlloc, prometheus.GaugeValue, allocMem, user, state)
+			}
 		}
 		for state, count := range metric.stateJobCount {
 			if count > 0 {
