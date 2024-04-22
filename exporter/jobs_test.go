@@ -5,7 +5,6 @@
 package exporter
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -59,7 +58,7 @@ func TestParseJobMetrics(t *testing.T) {
 		}
 	}
 	assert.NotNil(job)
-	assert.Equal(float64(64000), totalAllocMem(&job.JobResources))
+	assert.Equal(6.4e13, totalAllocMem(&job.JobResources))
 }
 
 func TestParseCliFallback(t *testing.T) {
@@ -83,9 +82,18 @@ func TestUserJobMetric(t *testing.T) {
 	assert.Nil(err)
 
 	//test
-	for _, metric := range parseUserJobMetrics(jms) {
-		assert.Positive(metric.allocCpu)
-		assert.Positive(metric.allocMemory)
+	state := "RUNNING"
+	expectedUser := "bkd"
+
+	for user, metric := range parseUserJobMetrics(jms) {
+		if user == expectedUser {
+			assert.Equal(1., metric.totalJobCount)
+			assert.Equal(1., metric.allocCpu[state])
+			assert.Equal(1., metric.stateJobCount[state])
+			assert.Equal(6.4e+13, metric.allocMemory[state])
+		} else {
+			t.Fatal("unexpected user in reseult")
+		}
 	}
 }
 
@@ -167,7 +175,6 @@ func TestParsePartMetrics(t *testing.T) {
 	assert.Nil(err)
 
 	featureMetrics := parseFeatureMetric(jms)
-	fmt.Println(featureMetrics)
 	assert.Equal(1., featureMetrics["a100-80gb"].total)
 	assert.Equal(1., featureMetrics["preemptible"].allocCpu)
 }
