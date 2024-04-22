@@ -58,7 +58,7 @@ func TestParseJobMetrics(t *testing.T) {
 		}
 	}
 	assert.NotNil(job)
-	assert.Equal(float64(64000), totalAllocMem(&job.JobResources))
+	assert.Equal(6.4e13, totalAllocMem(&job.JobResources))
 }
 
 func TestParseCliFallback(t *testing.T) {
@@ -83,10 +83,17 @@ func TestUserJobMetric(t *testing.T) {
 
 	//test
 	state := "RUNNING"
-	for _, metric := range parseUserJobMetrics(jms) {
-		assert.Positive(metric.allocCpu[state])
-		assert.Positive(metric.allocMemory[state])
-		assert.Positive(metric.stateJobCount[state])
+	expectedUser := "bkd"
+
+	for user, metric := range parseUserJobMetrics(jms) {
+		if user == expectedUser {
+			assert.Equal(1., metric.totalJobCount)
+			assert.Equal(1., metric.allocCpu[state])
+			assert.Equal(1., metric.stateJobCount[state])
+			assert.Equal(6.4e+13, metric.allocMemory[state])
+		} else {
+			t.Fatal("unexpected user in reseult")
+		}
 	}
 }
 

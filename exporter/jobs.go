@@ -15,11 +15,13 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+type NodeResource struct {
+	Mem float64 `json:"memory"`
+}
+
 type JobResource struct {
-	AllocCpus  float64 `json:"allocated_cpus"`
-	AllocNodes map[string]struct {
-		Mem float64 `json:"memory"`
-	} `json:"allocated_nodes"`
+	AllocCpus  float64                  `json:"allocated_cpus"`
+	AllocNodes map[string]*NodeResource `json:"allocated_nodes"`
 }
 type JobMetric struct {
 	Account      string      `json:"account"`
@@ -108,6 +110,11 @@ func parseJobMetrics(jsonJobList []byte) ([]JobMetric, error) {
 		slog.Error("Unmarshaling node metrics %q", err)
 		return nil, err
 	}
+	for _, j := range squeue.Jobs {
+		for _, resource := range j.JobResources.AllocNodes {
+			resource.Mem *= 1e9
+		}
+	}
 	return squeue.Jobs, nil
 }
 
@@ -162,10 +169,8 @@ func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetr
 			UserName:  metric.UserName,
 			EndTime:   float64(metric.EndTime.Unix()),
 			JobResources: JobResource{
-				AllocCpus: float64(metric.Cpu),
-				AllocNodes: map[string]struct {
-					Mem float64 `json:"memory"`
-				}{"0": {Mem: mem}},
+				AllocCpus:  float64(metric.Cpu),
+				AllocNodes: map[string]*NodeResource{"0": {Mem: mem}},
 			},
 		}
 		jobMetrics = append(jobMetrics, openapiJobMetric)
