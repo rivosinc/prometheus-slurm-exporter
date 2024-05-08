@@ -29,7 +29,9 @@ PromJobMetric::~PromJobMetric() {}
 
 string PromJobMetric::GetAccount()
 {
-    return job_info.account ? job_info.account : STRING_NULL;
+    if (job_info.account)
+        return job_info.account;
+    return STRING_NULL;
 }
 
 int PromJobMetric::GetJobId()
@@ -44,18 +46,21 @@ double PromJobMetric::GetEndTime()
 
 double PromJobMetric::GetAllocCpus()
 {
-    if (job_info.job_resrcs == nullptr)
-        return 0;
+    if (nullptr == job_info.job_resrcs)
+        return job_info.pn_min_cpus;
     job_resrcs *resc = (job_resrcs *)job_info.job_resrcs;
     return (double)resc->ncpus;
 }
 
 double PromJobMetric::GetAllocMem()
 {
-    if (job_info.job_resrcs == nullptr)
-        return SLURM_ERROR;
-    if ((JOB_STATE_BASE & job_info.job_state) != JOB_RUNNING)
-        return 0;
+    if (job_info.gres_total) {
+        cout << "gres total " << job_info.gres_total << "state: " << job_info.job_state << endl;
+    }
+    if (nullptr == job_info.job_resrcs) {
+        cout << "min_mem " << job_info.mem_per_tres << " num nodes " << job_info.num_nodes << "\n";
+        return job_info.pn_min_memory * job_info.num_nodes;
+    }
     job_resrcs *resc = (job_resrcs *)job_info.job_resrcs;
     uint64_t alloc_mem = 0;
     for (int i = 0; i < resc->nhosts; i++)
@@ -119,7 +124,8 @@ int JobMetricScraper::CollectJobInfo()
     // enrich with new members
     for (int i = 0; i < new_job_ptr->record_count; i++)
     {
-        PromJobMetric metric(new_job_ptr->job_array[i]);
+        slurm_job_info_t job = new_job_ptr->job_array[i];
+        PromJobMetric metric(job);
         job_metric_map[metric.GetJobId()] = metric;
     }
     old_job_ptr = new_job_ptr;

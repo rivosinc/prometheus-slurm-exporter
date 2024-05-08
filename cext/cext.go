@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rivosinc/prometheus-slurm-exporter/exporter"
 )
@@ -128,19 +130,20 @@ func (cjf *CJobFetcher) CToGoMetricConvert() ([]exporter.JobMetric, error) {
 	defer DeletePromJobMetric(cmetric)
 	cjf.scraper.IterReset()
 	for cjf.scraper.IterNext(cmetric) == 0 {
-		metrics = append(metrics, exporter.JobMetric{
+		metric := exporter.JobMetric{
 			Account:   cmetric.GetAccount(),
 			JobId:     float64(cmetric.GetJobId()),
 			EndTime:   cmetric.GetEndTime(),
 			JobState:  jobStates[cmetric.GetJobState()],
+			UserName:  cmetric.GetUserName(),
 			Partition: cmetric.GetPartitions(),
 			JobResources: exporter.JobResource{
-				AllocCpus: cmetric.GetAllocCpus(),
-				AllocNodes: map[string]struct {
-					Mem float64 "json:\"memory\""
-				}{"0": {Mem: cmetric.GetAllocMem()}},
+				AllocCpus:  cmetric.GetAllocCpus(),
+				AllocNodes: map[string]*exporter.NodeResource{"0": {Mem: cmetric.GetAllocMem()}},
 			},
-		})
+		}
+		metrics = append(metrics, metric)
+		slog.Error(fmt.Sprintf("metrics %v, alloc mem %f", metric, metric.JobResources.AllocNodes["0"].Mem))
 	}
 
 	return metrics, nil

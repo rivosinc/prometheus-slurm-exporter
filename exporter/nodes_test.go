@@ -14,6 +14,7 @@ import (
 )
 
 var MockNodeInfoScraper = &MockScraper{fixture: "fixtures/sinfo_out.json"}
+var MockNodeInfoDataParserScraper = &MockScraper{fixture: "fixtures/sinfo_dataparser.json"}
 
 func TestNewNodeCollector(t *testing.T) {
 	assert := assert.New(t)
