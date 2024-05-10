@@ -52,12 +52,19 @@ func TestPartitionMetric(t *testing.T) {
 	assert.Equal(1, len(metrics))
 	_, contains := metrics["hw"]
 	assert.True(contains)
-	assert.Equal(4., metrics["hw"].AllocCpus)
-	assert.Equal(256., metrics["hw"].Cpus)
-	assert.Equal(114688., metrics["hw"].AllocMemory)
-	assert.Equal(1.823573e+06, metrics["hw"].FreeMemory)
-	assert.Equal(2e+06, metrics["hw"].RealMemory)
-	assert.Equal(252., metrics["hw"].IdleCpus)
+	sumVals := func(metric map[string]float64) float64 {
+		sum := 0.
+		for _, val := range metric {
+			sum += val
+		}
+		return sum
+	}
+	assert.Equal(4., sumVals(metrics["hw"].StateAllocCpus))
+	assert.Equal(256., sumVals(metrics["hw"].StateCpus))
+	assert.Equal(114688., sumVals(metrics["hw"].StateAllocMemory))
+	assert.Equal(1.823573e+06, sumVals(metrics["hw"].StateFreeMemory))
+	assert.Equal(2e+06, sumVals(metrics["hw"].StateRealMemory))
+	assert.Equal(252., sumVals(metrics["hw"].StateIdleCpus))
 }
 
 func TestNodeSummaryCpuMetric(t *testing.T) {
