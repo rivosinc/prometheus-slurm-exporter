@@ -43,6 +43,14 @@ func TestParseNodeMetrics(t *testing.T) {
 	t.Logf("Node metrics collected %d", len(nodeMetrics))
 }
 
+func sumStateMetric(metric map[string]float64) float64 {
+	sum := 0.
+	for _, val := range metric {
+		sum += val
+	}
+	return sum
+}
+
 func TestPartitionMetric(t *testing.T) {
 	assert := assert.New(t)
 	fetcher := NodeJsonFetcher{scraper: MockNodeInfoScraper, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}), cache: NewAtomicThrottledCache[NodeMetric](1)}
@@ -52,12 +60,12 @@ func TestPartitionMetric(t *testing.T) {
 	assert.Equal(1, len(metrics))
 	_, contains := metrics["hw"]
 	assert.True(contains)
-	assert.Equal(4., metrics["hw"].AllocCpus)
-	assert.Equal(256., metrics["hw"].Cpus)
-	assert.Equal(114688., metrics["hw"].AllocMemory)
-	assert.Equal(1.823573e+06, metrics["hw"].FreeMemory)
-	assert.Equal(2e+06, metrics["hw"].RealMemory)
-	assert.Equal(252., metrics["hw"].IdleCpus)
+	assert.Equal(4., sumStateMetric(metrics["hw"].StateAllocCpus))
+	assert.Equal(256., sumStateMetric(metrics["hw"].StateCpus))
+	assert.Equal(114688., sumStateMetric(metrics["hw"].StateAllocMemory))
+	assert.Equal(1.823573e+06, sumStateMetric(metrics["hw"].StateFreeMemory))
+	assert.Equal(2e+06, sumStateMetric(metrics["hw"].StateRealMemory))
+	assert.Equal(252., sumStateMetric(metrics["hw"].StateIdleCpus))
 }
 
 func TestNodeSummaryCpuMetric(t *testing.T) {
