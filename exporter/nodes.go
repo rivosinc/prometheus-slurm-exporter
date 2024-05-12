@@ -197,14 +197,14 @@ func (cmf *NodeCliFallbackFetcher) FetchMetrics() ([]NodeMetric, error) {
 }
 
 type PartitionMetric struct {
-	StateCpus        map[string]float64
-	StateRealMemory  map[string]float64
-	StateFreeMemory  map[string]float64
+	TotalCpus        float64
+	RealMemory       float64
+	FreeMemory       float64
 	StateAllocMemory map[string]float64
 	StateAllocCpus   map[string]float64
-	StateCpuLoad     map[string]float64
-	StateIdleCpus    map[string]float64
-	StateWeight      map[string]float64
+	CpuLoad          float64
+	IdleCpus         float64
+	Weight           float64
 }
 
 func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
@@ -214,25 +214,19 @@ func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
 			partition, ok := partitions[p]
 			if !ok {
 				partition = &PartitionMetric{
-					StateCpus:        make(map[string]float64),
-					StateRealMemory:  make(map[string]float64),
-					StateFreeMemory:  make(map[string]float64),
 					StateAllocMemory: make(map[string]float64),
 					StateAllocCpus:   make(map[string]float64),
-					StateCpuLoad:     make(map[string]float64),
-					StateIdleCpus:    make(map[string]float64),
-					StateWeight:      make(map[string]float64),
 				}
 				partitions[p] = partition
 			}
 			partition.StateAllocCpus[node.State] += node.AllocCpus
 			partition.StateAllocMemory[node.State] += node.AllocMemory
-			partition.StateCpus[node.State] += node.Cpus
-			partition.StateCpuLoad[node.State] += node.CpuLoad
-			partition.StateFreeMemory[node.State] += node.FreeMemory
-			partition.StateIdleCpus[node.State] += node.IdleCpus
-			partition.StateRealMemory[node.State] += node.RealMemory
-			partition.StateWeight[node.State] += node.Weight
+			partition.TotalCpus += node.Cpus
+			partition.CpuLoad += node.CpuLoad
+			partition.FreeMemory += node.FreeMemory
+			partition.IdleCpus += node.IdleCpus
+			partition.RealMemory += node.RealMemory
+			partition.Weight += node.Weight
 		}
 	}
 	return partitions
@@ -335,14 +329,14 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 	return &NodesCollector{
 		fetcher: fetcher,
 		// partition stats
-		partitionCpus:        prometheus.NewDesc("slurm_partition_total_cpus", "Total cpus per partition", []string{"partition", "state"}, nil),
-		partitionRealMemory:  prometheus.NewDesc("slurm_partition_real_mem", "Real mem per partition", []string{"partition", "state"}, nil),
-		partitionFreeMemory:  prometheus.NewDesc("slurm_partition_free_mem", "Free mem per partition", []string{"partition", "state"}, nil),
+		partitionCpus:        prometheus.NewDesc("slurm_partition_total_cpus", "Total cpus per partition", []string{"partition"}, nil),
+		partitionRealMemory:  prometheus.NewDesc("slurm_partition_real_mem", "Real mem per partition", []string{"partition"}, nil),
+		partitionFreeMemory:  prometheus.NewDesc("slurm_partition_free_mem", "Free mem per partition", []string{"partition"}, nil),
 		partitionAllocMemory: prometheus.NewDesc("slurm_partition_alloc_mem", "Alloc mem per partition", []string{"partition", "state"}, nil),
 		partitionAllocCpus:   prometheus.NewDesc("slurm_partition_alloc_cpus", "Alloc cpus per partition", []string{"partition", "state"}, nil),
-		partitionIdleCpus:    prometheus.NewDesc("slurm_partition_idle_cpus", "Idle cpus per partition", []string{"partition", "state"}, nil),
-		partitionWeight:      prometheus.NewDesc("slurm_partition_weight", "Total node weight per partition??", []string{"partition", "state"}, nil),
-		partitionCpuLoad:     prometheus.NewDesc("slurm_partition_cpu_load", "Total cpu load per partition", []string{"partition", "state"}, nil),
+		partitionIdleCpus:    prometheus.NewDesc("slurm_partition_idle_cpus", "Idle cpus per partition", []string{"partition"}, nil),
+		partitionWeight:      prometheus.NewDesc("slurm_partition_weight", "Total node weight per partition??", []string{"partition"}, nil),
+		partitionCpuLoad:     prometheus.NewDesc("slurm_partition_cpu_load", "Total cpu load per partition", []string{"partition"}, nil),
 		// node cpu summary stats
 		totalCpus:         prometheus.NewDesc("slurm_cpus_total", "Total cpus", nil, nil),
 		totalIdleCpus:     prometheus.NewDesc("slurm_cpus_idle", "Total idle cpus", nil, nil),
@@ -400,12 +394,24 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	for partition, metric := range partitionMetrics {
 		emitStateVal(partition, metric.StateAllocCpus, nc.partitionAllocCpus)
 		emitStateVal(partition, metric.StateAllocMemory, nc.partitionAllocMemory)
-		emitStateVal(partition, metric.StateCpus, nc.partitionCpus)
-		emitStateVal(partition, metric.StateCpuLoad, nc.partitionCpuLoad)
-		emitStateVal(partition, metric.StateFreeMemory, nc.partitionFreeMemory)
-		emitStateVal(partition, metric.StateIdleCpus, nc.partitionIdleCpus)
-		emitStateVal(partition, metric.StateRealMemory, nc.partitionRealMemory)
-		emitStateVal(partition, metric.StateWeight, nc.partitionWeight)
+		if metric.TotalCpus > 0 {
+			ch <- prometheus.MustNewConstMetric(nc.partitionCpus, prometheus.GaugeValue, metric.TotalCpus, partition)
+		}
+		if metric.CpuLoad > 0 {
+			ch <- prometheus.MustNewConstMetric(nc.partitionCpuLoad, prometheus.GaugeValue, metric.CpuLoad, partition)
+		}
+		if metric.FreeMemory > 0 {
+			ch <- prometheus.MustNewConstMetric(nc.partitionFreeMemory, prometheus.GaugeValue, metric.FreeMemory, partition)
+		}
+		if metric.IdleCpus > 0 {
+			ch <- prometheus.MustNewConstMetric(nc.partitionIdleCpus, prometheus.GaugeValue, metric.IdleCpus, partition)
+		}
+		if metric.RealMemory > 0 {
+			ch <- prometheus.MustNewConstMetric(nc.partitionRealMemory, prometheus.GaugeValue, metric.RealMemory, partition)
+		}
+		if metric.Weight > 0 {
+			ch <- prometheus.MustNewConstMetric(nc.partitionWeight, prometheus.GaugeValue, metric.Weight, partition)
+		}
 	}
 	// node cpu summary set
 	nodeCpuMetrics := fetchNodeTotalCpuMetrics(nodeMetrics)
