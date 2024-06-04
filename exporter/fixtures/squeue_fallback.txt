@@ -1,7 +1,7 @@
-{"a": "account1", "id": 26515966, "end_time": "2023-09-21T00:21:42", "state": "RUNNING", "p": "hw-h", "cpu": 1, "mem": "128G"}
-{"a": "account1", "id": 50580016, "end_time": "2023-09-21T14:31:11", "state": "RUNNING", "p": "hw-l", "cpu": 1, "mem": "62.50G"}
-{"a": "account1", "id": 51447051, "end_time": "N/A", "state": "PENDING", "p": "hw-h", "cpu": 1, "mem": "40000M"}
-{"a": "account1", "id": 18804, "end_time": "NONE", "state": "PENDING", "p": "magma", "cpu": 24, "mem": "118G"}
+{"a": "account1", "id": 26515966, "end_time": "2023-09-21T00:21:42", "state": "RUNNING", "p": "hw-h", "cpu": 1, "mem": "128G", "array_id": "N/A"}
+{"a": "account1", "id": 50580016, "end_time": "2023-09-21T14:31:11", "state": "RUNNING", "p": "hw-l", "cpu": 1, "mem": "62.50G", "array_id": "N/A"}
+{"a": "account1", "id": 51447051, "end_time": "N/A", "state": "PENDING", "p": "hw-h", "cpu": 1, "mem": "40000M", "array_id": "N/A"}
+{"a": "account1", "id": 18804, "end_time": "NONE", "state": "PENDING", "p": "magma", "cpu": 24, "mem": "118G", "array_id": "N/A"}
 # test counter inc with faulty inputs
-{"a": "account1", "id": 18805, "end_time": "NONE", "state": "PENDING", "p": "magma", "cpu": xx, "mem": "118G"}
-{"a": "account1", "id": 18806, "end_time": "NONE", "state": "PENDING", "p": "magma", "cpu": xx, "mem": "118G"}
+{"a": "account1", "id": 18805, "end_time": "NONE", "state": "PENDING", "p": "magma", "cpu": xx, "mem": "118G", "array_id": "N/A"}
+{"a": "account1", "id": 18806, "end_time": "NONE", "state": "PENDING", "p": "magma", "cpu": xx, "mem": "118G", "array_id": "N/A"}
