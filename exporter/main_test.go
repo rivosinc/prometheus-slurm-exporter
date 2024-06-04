@@ -74,7 +74,7 @@ func TestNewConfig_NonDefault(t *testing.T) {
 	cliFlags := CliFlags{SlurmCliFallback: true}
 	config, err := NewConfig(&cliFlags)
 	assert.Nil(err)
-	expected := []string{"squeue", "--states=all", "-h", "-o", `{"a": "%a", "id": %A, "end_time": "%e", "u": "%u", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m"}`}
+	expected := []string{"squeue", "--states=all", "-h", "-r", "-o", `{"a": "%a", "id": %A, "end_time": "%e", "u": "%u", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m", "array_id": "%K"}`}
 	assert.Equal(expected, config.cliOpts.squeue)
 }
 
