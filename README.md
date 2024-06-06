@@ -24,7 +24,7 @@ You can also install the exporter directly with `go install github.com/rivosinc/
 
 ```bash
 # example installation
-$ go install github.com/rivosinc/prometheus-slurm-exporter@v1.4.1
+$ go install github.com/rivosinc/prometheus-slurm-exporter@v1.5.1
 # or if you like living on the edge
 $ go install github.com/rivosinc/prometheus-slurm-exporter@latest
 # if not already added, ensure
