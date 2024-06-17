@@ -51,7 +51,7 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 			slog.Error("failed to scrape account metric row %v", records)
 			continue
 		}
-		account, mem, cpu := records[0], records[1], records[2]
+		account, cpu, mem := records[0], records[1], records[2]
 		if mem == "" && cpu == "" {
 			continue
 		}
