@@ -21,7 +21,7 @@ import (
 )
 
 type SlurmPrimitiveMetric interface {
-	NodeMetric | JobMetric | DiagMetric | LicenseMetric
+	NodeMetric | JobMetric | DiagMetric | LicenseMetric | AccountLimitMetric
 }
 
 // interface for getting data from slurm
