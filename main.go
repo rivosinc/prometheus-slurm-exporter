@@ -29,6 +29,7 @@ var (
 	slurmDiagOverride    = flag.String("slurm.diag-cli", "", "sdiag cli override")
 	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
 	slurmDiagEnabled     = flag.Bool("slurm.collect-diags", false, "Collect daemon diagnostics stats from slurm")
+	slurmSacctEnabled    = flag.Bool("slurm.collect-limits", false, "Collect account and user limits from slurm")
 	slurmCliFallback     = flag.Bool("slurm.cli-fallback", true, "drop the --json arg and revert back to standard squeue for performance reasons")
 )
 
@@ -47,6 +48,7 @@ func main() {
 		SlurmDiagOverride:    *slurmDiagOverride,
 		SlurmLicEnabled:      *slurmLicEnabled,
 		SlurmDiagEnabled:     *slurmDiagEnabled,
+		SacctEnabled:         *slurmSacctEnabled,
 		SlurmCliFallback:     *slurmCliFallback,
 		TraceRate:            *traceRate,
 	}

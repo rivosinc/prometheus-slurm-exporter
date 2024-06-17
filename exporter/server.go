@@ -18,11 +18,13 @@ import (
 type CliOpts struct {
 	sinfo        []string
 	squeue       []string
+	sacctmgr     []string
 	lic          []string
 	sdiag        []string
 	licEnabled   bool
 	diagsEnabled bool
 	fallback     bool
+	sacctEnabled bool
 }
 
 type TraceConfig struct {
@@ -46,6 +48,7 @@ type CliFlags struct {
 	SlurmDiagEnabled     bool
 	SlurmCliFallback     bool
 	TraceEnabled         bool
+	SacctEnabled         bool
 	SlurmPollLimit       float64
 	LogLevel             string
 	ListenAddress        string
@@ -72,9 +75,11 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		sinfo:        []string{"sinfo", "--json"},
 		lic:          []string{"scontrol", "show", "lic", "--json"},
 		sdiag:        []string{"sdiag", "--json"},
+		sacctmgr:     []string{"sacctmgr", "show", "assoc", "format=Account,GrpCPU,GrpMem", "--noheader", "--parsable2"},
 		licEnabled:   cliFlags.SlurmLicEnabled,
 		diagsEnabled: cliFlags.SlurmDiagEnabled,
 		fallback:     cliFlags.SlurmCliFallback,
+		sacctEnabled: cliFlags.SacctEnabled,
 	}
 	traceConf := TraceConfig{
 		enabled: cliFlags.TraceEnabled,
