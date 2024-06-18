@@ -64,8 +64,8 @@ func TestLimitCollector(t *testing.T) {
 		t.Log(metric.Desc().String())
 		limitMetrics = append(limitMetrics, metric)
 	}
-	// 9 accounts, 2 metrics each + error counter
-	assert.Len(limitMetrics, 19)
+	// 9 accounts, 2 metrics each + error&duration counter
+	assert.Len(limitMetrics, 20)
 }
 func TestLimitDescribe(t *testing.T) {
 	assert := assert.New(t)
@@ -91,5 +91,5 @@ func TestLimitDescribe(t *testing.T) {
 		t.Log(desc.String())
 		limitMetrics = append(limitMetrics, desc)
 	}
-	assert.Len(limitMetrics, 3)
+	assert.Len(limitMetrics, 4)
 }
