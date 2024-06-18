@@ -57,20 +57,20 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 		}
 		metric := AccountLimitMetric{Account: account}
 		if mem != "" {
-			memMb, err := strconv.Atoi(mem)
-			if err != nil {
+			if memMb, err := strconv.ParseFloat(mem, 64); err != nil {
 				slog.Error("failed to scrape account metric mem string %s", mem)
 				acf.errorCounter.Inc()
+			} else {
+				metric.Mem = memMb * 1000
 			}
-			metric.Mem = float64(memMb) * 1000
 		}
 		if cpu != "" {
-			cpuCount, err := strconv.Atoi(cpu)
-			if err != nil {
+			if cpuCount, err := strconv.ParseFloat(cpu, 64); err != nil {
 				slog.Error("failed to scrape account metric cpu string %s", cpu)
 				acf.errorCounter.Inc()
+			} else {
+				metric.CPU = cpuCount
 			}
-			metric.CPU = float64(cpuCount)
 		}
 		accountMetrics = append(accountMetrics, metric)
 	}
