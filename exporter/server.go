@@ -56,6 +56,7 @@ type CliFlags struct {
 	SlurmSqueueOverride  string
 	SlurmSinfoOverride   string
 	SlurmDiagOverride    string
+	SlurmAcctOverride    string
 	TraceRate            uint64
 	TracePath            string
 	SlurmLicenseOverride string
@@ -122,8 +123,8 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	if cliFlags.SlurmSinfoOverride != "" {
 		cliOpts.sinfo = strings.Split(cliFlags.SlurmSinfoOverride, " ")
 	}
-	if cliFlags.SlurmSinfoOverride != "" {
-		cliOpts.sdiag = strings.Split(cliFlags.SlurmSinfoOverride, " ")
+	if cliFlags.SlurmAcctOverride != "" {
+		cliOpts.sacctmgr = strings.Split(cliFlags.SlurmAcctOverride, " ")
 	}
 	if cliFlags.TraceRate != 0 {
 		traceConf.rate = cliFlags.TraceRate
@@ -178,6 +179,10 @@ func InitPromServer(config *Config) http.Handler {
 	if cliOpts.diagsEnabled {
 		slog.Info("daemon diagnostic collection enabled")
 		prometheus.MustRegister(NewDiagsCollector(config))
+	}
+	if cliOpts.sacctEnabled {
+		slog.Info("account limit collection enabled")
+		prometheus.MustRegister(NewLimitCollector(config))
 	}
 	return promhttp.Handler()
 }

@@ -32,12 +32,14 @@ build:
 devel: build
   {{build_dir}}/slurm_exporter \
   -trace.enabled \
+  -slurm.collect-limits \
   -slurm.collect-diags \
   -slurm.collect-licenses \
   -slurm.squeue-cli "cat exporter/fixtures/squeue_out.json" \
   -slurm.sinfo-cli "cat exporter/fixtures/sinfo_out.json" \
   -slurm.diag-cli "cat exporter/fixtures/sdiag.json" \
-  -slurm.lic-cli "cat exporter/fixtures/license_out.json"
+  -slurm.lic-cli "cat exporter/fixtures/license_out.json" \
+  -slurm.sacctmgr-cli "cat exporter/fixtures/sacctmgr.txt"
 
 prod: build
   {{build_dir}}/slurm_exporter -slurm.cli-fallback -web.listen-address :9093
