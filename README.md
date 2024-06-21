@@ -45,7 +45,7 @@ Example prometheus config:
         - targets: ['path.to.exporter:9092']
 ```
 
-We've also uploaded a example [dashboard](https://grafana.com/grafana/dashboards/19835-slurm-exporter) to help users get started. If the link doesn't work try import by Id: `19835`
+We've also uploaded a example [dashboard](https://grafana.com/grafana/dashboards/19835-slurm-dashboardv2) to help users get started. If the link doesn't work try import by Id: `19835`
 
 ### Job Tracing
 Job tracing is default disabled. To enable it simply add `-trace.enabled` to the arg list. This will enable endpoint `/trace` by default (configurable, see help page).
