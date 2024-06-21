@@ -138,8 +138,15 @@ func (nat *NAbleTime) UnmarshalJSON(data []byte) error {
 
 func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetric, error) {
 	jobMetrics := make([]JobMetric, 0)
-	// convert our custom format to the openapi format we expect
-	for i, line := range bytes.Split(bytes.Trim(squeue, "\n"), []byte("\n")) {
+	// clean input
+	squeue = bytes.TrimSpace(squeue)
+	squeue = bytes.Trim(squeue, "\n")
+	if len(squeue) == 0 {
+		// handle no jobs returned
+		return nil, nil
+	}
+
+	for i, line := range bytes.Split(squeue, []byte("\n")) {
 		var metric struct {
 			Account   string    `json:"a"`
 			JobId     float64   `json:"id"`

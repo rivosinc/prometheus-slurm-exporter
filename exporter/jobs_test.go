@@ -219,3 +219,18 @@ func TestNAbleTimeJson_NA(t *testing.T) {
 	assert.Nil(err)
 	assert.True(nat.Equal(time.Time{}))
 }
+
+func TestParseCliFallbackEmpty(t *testing.T) {
+	assert := assert.New(t)
+	counter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "validation_counter",
+	})
+	metrics, err := parseCliFallback([]byte(""), counter)
+	assert.NoError(err)
+	assert.Empty(metrics)
+	assert.Zero(CollectCounterValue(counter))
+	metrics, err = parseCliFallback([]byte("\n "), counter)
+	assert.NoError(err)
+	assert.Empty(metrics)
+	assert.Zero(CollectCounterValue(counter))
+}
