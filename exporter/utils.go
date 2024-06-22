@@ -169,7 +169,7 @@ func MemToFloat(mem string) (float64, error) {
 	if num, err := strconv.ParseFloat(mem, 64); err == nil {
 		return num, nil
 	}
-	memUnits := map[string]int{
+	memUnits := map[string]float64{
 		"M": 1e+6,
 		"G": 1e+9,
 		"T": 1e+12,
@@ -182,5 +182,5 @@ func MemToFloat(mem string) (float64, error) {
 	// err here should be impossible due to regex
 	num, err := strconv.ParseFloat(matches[re.SubexpIndex("num")], 64)
 	memunit := memUnits[matches[re.SubexpIndex("memunit")]]
-	return num * float64(memunit), err
+	return num * memunit, err
 }
