@@ -12,7 +12,7 @@ Requirements:
     - python3-venv
   - [just](https://github.com/casey/just)
 
-Once the requirements are met run `just init && just test`. If all tests pass, you have a working install of the exporter.
+Once the requirements are met run `just init && just test-exporter`. If all tests pass, you have a working install of the exporter.
 
 
 # Developing the C extension
@@ -24,7 +24,7 @@ Once the requirements are met run `just init && just test`. If all tests pass, y
 just docker
 ```
 
-This should be all that's required to get started. This will launch a single node slurm cluster upon instantiation. If for some reason, these services are killed, run `./entrypoint.sh bash` within the container. This container is equiped with everything needed to contribute to the repo out of the box.
+This should be all that's required to get started. This will launch a single node slurm cluster upon instantiation. If for some reason, these services are killed, run `./entrypoint.sh bash` within the container. This container is equipped with everything needed to contribute to the repo out of the box.
 
 ### Opening in VScode
 
@@ -66,6 +66,7 @@ For the C/C++ extension, add the following include path to `.vscode/c_cpp_proper
 ```
 
 ### Developing Locally
+
 Download slurm and associated headers. This will typically involve [downloading](https://github.com/SchedMD/slurm/tags) a slurm release and
 configuring and installing the repo. Note, installing the RPM/apt packages won't install the headers that the extension needs.
 After installation, modify the variables in your `.env` file and invoke via the `justfile`
