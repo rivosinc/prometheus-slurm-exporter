@@ -19,6 +19,7 @@ overwhelming slurmctld. The final addition we've added is tracing support. If en
 profiling and optimization consideration.
 
 ### Getting Started
+
 Golang >=20 is required. From there, follow the `justfile` or run `just prod` to start a dev server.
 You can also install the exporter directly with `go install github.com/rivosinc/prometheus-slurm-exporter@latest`. Then you can run `prometheus-slurm-exporter -h`.
 
@@ -48,9 +49,10 @@ Example prometheus config:
 We've also uploaded a example [dashboard](https://grafana.com/grafana/dashboards/19835-slurm-dashboardv2) to help users get started. If the link doesn't work try import by Id: `19835`
 
 ### Job Tracing
+
 Job tracing is default disabled. To enable it simply add `-trace.enabled` to the arg list. This will enable endpoint `/trace` by default (configurable, see help page).
-With trace enabled jobs can _POST_ proccess metrics to the exporter. This adds a memory overhead that is proportional to the amount of jobs enabled for tracing.
-When writing wrapper scripts to upload job data, ensure that they publish data in a json schema that the exporter can understand and that it uploads proc info at a rate thats faster than the prometheus scrape time (I reccomend 2x the prometheus scrape interval). Wrapped jobs can now be traced on Grafana so users can see job resource usage
+With trace enabled jobs can _POST_ process metrics to the exporter. This adds a memory overhead that is proportional to the amount of jobs enabled for tracing.
+When writing wrapper scripts to upload job data, ensure that they publish data in a json schema that the exporter can understand and that it uploads proc info at a rate thats faster than the prometheus scrape time (I recommend 2x the prometheus scrape interval). Wrapped jobs can now be traced on Grafana so users can see job resource usage
 alongside a jobs allocated resources. Here is an example wrapper script:
 
 ```bash
@@ -83,6 +85,7 @@ B[[Slurm Exporter]] -->|*30sec*| E[(Prometheus)]
 ```
 
 ### Available Metrics
+
 ```bash
 $ curl localhost:9092/metrics | grep "# HELP"
 # HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
@@ -142,10 +145,11 @@ $ curl localhost:9092/metrics | grep "# HELP"
 ```
 
 ### Exporter Env Var Docs
+
 Env vars can be sepcified in a `.env` file, while using the `just`
 | Var           | Default Value | Purpose                                                                     |
 |---------------|---------------|-----------------------------------------------------------------------------|
-| POLL_LIMIT    | 10            | # of seconds to wait before polling slurmctl again (client-side throtting)  |
+| POLL_LIMIT    | 10            | # of seconds to wait before polling slurmctl again (client-side throttling)  |
 | LOGLEVEL      | info          | Log Level: debug, info, warn, error                                         |
 | CLI_TIMEOUT   | 10.           | # seconds before the exporter terminates command.                           |
 
