@@ -18,9 +18,12 @@ import (
 
 type AccountLimitMetric struct {
 	Account string
-	// mem in bytes
-	Mem float64
-	CPU float64
+	// limit to the amount of resources for a particular account in the RUNNING state
+	AllocatedMem  float64
+	AllocatedCPU  float64
+	AllocatedJobs float64
+	// limit to the amount of resources that can be either PENDING or RUNNING
+	TotalJobs float64
 }
 
 type AccountCsvFetcher struct {
@@ -46,13 +49,17 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 			slog.Error("failed to scrape account metric row %v", records)
 			continue
 		}
-		if len(records) != 3 {
+		if len(records) != 6 {
 			acf.errorCounter.Inc()
 			slog.Error("failed to scrape account metric row %v", records)
 			continue
 		}
-		account, cpu, mem := records[0], records[1], records[2]
-		if mem == "" && cpu == "" {
+		user, account, cpu, mem, runningJobs, totalJobs := records[0], records[1], records[2], records[3], records[4], records[5]
+
+		if user != "" {
+			// sacctmgr will display account limits by setting the user to ""
+			// otherwise the user -> account association is shown
+			// i.e user Bob can allocate x cpu within account Blah
 			continue
 		}
 		metric := AccountLimitMetric{Account: account}
@@ -61,7 +68,7 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 				slog.Error("failed to scrape account metric mem string %s", mem)
 				acf.errorCounter.Inc()
 			} else {
-				metric.Mem = memMb * 1e6
+				metric.AllocatedMem = memMb * 1e6
 			}
 		}
 		if cpu != "" {
@@ -69,7 +76,23 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 				slog.Error("failed to scrape account metric cpu string %s", cpu)
 				acf.errorCounter.Inc()
 			} else {
-				metric.CPU = cpuCount
+				metric.AllocatedCPU = cpuCount
+			}
+		}
+		if runningJobs != "" {
+			if runnableJobs, err := strconv.ParseFloat(runningJobs, 64); err != nil {
+				slog.Error(fmt.Sprintf("failed to scrape account metric AllocatableJobs (jobs in RUNNING state) with err: %q", err))
+				acf.errorCounter.Inc()
+			} else {
+				metric.AllocatedJobs = runnableJobs
+			}
+		}
+		if totalJobs != "" {
+			if allJobs, err := strconv.ParseFloat(totalJobs, 64); err != nil {
+				slog.Error(fmt.Sprintf("failed to scrape account metric TotalJobs (jobs in RUNNING or PENDING state) with err: %q", err))
+				acf.errorCounter.Inc()
+			} else {
+				metric.TotalJobs = allJobs
 			}
 		}
 		accountMetrics = append(accountMetrics, metric)
@@ -140,11 +163,11 @@ func (lc *LimitCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(lc.limitScrapeDuration, prometheus.GaugeValue, float64(lc.fetcher.ScrapeDuration().Milliseconds()))
 	for _, account := range limitMetrics {
-		if account.Mem > 0 {
-			ch <- prometheus.MustNewConstMetric(lc.accountMemLimit, prometheus.GaugeValue, account.Mem, account.Account)
+		if account.AllocatedMem > 0 {
+			ch <- prometheus.MustNewConstMetric(lc.accountMemLimit, prometheus.GaugeValue, account.AllocatedMem, account.Account)
 		}
-		if account.CPU > 0 {
-			ch <- prometheus.MustNewConstMetric(lc.accountCpuLimit, prometheus.GaugeValue, account.CPU, account.Account)
+		if account.AllocatedCPU > 0 {
+			ch <- prometheus.MustNewConstMetric(lc.accountCpuLimit, prometheus.GaugeValue, account.AllocatedCPU, account.Account)
 		}
 	}
 }

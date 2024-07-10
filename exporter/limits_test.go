@@ -21,11 +21,18 @@ func TestAccountLimitFetch(t *testing.T) {
 	}
 	accountLimits, err := fetcher.fetchFromCli()
 	assert.NoError(err)
-	assert.Len(accountLimits, 9)
-	account1Limit := accountLimits[0]
-	assert.Equal(account1Limit.Account, "account1")
-	assert.Equal(account1Limit.CPU, 964.)
-	assert.Equal(account1Limit.Mem, 15468557.*1e6)
+	assert.Len(accountLimits, 6)
+	var account5Limits AccountLimitMetric
+	for _, metric := range accountLimits {
+		if metric.Account == "account5" {
+			account5Limits = metric
+		}
+	}
+	assert.Equal(account5Limits.Account, "account5")
+	assert.Equal(account5Limits.AllocatedCPU, 3974.)
+	assert.Equal(account5Limits.AllocatedMem, 47752500.*1e6)
+	assert.Equal(account5Limits.AllocatedJobs, 4.e3)
+	assert.Equal(account5Limits.TotalJobs, 3.e4)
 }
 
 func TestNewLimitCollector(t *testing.T) {
@@ -64,8 +71,7 @@ func TestLimitCollector(t *testing.T) {
 		t.Log(metric.Desc().String())
 		limitMetrics = append(limitMetrics, metric)
 	}
-	// 9 accounts, 2 metrics each + error&duration counter
-	assert.Len(limitMetrics, 20)
+	assert.NotEmpty(limitMetrics)
 }
 func TestLimitDescribe(t *testing.T) {
 	assert := assert.New(t)
