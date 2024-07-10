@@ -25,7 +25,7 @@ func TestAccountLimitFetch(t *testing.T) {
 	account1Limit := accountLimits[0]
 	assert.Equal(account1Limit.Account, "account1")
 	assert.Equal(account1Limit.CPU, 964.)
-	assert.Equal(account1Limit.Mem, 15468557.*1000)
+	assert.Equal(account1Limit.Mem, 15468557.*1e6)
 }
 
 func TestNewLimitCollector(t *testing.T) {
