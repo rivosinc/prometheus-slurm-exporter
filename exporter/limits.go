@@ -61,7 +61,7 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 				slog.Error("failed to scrape account metric mem string %s", mem)
 				acf.errorCounter.Inc()
 			} else {
-				metric.Mem = memMb * 1000
+				metric.Mem = memMb * 1e6
 			}
 		}
 		if cpu != "" {
