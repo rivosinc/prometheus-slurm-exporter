@@ -76,7 +76,7 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		sinfo:        []string{"sinfo", "--json"},
 		lic:          []string{"scontrol", "show", "lic", "--json"},
 		sdiag:        []string{"sdiag", "--json"},
-		sacctmgr:     []string{"sacctmgr", "show", "assoc", "format=Account,GrpCPU,GrpMem", "--noheader", "--parsable2"},
+		sacctmgr:     []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
 		licEnabled:   cliFlags.SlurmLicEnabled,
 		diagsEnabled: cliFlags.SlurmDiagEnabled,
 		fallback:     cliFlags.SlurmCliFallback,
