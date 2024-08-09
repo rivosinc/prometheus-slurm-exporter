@@ -165,7 +165,7 @@ func (c *TraceCollector) uploadTrace(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if r.Method == http.MethodGet {
-		tmpl := template.Must(template.ParseFiles("./templates/proc_traces.html"))
+		tmpl := template.Must(template.ParseFiles("./exporter/templates/proc_traces.html"))
 		procs := c.ProcessFetcher.Fetch()
 		traces := make([]TraceInfo, 0, len(procs))
 		for _, info := range procs {
