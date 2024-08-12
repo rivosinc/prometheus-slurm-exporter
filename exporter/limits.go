@@ -113,11 +113,13 @@ func (acf *AccountCsvFetcher) ScrapeDuration() time.Duration {
 }
 
 type LimitCollector struct {
-	fetcher             SlurmMetricFetcher[AccountLimitMetric]
-	accountCpuLimit     *prometheus.Desc
-	accountMemLimit     *prometheus.Desc
-	limitScrapeDuration *prometheus.Desc
-	limitScrapeError    prometheus.Counter
+	fetcher                   SlurmMetricFetcher[AccountLimitMetric]
+	accountCpuLimit           *prometheus.Desc
+	accountMemLimit           *prometheus.Desc
+	accountJobAllocCountLimit *prometheus.Desc
+	accountJobCountLimit      *prometheus.Desc
+	limitScrapeDuration       *prometheus.Desc
+	limitScrapeError          prometheus.Counter
 }
 
 func NewLimitCollector(config *Config) *LimitCollector {
@@ -134,9 +136,11 @@ func NewLimitCollector(config *Config) *LimitCollector {
 				Help: "Slurm sacct scrape error",
 			}),
 		},
-		accountCpuLimit:     prometheus.NewDesc("slurm_account_cpu_limit", "slurm account cpu limit", []string{"account"}, nil),
-		accountMemLimit:     prometheus.NewDesc("slurm_account_mem_limit", "slurm account mem limit (in bytes)", []string{"account"}, nil),
-		limitScrapeDuration: prometheus.NewDesc("slurm_limit_scrape_duration", "slurm sacctmgr scrape duration", nil, nil),
+		accountCpuLimit:           prometheus.NewDesc("slurm_account_cpu_limit", "slurm account cpu limit", []string{"account"}, nil),
+		accountMemLimit:           prometheus.NewDesc("slurm_account_mem_limit", "slurm account mem limit (in bytes)", []string{"account"}, nil),
+		accountJobAllocCountLimit: prometheus.NewDesc("slurm_account_job_alloc_limit", "slurm account limit on the # of jobs allowed to be RUNNING state", []string{"account"}, nil),
+		accountJobCountLimit:      prometheus.NewDesc("slurm_account_job_limit", "slurm account limit on the # of jobs allowed to be RUNNING or PENDING state", []string{"account"}, nil),
+		limitScrapeDuration:       prometheus.NewDesc("slurm_limit_scrape_duration", "slurm sacctmgr scrape duration", nil, nil),
 		limitScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_account_collect_error",
 			Help: "Slurm sacct collect error",
@@ -161,13 +165,17 @@ func (lc *LimitCollector) Collect(ch chan<- prometheus.Metric) {
 		slog.Error(fmt.Sprintf("lic parse error %q", err))
 		return
 	}
+
+	emitNonZeroVal := func(desc *prometheus.Desc, val float64, account string) {
+		if val != 0 {
+			ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, val, account)
+		}
+	}
 	ch <- prometheus.MustNewConstMetric(lc.limitScrapeDuration, prometheus.GaugeValue, float64(lc.fetcher.ScrapeDuration().Milliseconds()))
 	for _, account := range limitMetrics {
-		if account.AllocatedMem > 0 {
-			ch <- prometheus.MustNewConstMetric(lc.accountMemLimit, prometheus.GaugeValue, account.AllocatedMem, account.Account)
-		}
-		if account.AllocatedCPU > 0 {
-			ch <- prometheus.MustNewConstMetric(lc.accountCpuLimit, prometheus.GaugeValue, account.AllocatedCPU, account.Account)
-		}
+		emitNonZeroVal(lc.accountMemLimit, account.AllocatedMem, account.Account)
+		emitNonZeroVal(lc.accountCpuLimit, account.AllocatedCPU, account.Account)
+		emitNonZeroVal(lc.accountJobAllocCountLimit, account.AllocatedJobs, account.Account)
+		emitNonZeroVal(lc.accountJobCountLimit, account.TotalJobs, account.Account)
 	}
 }
