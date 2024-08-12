@@ -66,6 +66,7 @@ func TestPartitionMetric(t *testing.T) {
 	assert.Equal(1.823573e+06, metrics["hw"].FreeMemory)
 	assert.Equal(2e+06, metrics["hw"].RealMemory)
 	assert.Equal(252., metrics["hw"].IdleCpus)
+	assert.Equal(4., sumStateMetric(metrics["hw"].StateNodeCount))
 }
 
 func TestNodeSummaryCpuMetric(t *testing.T) {
