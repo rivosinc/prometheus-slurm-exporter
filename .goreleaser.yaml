@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2023 Rivos Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+builds:
+  - 
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm
+      - arm64
