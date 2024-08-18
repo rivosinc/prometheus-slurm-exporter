@@ -13,8 +13,9 @@ import argparse as ag
 import json
 import platform
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pprint import pprint
+from getpass import getuser
 
 
 # must correlate with trace info struct
@@ -27,8 +28,8 @@ class TraceInfo:
     read_bytes: float
     write_bytes: float
     job_id: int
-    username: str = os.getenv("USER", "")
-    hostname: str = platform.node()
+    username: str = field(default_factory=getuser)
+    hostname: str = field(default_factory=platform.node)
 
     @classmethod
     def from_proc(cls, jobid: int, proc: psutil.Popen) -> "TraceInfo":
@@ -43,12 +44,13 @@ class TraceInfo:
             job_id=jobid,
         )
 
-    def merge(self, trace_info: "TraceInfo"):
-        self.cpus += trace_info.cpus
-        self.threads += trace_info.threads
-        self.mem += trace_info.mem
-        self.read_bytes += trace_info.read_bytes
-        self.write_bytes += trace_info.write_bytes
+    def add_subproc(self, proc: psutil.Popen):
+        io_counters = proc.io_counters()
+        self.cpus += proc.cpu_percent(0.1)
+        self.threads += proc.num_threads()
+        self.mem += proc.memory_info().rss
+        self.read_bytes += io_counters.read_bytes
+        self.write_bytes += io_counters.write_bytes
 
 
 class ProcWrapper:
@@ -73,8 +75,7 @@ class ProcWrapper:
             start = datetime.now()
             for p in self.proc.children(True):
                 try:
-                    child_trace = TraceInfo.from_proc(self.jobid, p)
-                    trace.merge(child_trace)
+                    trace.add_subproc(p)
                 except psutil.Error as e:
                     print(f"failed to poll child process with error {e}")
                     continue
@@ -135,4 +136,5 @@ Or by passing explicit cmdline args, exp.
     else:
         for trace in wrapper.poll_info():
             resp = requests.post(args.endpoint, json=asdict(trace))
-            args.verbose and print(asdict(trace), resp)
+            if args.verbose:
+                print(asdict(trace), resp)
