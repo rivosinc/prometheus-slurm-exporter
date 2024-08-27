@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2023 Rivos Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
+[Unit]
+Description=Prometheus SLURM Exporter
+
+[Service]
+ExecStart=/usr/bin/prometheus-slurm-exporter
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
