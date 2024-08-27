@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+version: 2
 builds:
   -
     goos:
@@ -10,3 +11,12 @@ builds:
       - amd64
       - arm
       - arm64
+nfpms:
+  - vendor: rivosinc
+    maintainer: abhinavDhulipala
+    formats:
+      - apk
+      - deb
+      - rpm
+      - termux.deb
+      - archlinux
