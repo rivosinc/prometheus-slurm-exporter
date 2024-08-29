@@ -78,13 +78,61 @@ type JobCliFallbackFetcher struct {
 	errCounter prometheus.Counter
 }
 
-func (jcf *JobCliFallbackFetcher) FetchMetrics() ([]JobMetric, error) {
-	data, err := jcf.scraper.FetchRawBytes()
+func (jcf *JobCliFallbackFetcher) fetch() ([]JobMetric, error) {
+	squeue, err := jcf.scraper.FetchRawBytes()
 	if err != nil {
-		jcf.errCounter.Inc()
 		return nil, err
 	}
-	return jcf.cache.FetchOrThrottle(func() ([]JobMetric, error) { return parseCliFallback(data, jcf.errCounter) })
+	jobMetrics := make([]JobMetric, 0)
+	// clean input
+	squeue = bytes.TrimSpace(squeue)
+	squeue = bytes.Trim(squeue, "\n")
+	if len(squeue) == 0 {
+		// handle no jobs returned
+		return nil, nil
+	}
+
+	for i, line := range bytes.Split(squeue, []byte("\n")) {
+		var metric struct {
+			Account   string    `json:"a"`
+			JobId     float64   `json:"id"`
+			EndTime   NAbleTime `json:"end_time"`
+			JobState  string    `json:"state"`
+			Partition string    `json:"p"`
+			UserName  string    `json:"u"`
+			Cpu       int64     `json:"cpu"`
+			Mem       string    `json:"mem"`
+		}
+		if err := json.Unmarshal(line, &metric); err != nil {
+			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
+			jcf.errCounter.Inc()
+			continue
+		}
+		mem, err := MemToFloat(metric.Mem)
+		if err != nil {
+			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s` with err `%q`", i, line, err))
+			jcf.errCounter.Inc()
+			continue
+		}
+		openapiJobMetric := JobMetric{
+			Account:   metric.Account,
+			JobId:     metric.JobId,
+			JobState:  metric.JobState,
+			Partition: metric.Partition,
+			UserName:  metric.UserName,
+			EndTime:   float64(metric.EndTime.Unix()),
+			JobResources: JobResource{
+				AllocCpus:  float64(metric.Cpu),
+				AllocNodes: map[string]*NodeResource{"0": {Mem: mem}},
+			},
+		}
+		jobMetrics = append(jobMetrics, openapiJobMetric)
+	}
+	return jobMetrics, nil
+}
+
+func (jcf *JobCliFallbackFetcher) FetchMetrics() ([]JobMetric, error) {
+	return jcf.cache.FetchOrThrottle(jcf.fetch)
 }
 
 func (jcf *JobCliFallbackFetcher) ScrapeDuration() time.Duration {
@@ -134,55 +182,6 @@ func (nat *NAbleTime) UnmarshalJSON(data []byte) error {
 	t, err := time.Parse("2006-01-02T15:04:05", tString)
 	nat.Time = t
 	return err
-}
-
-func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetric, error) {
-	jobMetrics := make([]JobMetric, 0)
-	// clean input
-	squeue = bytes.TrimSpace(squeue)
-	squeue = bytes.Trim(squeue, "\n")
-	if len(squeue) == 0 {
-		// handle no jobs returned
-		return nil, nil
-	}
-
-	for i, line := range bytes.Split(squeue, []byte("\n")) {
-		var metric struct {
-			Account   string    `json:"a"`
-			JobId     float64   `json:"id"`
-			EndTime   NAbleTime `json:"end_time"`
-			JobState  string    `json:"state"`
-			Partition string    `json:"p"`
-			UserName  string    `json:"u"`
-			Cpu       int64     `json:"cpu"`
-			Mem       string    `json:"mem"`
-		}
-		if err := json.Unmarshal(line, &metric); err != nil {
-			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
-			errorCounter.Inc()
-			continue
-		}
-		mem, err := MemToFloat(metric.Mem)
-		if err != nil {
-			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s` with err `%q`", i, line, err))
-			errorCounter.Inc()
-			continue
-		}
-		openapiJobMetric := JobMetric{
-			Account:   metric.Account,
-			JobId:     metric.JobId,
-			JobState:  metric.JobState,
-			Partition: metric.Partition,
-			UserName:  metric.UserName,
-			EndTime:   float64(metric.EndTime.Unix()),
-			JobResources: JobResource{
-				AllocCpus:  float64(metric.Cpu),
-				AllocNodes: map[string]*NodeResource{"0": {Mem: mem}},
-			},
-		}
-		jobMetrics = append(jobMetrics, openapiJobMetric)
-	}
-	return jobMetrics, nil
 }
 
 type UserJobMetric struct {

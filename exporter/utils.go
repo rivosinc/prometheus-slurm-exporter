@@ -136,14 +136,16 @@ func NewCliScraper(args ...string) *CliScraper {
 // implements SlurmByteScraper by pulling fixtures instead
 // used exclusively for testing
 type MockScraper struct {
-	fixture  string
-	duration time.Duration
+	fixture   string
+	duration  time.Duration
+	CallCount int
 }
 
 func (f *MockScraper) FetchRawBytes() ([]byte, error) {
 	defer func(t time.Time) {
 		f.duration = time.Since(t)
 	}(time.Now())
+	f.CallCount++
 	file, err := os.ReadFile(f.fixture)
 	if err != nil {
 		return nil, err
@@ -162,6 +164,22 @@ func (f *MockScraper) FetchRawBytes() ([]byte, error) {
 
 func (f *MockScraper) Duration() time.Duration {
 	return f.duration
+}
+
+// implements SlurmByteScraper by emmiting string payload instead
+// used exclusively for testing
+type StringByteScraper struct {
+	msg       string
+	Callcount int
+}
+
+func (es *StringByteScraper) FetchRawBytes() ([]byte, error) {
+	es.Callcount++
+	return []byte(es.msg), nil
+}
+
+func (es *StringByteScraper) Duration() time.Duration {
+	return time.Duration(1)
 }
 
 // convert slurm mem string to float64 bytes
