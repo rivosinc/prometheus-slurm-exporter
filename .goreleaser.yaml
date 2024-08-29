@@ -3,8 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 version: 2
 builds:
-  -
-    goos:
+  - goos:
       - linux
     goarch:
       - amd64
@@ -31,3 +30,9 @@ nfpms:
       - rpm
       - termux.deb
       - archlinux
+archives:
+  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - src: ./exporter/templates/*
+        dst: templates
+
