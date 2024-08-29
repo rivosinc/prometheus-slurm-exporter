@@ -5,7 +5,6 @@
 package exporter
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -32,31 +31,6 @@ func generateRandString(n int) string {
 		randBytes[i] = chars[seededRand.Int()%len(chars)]
 	}
 	return string(randBytes)
-}
-
-// used to ensure the fetch function was called
-type MockFetchTriggered struct {
-	msg    []byte
-	called bool
-}
-
-func (f *MockFetchTriggered) Fetch() ([]byte, error) {
-	f.called = true
-	return f.msg, nil
-}
-
-func (f *MockFetchTriggered) Duration() time.Duration {
-	return 1
-}
-
-type MockFetchErrored struct{}
-
-func (f *MockFetchErrored) FetchRawBytes() ([]byte, error) {
-	return nil, errors.New("mock fetch error")
-}
-
-func (f *MockFetchErrored) Duration() time.Duration {
-	return 1
 }
 
 func TestCliFetcher(t *testing.T) {
