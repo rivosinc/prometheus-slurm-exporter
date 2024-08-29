@@ -44,11 +44,14 @@ func TestNewJobsController(t *testing.T) {
 
 func TestParseJobMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockJobInfoScraper.FetchRawBytes()
-	assert.Nil(err)
-	jms, err := parseJobMetrics(fixture)
-	assert.Nil(err)
-	assert.NotEmpty(jms)
+	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
+	fetcher := &JobJsonFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](100),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+	}
+	jms, err := fetcher.fetch()
+	assert.NoError(err)
 	// test parse of single job
 	var job *JobMetric
 	for _, m := range jms {
@@ -77,9 +80,13 @@ func TestParseCliFallback(t *testing.T) {
 func TestUserJobMetric(t *testing.T) {
 	// setup
 	assert := assert.New(t)
-	fixture, err := MockJobInfoScraper.FetchRawBytes()
-	assert.Nil(err)
-	jms, err := parseJobMetrics(fixture)
+	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
+	fetcher := &JobJsonFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](100),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+	}
+	jms, err := fetcher.fetch()
 	assert.Nil(err)
 
 	//test
@@ -159,9 +166,13 @@ func TestJobCollect_Fallback(t *testing.T) {
 
 func TestParsePartitionJobMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockJobInfoScraper.FetchRawBytes()
-	assert.Nil(err)
-	jms, err := parseJobMetrics(fixture)
+	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
+	fetcher := &JobJsonFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](100),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+	}
+	jms, err := fetcher.fetch()
 	assert.Nil(err)
 
 	partitionJobMetrics := parsePartitionJobMetrics(jms)
@@ -170,9 +181,13 @@ func TestParsePartitionJobMetrics(t *testing.T) {
 
 func TestParsePartMetrics(t *testing.T) {
 	assert := assert.New(t)
-	fixture, err := MockJobInfoScraper.FetchRawBytes()
-	assert.Nil(err)
-	jms, err := parseJobMetrics(fixture)
+	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
+	fetcher := &JobJsonFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](100),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{}),
+	}
+	jms, err := fetcher.fetch()
 	assert.Nil(err)
 
 	featureMetrics := parseFeatureMetric(jms)
@@ -259,4 +274,61 @@ func TestCliJobFetcherCacheHit(t *testing.T) {
 	assert.NoError(err)
 	// assert cache hit
 	assert.Equal(1, scraper.CallCount)
+}
+
+func TestCliJobFetcherCacheMiss(t *testing.T) {
+	assert := assert.New(t)
+	scraper := &MockScraper{fixture: "fixtures/squeue_fallback.txt"}
+	cliFallbackFetcher := &JobCliFallbackFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](0),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
+	}
+	metrics, err := cliFallbackFetcher.FetchMetrics()
+	assert.NotEmpty(metrics)
+	assert.NoError(err)
+	assert.Equal(1, scraper.CallCount)
+	metrics, err = cliFallbackFetcher.FetchMetrics()
+	assert.NotEmpty(metrics)
+	assert.NoError(err)
+	// assert cache hit
+	assert.Equal(2, scraper.CallCount)
+}
+
+func TestJsonJobFetcherCacheHit(t *testing.T) {
+	assert := assert.New(t)
+	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
+	cliFallbackFetcher := &JobJsonFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](100),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
+	}
+	metrics, err := cliFallbackFetcher.FetchMetrics()
+	assert.NotEmpty(metrics)
+	assert.NoError(err)
+	assert.Equal(1, scraper.CallCount)
+	metrics, err = cliFallbackFetcher.FetchMetrics()
+	assert.NotEmpty(metrics)
+	assert.NoError(err)
+	// assert cache hit
+	assert.Equal(1, scraper.CallCount)
+}
+
+func TestJsonJobFetcherCacheMiss(t *testing.T) {
+	assert := assert.New(t)
+	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
+	cliFallbackFetcher := &JobJsonFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](0),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
+	}
+	metrics, err := cliFallbackFetcher.FetchMetrics()
+	assert.NotEmpty(metrics)
+	assert.NoError(err)
+	assert.Equal(1, scraper.CallCount)
+	metrics, err = cliFallbackFetcher.FetchMetrics()
+	assert.NotEmpty(metrics)
+	assert.NoError(err)
+	// assert cache hit
+	assert.Equal(2, scraper.CallCount)
 }

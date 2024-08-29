@@ -55,13 +55,28 @@ type JobJsonFetcher struct {
 	errCounter prometheus.Counter
 }
 
-func (jjf *JobJsonFetcher) FetchMetrics() ([]JobMetric, error) {
+func (jjf *JobJsonFetcher) fetch() ([]JobMetric, error) {
 	data, err := jjf.scraper.FetchRawBytes()
 	if err != nil {
 		jjf.errCounter.Inc()
 		return nil, err
 	}
-	return jjf.cache.FetchOrThrottle(func() ([]JobMetric, error) { return parseJobMetrics(data) })
+	var squeue squeueResponse
+	err = json.Unmarshal(data, &squeue)
+	if err != nil {
+		slog.Error("Unmarshaling node metrics %q", err)
+		return nil, err
+	}
+	for _, j := range squeue.Jobs {
+		for _, resource := range j.JobResources.AllocNodes {
+			resource.Mem *= 1e9
+		}
+	}
+	return squeue.Jobs, nil
+}
+
+func (jjf *JobJsonFetcher) FetchMetrics() ([]JobMetric, error) {
+	return jjf.cache.FetchOrThrottle(jjf.fetch)
 }
 
 func (jjf *JobJsonFetcher) ScrapeDuration() time.Duration {
@@ -149,21 +164,6 @@ func totalAllocMem(resource *JobResource) float64 {
 		allocMem += node.Mem
 	}
 	return allocMem
-}
-
-func parseJobMetrics(jsonJobList []byte) ([]JobMetric, error) {
-	var squeue squeueResponse
-	err := json.Unmarshal(jsonJobList, &squeue)
-	if err != nil {
-		slog.Error("Unmarshaling node metrics %q", err)
-		return nil, err
-	}
-	for _, j := range squeue.Jobs {
-		for _, resource := range j.JobResources.AllocNodes {
-			resource.Mem *= 1e9
-		}
-	}
-	return squeue.Jobs, nil
 }
 
 type NAbleTime struct{ time.Time }
