@@ -40,4 +40,3 @@ archives:
     files:
       - src: ./exporter/templates/*
         dst: templates
-
