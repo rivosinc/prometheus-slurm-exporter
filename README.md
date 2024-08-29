@@ -190,8 +190,4 @@ Environment="LOGLEVEL=debug"
 
 
 ### Future work
-<<<<<<< HEAD
-Add scheduler info, slurmrestd support, package binary into docker
-=======
 slurmrestd support
->>>>>>> upstream/main
