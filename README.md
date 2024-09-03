@@ -147,11 +147,46 @@ $ curl localhost:9092/metrics | grep "# HELP"
 ### Exporter Env Var Docs
 
 Env vars can be sepcified in a `.env` file, while using the `just`
-| Var           | Default Value | Purpose                                                                     |
-|---------------|---------------|-----------------------------------------------------------------------------|
-| POLL_LIMIT    | 10            | # of seconds to wait before polling slurmctl again (client-side throttling)  |
-| LOGLEVEL      | info          | Log Level: debug, info, warn, error                                         |
-| CLI_TIMEOUT   | 10.           | # seconds before the exporter terminates command.                           |
+| Var             | Default Value | Purpose                                                                     |
+|-----------------|---------------|-----------------------------------------------------------------------------|
+| POLL_LIMIT      | 10            | # of seconds to wait before polling slurmctl again (client-side throttling) |
+| LOGLEVEL        | info          | Log Level: debug, info, warn, error                                         |
+| CLI_TIMEOUT     | 10.           | # seconds before the exporter terminates command.                           |
+| TRACE_ROOT_PATH | "cwd"         | path to ./templates directory where html files are located                  |
+
+### RPM/DEB Packages
+
+You can download RPM or DEB versions from the [Releases](releases/) tab. The
+packages are configured to use systemd to start and stop the service.
+
+Configuring the systemd service
+
+`$ systemctl edit prometheus-slurm-exporter.service`
+
+```text
+### Editing /etc/systemd/system/prometheus-slurm-exporter.service.d/override.conf
+### Anything between here and the comment below will become the new contents of the file
+
+[Service]
+Environment="PATH=/opt/slurm/bin"
+Environment="POLL_INTERVAL=300"
+Environment="CLI_TIMEOUT=60"
+Environment="LOGLEVEL=debug"
+
+### Lines below this comment will be discarded
+
+### /usr/lib/systemd/system/prometheus-slurm-exporter.service
+# [Unit]
+# Description=Prometheus SLURM Exporter
+#
+# [Service]
+# ExecStart=/usr/bin/prometheus-slurm-exporter
+# Restart=always
+# RestartSec=15
+#
+# [Install]
+# WantedBy=multi-user.target
+```
 
 ### RPM/DEB Packages
 

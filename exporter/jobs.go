@@ -55,13 +55,28 @@ type JobJsonFetcher struct {
 	errCounter prometheus.Counter
 }
 
-func (jjf *JobJsonFetcher) FetchMetrics() ([]JobMetric, error) {
+func (jjf *JobJsonFetcher) fetch() ([]JobMetric, error) {
 	data, err := jjf.scraper.FetchRawBytes()
 	if err != nil {
 		jjf.errCounter.Inc()
 		return nil, err
 	}
-	return jjf.cache.FetchOrThrottle(func() ([]JobMetric, error) { return parseJobMetrics(data) })
+	var squeue squeueResponse
+	err = json.Unmarshal(data, &squeue)
+	if err != nil {
+		slog.Error("Unmarshaling node metrics %q", err)
+		return nil, err
+	}
+	for _, j := range squeue.Jobs {
+		for _, resource := range j.JobResources.AllocNodes {
+			resource.Mem *= 1e9
+		}
+	}
+	return squeue.Jobs, nil
+}
+
+func (jjf *JobJsonFetcher) FetchMetrics() ([]JobMetric, error) {
+	return jjf.cache.FetchOrThrottle(jjf.fetch)
 }
 
 func (jjf *JobJsonFetcher) ScrapeDuration() time.Duration {
@@ -78,65 +93,11 @@ type JobCliFallbackFetcher struct {
 	errCounter prometheus.Counter
 }
 
-func (jcf *JobCliFallbackFetcher) FetchMetrics() ([]JobMetric, error) {
-	data, err := jcf.scraper.FetchRawBytes()
+func (jcf *JobCliFallbackFetcher) fetch() ([]JobMetric, error) {
+	squeue, err := jcf.scraper.FetchRawBytes()
 	if err != nil {
-		jcf.errCounter.Inc()
 		return nil, err
 	}
-	return jcf.cache.FetchOrThrottle(func() ([]JobMetric, error) { return parseCliFallback(data, jcf.errCounter) })
-}
-
-func (jcf *JobCliFallbackFetcher) ScrapeDuration() time.Duration {
-	return jcf.scraper.Duration()
-}
-
-func (jcf *JobCliFallbackFetcher) ScrapeError() prometheus.Counter {
-	return jcf.errCounter
-}
-
-func totalAllocMem(resource *JobResource) float64 {
-	var allocMem float64
-	for _, node := range resource.AllocNodes {
-		allocMem += node.Mem
-	}
-	return allocMem
-}
-
-func parseJobMetrics(jsonJobList []byte) ([]JobMetric, error) {
-	var squeue squeueResponse
-	err := json.Unmarshal(jsonJobList, &squeue)
-	if err != nil {
-		slog.Error("Unmarshaling node metrics %q", err)
-		return nil, err
-	}
-	for _, j := range squeue.Jobs {
-		for _, resource := range j.JobResources.AllocNodes {
-			resource.Mem *= 1e9
-		}
-	}
-	return squeue.Jobs, nil
-}
-
-type NAbleTime struct{ time.Time }
-
-// report beginning of time in the case of N/A
-func (nat *NAbleTime) UnmarshalJSON(data []byte) error {
-	var tString string
-	if err := json.Unmarshal(data, &tString); err != nil {
-		return err
-	}
-	nullSet := map[string]struct{}{"N/A": {}, "NONE": {}}
-	if _, ok := nullSet[tString]; ok {
-		nat.Time = time.Time{}
-		return nil
-	}
-	t, err := time.Parse("2006-01-02T15:04:05", tString)
-	nat.Time = t
-	return err
-}
-
-func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetric, error) {
 	jobMetrics := make([]JobMetric, 0)
 	// clean input
 	squeue = bytes.TrimSpace(squeue)
@@ -159,13 +120,13 @@ func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetr
 		}
 		if err := json.Unmarshal(line, &metric); err != nil {
 			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
-			errorCounter.Inc()
+			jcf.errCounter.Inc()
 			continue
 		}
 		mem, err := MemToFloat(metric.Mem)
 		if err != nil {
 			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s` with err `%q`", i, line, err))
-			errorCounter.Inc()
+			jcf.errCounter.Inc()
 			continue
 		}
 		openapiJobMetric := JobMetric{
@@ -183,6 +144,44 @@ func parseCliFallback(squeue []byte, errorCounter prometheus.Counter) ([]JobMetr
 		jobMetrics = append(jobMetrics, openapiJobMetric)
 	}
 	return jobMetrics, nil
+}
+
+func (jcf *JobCliFallbackFetcher) FetchMetrics() ([]JobMetric, error) {
+	return jcf.cache.FetchOrThrottle(jcf.fetch)
+}
+
+func (jcf *JobCliFallbackFetcher) ScrapeDuration() time.Duration {
+	return jcf.scraper.Duration()
+}
+
+func (jcf *JobCliFallbackFetcher) ScrapeError() prometheus.Counter {
+	return jcf.errCounter
+}
+
+func totalAllocMem(resource *JobResource) float64 {
+	var allocMem float64
+	for _, node := range resource.AllocNodes {
+		allocMem += node.Mem
+	}
+	return allocMem
+}
+
+type NAbleTime struct{ time.Time }
+
+// report beginning of time in the case of N/A
+func (nat *NAbleTime) UnmarshalJSON(data []byte) error {
+	var tString string
+	if err := json.Unmarshal(data, &tString); err != nil {
+		return err
+	}
+	nullSet := map[string]struct{}{"N/A": {}, "NONE": {}}
+	if _, ok := nullSet[tString]; ok {
+		nat.Time = time.Time{}
+		return nil
+	}
+	t, err := time.Parse("2006-01-02T15:04:05", tString)
+	nat.Time = t
+	return err
 }
 
 type UserJobMetric struct {
