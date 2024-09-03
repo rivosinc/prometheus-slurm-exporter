@@ -147,11 +147,12 @@ $ curl localhost:9092/metrics | grep "# HELP"
 ### Exporter Env Var Docs
 
 Env vars can be sepcified in a `.env` file, while using the `just`
-| Var           | Default Value | Purpose                                                                     |
-|---------------|---------------|-----------------------------------------------------------------------------|
-| POLL_LIMIT    | 10            | # of seconds to wait before polling slurmctl again (client-side throttling)  |
-| LOGLEVEL      | info          | Log Level: debug, info, warn, error                                         |
-| CLI_TIMEOUT   | 10.           | # seconds before the exporter terminates command.                           |
+| Var             | Default Value | Purpose                                                                     |
+|-----------------|---------------|-----------------------------------------------------------------------------|
+| POLL_LIMIT      | 10            | # of seconds to wait before polling slurmctl again (client-side throttling) |
+| LOGLEVEL        | info          | Log Level: debug, info, warn, error                                         |
+| CLI_TIMEOUT     | 10.           | # seconds before the exporter terminates command.                           |
+| TRACE_ROOT_PATH | "cwd"         | path to ./templates directory where html files are located                  |
 
 ### RPM/DEB Packages
 
@@ -189,4 +190,4 @@ Environment="LOGLEVEL=debug"
 
 
 ### Future work
-Add scheduler info, slurmrestd support, package binary into docker
+slurmrestd support

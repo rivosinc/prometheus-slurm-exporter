@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 	"text/template"
@@ -106,8 +107,13 @@ type TraceCollector struct {
 
 func NewTraceCollector(config *Config) *TraceCollector {
 	traceConfig := config.TraceConf
+	templateRootDir := "."
+	// path to look for the /templates directory. Defaults to cwd
+	if path, ok := os.LookupEnv("TRACE_ROOT_PATH"); ok {
+		templateRootDir = path
+	}
 	traceDir := ""
-	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(templateRootDir, func(path string, d fs.DirEntry, err error) error {
 		if err == nil && d.IsDir() && d.Name() == templateDirName {
 			traceDir = path
 			return nil
