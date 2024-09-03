@@ -211,11 +211,11 @@ func TestDetectTraceRootPath_Env(t *testing.T) {
 	testDir := t.TempDir()
 	t.Setenv("TRACE_ROOT_PATH", testDir)
 	// Ensure that the function panics if given a TRACE_ROOT_PATh with no 'templates' subdirectory
-	assert.PanicsWithValue(t, "TRACE_ROOT_PATH must include a directory called: templates", func() { detectTracePath() })
+	assert.PanicsWithValue(t, "TRACE_ROOT_PATH must include a directory called: templates", func() { detectTraceTemplatePath() })
 	require.NoError(t, os.Mkdir(filepath.Join(testDir, templateDirName), 0o700))
 
 	// Now that we have a 'templates' subdir, it should no longer panic
-	assert.Equal(t, testDir, detectTracePath())
+	assert.Equal(t, filepath.Join(testDir, templateDirName), detectTraceTemplatePath())
 }
 
 func TestDetectTraceRootPath_Default(t *testing.T) {
@@ -224,9 +224,9 @@ func TestDetectTraceRootPath_Default(t *testing.T) {
 	os.Chdir(testDir)
 
 	// Should come back empty if since we don't yet have a 'templates' subdir
-	assert.Equal(t, detectTracePath(), "")
+	assert.Equal(t, detectTraceTemplatePath(), "")
 	require.NoError(t, os.Mkdir(filepath.Join(testDir, templateDirName), 0o700))
 
 	// Now that we have 'templates' subdir, cwd is a valid path
-	assert.Equal(t, detectTracePath(), ".")
+	assert.Equal(t, templateDirName, detectTraceTemplatePath())
 }
