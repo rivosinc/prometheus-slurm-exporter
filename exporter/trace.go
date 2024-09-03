@@ -22,8 +22,10 @@ import (
 )
 
 // cleanup on add if greater than this threshold
-const cleanupThreshold uint64 = 1_000
-const templateDirName string = "templates"
+const (
+	cleanupThreshold uint64 = 1_000
+	templateDirName  string = "templates"
+)
 
 // store a jobs published proc stats
 type TraceInfo struct {
@@ -199,4 +201,24 @@ func (c *TraceCollector) uploadTrace(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// detectTracePath returns the trace_root path based on the following criteria:
+// 1. If TRACE_ROOT_PATH is specified, search that directory. If we don't find a templates dir, let's panic and crash the program.
+// 2. If TRACE_ROOT_PATH isn't specified, we can search cwd and /usr/share/prometheus-slurm-exporter.
+func detectTracePath() string {
+	templateRootDir := ""
+	if path, ok := os.LookupEnv("TRACE_ROOT_PATH"); ok {
+		templateRootDir = path
+		if _, err := os.Stat(filepath.Join(templateRootDir, templateDirName)); err != nil {
+			panic("TRACE_ROOT_PATH must include a directory called: " + templateDirName)
+		}
+		return templateRootDir
+	}
+	for _, p := range []string{".", "/usr/share/prometheus-slurm-exporter"} {
+		if _, err := os.Stat(filepath.Join(p, templateDirName)); err == nil {
+			return p
+		}
+	}
+	return ""
 }
