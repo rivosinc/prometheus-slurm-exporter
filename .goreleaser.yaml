@@ -11,7 +11,7 @@ builds:
       - arm64
 nfpms:
   - vendor: rivosinc
-    maintainer: abhinavDhulipal
+    maintainer: abhinavDhulipala
     contents:
       - src: packaging/prometheus-slurm-exporter.service
         dst: /usr/lib/systemd/system/prometheus-slurm-exporter.service
