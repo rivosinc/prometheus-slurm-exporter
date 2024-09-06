@@ -11,7 +11,7 @@ builds:
       - arm64
 nfpms:
   - vendor: rivosinc
-    maintainer: abhinavDhulipal
+    maintainer: abhinavDhulipala
     contents:
       - src: exporter/templates
         dst: /usr/share/prometheus-slurm-exporter/templates

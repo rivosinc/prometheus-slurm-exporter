@@ -216,7 +216,9 @@ sudo systemctl enable --now prometheus-slurm-exporter.service
 
 Customizing the systemd service with environment variables:
 
-`$ systemctl edit prometheus-slurm-exporter.service`
+```bash
+sudo systemctl edit prometheus-slurm-exporter.service`
+```
 
 ```text
 ### Editing /etc/systemd/system/prometheus-slurm-exporter.service.d/override.conf
