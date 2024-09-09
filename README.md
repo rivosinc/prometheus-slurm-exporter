@@ -193,7 +193,28 @@ Environment="LOGLEVEL=debug"
 You can download RPM or DEB versions from the [Releases](releases/) tab. The
 packages are configured to use systemd to start and stop the service.
 
-Configuring the systemd service
+### Running with Systemd
+
+You can install a systemd service definition using the following command:
+
+```bash
+sudo bash -c 'cat << EOF > /etc/systemd/system/prometheus-slurm-exporter.service
+[Unit]
+Description=Prometheus SLURM Exporter
+
+[Service]
+ExecStart=/usr/bin/prometheus-slurm-exporter
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+sudo systemctl daemon-reload
+sudo systemctl enable --now prometheus-slurm-exporter.service
+```
+
+Customizing the systemd service with environment variables:
 
 `$ systemctl edit prometheus-slurm-exporter.service`
 
@@ -221,7 +242,6 @@ Environment="LOGLEVEL=debug"
 # [Install]
 # WantedBy=multi-user.target
 ```
-
 
 ### Future work
 slurmrestd support

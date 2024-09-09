@@ -13,22 +13,12 @@ nfpms:
   - vendor: rivosinc
     maintainer: abhinavDhulipal
     contents:
-      - src: packaging/prometheus-slurm-exporter.service
-        dst: /usr/lib/systemd/system/prometheus-slurm-exporter.service
-        file_info:
-          mode: 0644
-          group: root
-          owner: root
       - src: exporter/templates
         dst: /usr/share/prometheus-slurm-exporter/templates
         file_info:
           mode: 0644
           group: root
           owner: root
-    scripts:
-      postinstall: "packaging/postinstall.sh"
-      preremove: "packaging/preremove.sh"
-      postremove: "packaging/postremove.sh"
     formats:
       - apk
       - deb
