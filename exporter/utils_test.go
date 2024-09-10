@@ -37,7 +37,7 @@ func TestCliFetcher(t *testing.T) {
 	assert := assert.New(t)
 	cliFetcher := NewCliScraper("ls")
 	data, err := cliFetcher.FetchRawBytes()
-	assert.Nil(err)
+	assert.NoError(err)
 	assert.NotNil(data)
 }
 
