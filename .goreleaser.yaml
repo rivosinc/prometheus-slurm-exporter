@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2023 Rivos Inc.
 #
 # SPDX-License-Identifier: Apache-2.0
-
 version: 2
 builds:
   - goos:
@@ -10,7 +9,22 @@ builds:
       - amd64
       - arm
       - arm64
-
+nfpms:
+  - vendor: rivosinc
+    maintainer: abhinavDhulipala
+    contents:
+      - src: exporter/templates
+        dst: /usr/share/prometheus-slurm-exporter/templates
+        file_info:
+          mode: 0644
+          group: root
+          owner: root
+    formats:
+      - apk
+      - deb
+      - rpm
+      - termux.deb
+      - archlinux
 archives:
   - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
     files:

@@ -10,11 +10,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAtomicFetcher_Cleanup(t *testing.T) {
@@ -26,6 +28,7 @@ func TestAtomicFetcher_Cleanup(t *testing.T) {
 	fetcher.cleanup()
 	assert.Contains(fetcher.Info, int64(10))
 }
+
 func TestAtomicFetcher_Add(t *testing.T) {
 	assert := assert.New(t)
 	fetcher := NewAtomicProFetcher(10)
@@ -201,4 +204,29 @@ func TestPython3Wrapper(t *testing.T) {
 	var info TraceInfo
 	json.Unmarshal(wrapperOut, &info)
 	assert.Equal(int64(10), info.JobId)
+}
+
+func TestDetectTraceRootPath_Env(t *testing.T) {
+	os.Clearenv()
+	testDir := t.TempDir()
+	t.Setenv("TRACE_ROOT_PATH", testDir)
+	// Ensure that the function panics if given a TRACE_ROOT_PATh with no 'templates' subdirectory
+	assert.PanicsWithValue(t, "TRACE_ROOT_PATH must include a directory called: templates", func() { detectTraceTemplatePath() })
+	require.NoError(t, os.Mkdir(filepath.Join(testDir, templateDirName), 0o700))
+
+	// Now that we have a 'templates' subdir, it should no longer panic
+	assert.Equal(t, filepath.Join(testDir, templateDirName), detectTraceTemplatePath())
+}
+
+func TestDetectTraceRootPath_Default(t *testing.T) {
+	os.Clearenv()
+	testDir := t.TempDir()
+	os.Chdir(testDir)
+
+	// Should come back empty if since we don't yet have a 'templates' subdir
+	assert.Equal(t, detectTraceTemplatePath(), "")
+	require.NoError(t, os.Mkdir(filepath.Join(testDir, templateDirName), 0o700))
+
+	// Now that we have 'templates' subdir, cwd is a valid path
+	assert.Equal(t, templateDirName, detectTraceTemplatePath())
 }

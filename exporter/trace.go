@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -22,8 +21,10 @@ import (
 )
 
 // cleanup on add if greater than this threshold
-const cleanupThreshold uint64 = 1_000
-const templateDirName string = "templates"
+const (
+	cleanupThreshold uint64 = 1_000
+	templateDirName  string = "templates"
+)
 
 // store a jobs published proc stats
 type TraceInfo struct {
@@ -107,22 +108,11 @@ type TraceCollector struct {
 
 func NewTraceCollector(config *Config) *TraceCollector {
 	traceConfig := config.TraceConf
-	templateRootDir := "."
-	// path to look for the /templates directory. Defaults to cwd
-	if path, ok := os.LookupEnv("TRACE_ROOT_PATH"); ok {
-		templateRootDir = path
-	}
-	traceDir := ""
-	err := filepath.WalkDir(templateRootDir, func(path string, d fs.DirEntry, err error) error {
-		if err == nil && d.IsDir() && d.Name() == templateDirName {
-			traceDir = path
-			return nil
-		}
-		return nil
-	})
-	if err != nil || traceDir == "" {
+	traceDir := detectTraceTemplatePath()
+	if traceDir == "" {
 		log.Fatal("no template found")
 	}
+	slog.Debug("using trace template path: " + traceDir)
 	return &TraceCollector{
 		ProcessFetcher: NewAtomicProFetcher(traceConfig.rate),
 		squeueFetcher:  traceConfig.sharedFetcher,
@@ -199,4 +189,25 @@ func (c *TraceCollector) uploadTrace(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// detectTraceTemplatePath returns the trace_root path based on the following criteria:
+// 1. If TRACE_ROOT_PATH is specified, search that directory. If we don't find a templates dir, let's panic and crash the program.
+// 2. If TRACE_ROOT_PATH isn't specified, we can search cwd and /usr/share/prometheus-slurm-exporter.
+// If no templates path is found, returns an empty string
+func detectTraceTemplatePath() string {
+	if rpath, ok := os.LookupEnv("TRACE_ROOT_PATH"); ok {
+		templateP := filepath.Join(rpath, templateDirName)
+		if _, err := os.Stat(templateP); err != nil {
+			panic("TRACE_ROOT_PATH must include a directory called: templates")
+		}
+		return templateP
+	}
+	for _, rpath := range []string{".", "/usr/share/prometheus-slurm-exporter"} {
+		templateP := filepath.Join(rpath, templateDirName)
+		if _, err := os.Stat(templateP); err == nil {
+			return templateP
+		}
+	}
+	return ""
 }
