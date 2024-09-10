@@ -207,7 +207,6 @@ func TestPython3Wrapper(t *testing.T) {
 }
 
 func TestDetectTraceRootPath_Env(t *testing.T) {
-	os.Clearenv()
 	testDir := t.TempDir()
 	t.Setenv("TRACE_ROOT_PATH", testDir)
 	// Ensure that the function panics if given a TRACE_ROOT_PATh with no 'templates' subdirectory
@@ -219,7 +218,6 @@ func TestDetectTraceRootPath_Env(t *testing.T) {
 }
 
 func TestDetectTraceRootPath_Default(t *testing.T) {
-	os.Clearenv()
 	testDir := t.TempDir()
 	os.Chdir(testDir)
 
