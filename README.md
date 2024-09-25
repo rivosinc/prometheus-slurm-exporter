@@ -156,8 +156,7 @@ Env vars can be sepcified in a `.env` file, while using the `just`
 
 ### RPM/DEB Packages
 
-You can download RPM or DEB versions from the [Releases](https://github.com/rivosinc/prometheus-slurm-exporter/releases) tab. The
-packages are configured to use systemd to start and stop the service.
+You can download RPM or DEB versions from the [Releases](https://github.com/rivosinc/prometheus-slurm-exporter/releases) tab.
 
 ### Running with Systemd
 
