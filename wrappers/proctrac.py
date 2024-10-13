@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # SPDX-FileCopyrightText: 2023 Rivos Inc.
 #
@@ -8,16 +8,18 @@ import psutil
 import os
 import requests
 from time import sleep
-import dataclasses
 from typing import Generator
 import argparse as ag
 import json
 import platform
 from datetime import datetime
+from dataclasses import dataclass, asdict, field
+from pprint import pprint
+from getpass import getuser
 
 
 # must correlate with trace info struct
-@dataclasses.dataclass
+@dataclass
 class TraceInfo:
     pid: int
     cpus: float
@@ -26,8 +28,29 @@ class TraceInfo:
     read_bytes: float
     write_bytes: float
     job_id: int
-    username: str = os.getenv("USER", "")
-    hostname: str = platform.node()
+    username: str = field(default_factory=getuser)
+    hostname: str = field(default_factory=platform.node)
+
+    @classmethod
+    def from_proc(cls, jobid: int, proc: psutil.Popen) -> "TraceInfo":
+        io_counters = proc.io_counters()
+        return cls(
+            pid=proc.pid,
+            cpus=proc.cpu_percent(0.1),
+            threads=proc.num_threads(),
+            mem=proc.memory_info().rss,
+            read_bytes=io_counters.read_bytes,
+            write_bytes=io_counters.write_bytes,
+            job_id=jobid,
+        )
+
+    def add_subproc(self, proc: psutil.Popen):
+        io_counters = proc.io_counters()
+        self.cpus += proc.cpu_percent(0.1)
+        self.threads += proc.num_threads()
+        self.mem += proc.memory_info().rss
+        self.read_bytes += io_counters.read_bytes
+        self.write_bytes += io_counters.write_bytes
 
 
 class ProcWrapper:
@@ -48,15 +71,11 @@ class ProcWrapper:
 
     def poll_info(self) -> Generator[TraceInfo, None, None]:
         while self.proc.poll() is None:
-            trace = TraceInfo(0, 0, 0, 0, 0, 0, self.jobid)
+            trace = TraceInfo.from_proc(self.jobid, self.proc)
             start = datetime.now()
             for p in self.proc.children(True):
                 try:
-                    io_counters = p.io_counters()
-                    trace.cpus += p.cpu_percent(0.1)
-                    trace.threads += p.num_threads()
-                    trace.write_bytes += io_counters.write_bytes
-                    trace.read_bytes += io_counters.read_bytes
+                    trace.add_subproc(p)
                 except psutil.Error as e:
                     print(f"failed to poll child process with error {e}")
                     continue
@@ -110,11 +129,12 @@ Or by passing explicit cmdline args, exp.
     wrapper = ProcWrapper(args.cmd or args.argv, args.sample_rate, args.jobid)
 
     if args.validate:
-        print(json.dumps(dataclasses.asdict(next(wrapper.poll_info()))))
+        print(json.dumps(asdict(next(wrapper.poll_info()))))
         wrapper.proc.terminate()
     elif args.dry_run:
-        [print(json.dumps(dataclasses.asdict(stat))) for stat in wrapper.poll_info()]
+        [pprint(asdict(stat)) for stat in wrapper.poll_info()]
     else:
         for trace in wrapper.poll_info():
-            resp = requests.post(args.endpoint, json=dataclasses.asdict(trace))
-            args.verbose and print(dataclasses.asdict(trace), resp)
+            resp = requests.post(args.endpoint, json=asdict(trace))
+            if args.verbose:
+                print(asdict(trace), resp)
