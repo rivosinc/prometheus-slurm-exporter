@@ -25,3 +25,4 @@ coverage.html
 coverage.out
 .DS_Store
 dist
+**/__debug_bin*
