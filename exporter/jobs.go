@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -32,6 +33,7 @@ type JobMetric struct {
 	UserName     string      `json:"user_name"`
 	Features     string      `json:"features"`
 	JobResources JobResource `json:"job_resources"`
+	StateReason  string      `json:"state_reason"`
 }
 
 type squeueResponse struct {
@@ -109,14 +111,15 @@ func (jcf *JobCliFallbackFetcher) fetch() ([]JobMetric, error) {
 
 	for i, line := range bytes.Split(squeue, []byte("\n")) {
 		var metric struct {
-			Account   string    `json:"a"`
-			JobId     float64   `json:"id"`
-			EndTime   NAbleTime `json:"end_time"`
-			JobState  string    `json:"state"`
-			Partition string    `json:"p"`
-			UserName  string    `json:"u"`
-			Cpu       int64     `json:"cpu"`
-			Mem       string    `json:"mem"`
+			Account     string    `json:"a"`
+			JobId       float64   `json:"id"`
+			EndTime     NAbleTime `json:"end_time"`
+			JobState    string    `json:"state"`
+			Partition   string    `json:"p"`
+			UserName    string    `json:"u"`
+			Cpu         int64     `json:"cpu"`
+			Mem         string    `json:"mem"`
+			StateReason string    `json:"r"`
 		}
 		if err := json.Unmarshal(line, &metric); err != nil {
 			slog.Error(fmt.Sprintf("squeue fallback parse error: failed on line %d `%s`", i, line))
@@ -129,13 +132,24 @@ func (jcf *JobCliFallbackFetcher) fetch() ([]JobMetric, error) {
 			jcf.errCounter.Inc()
 			continue
 		}
+		re := regexp.MustCompile(`^\((?P<reason>(\w)+)\)$`)
+		if metric.JobState == "PENDING" {
+			if matches := re.FindStringSubmatch(metric.StateReason); matches != nil {
+				metric.StateReason = matches[re.SubexpIndex("reason")]
+			} else {
+				slog.Error(fmt.Sprintf("squeue failed to pull pending state reason. Got state reason: %s", metric.StateReason))
+				jcf.errCounter.Inc()
+			}
+		}
+
 		openapiJobMetric := JobMetric{
-			Account:   metric.Account,
-			JobId:     metric.JobId,
-			JobState:  metric.JobState,
-			Partition: metric.Partition,
-			UserName:  metric.UserName,
-			EndTime:   float64(metric.EndTime.Unix()),
+			Account:     metric.Account,
+			JobId:       metric.JobId,
+			JobState:    metric.JobState,
+			Partition:   metric.Partition,
+			UserName:    metric.UserName,
+			EndTime:     float64(metric.EndTime.Unix()),
+			StateReason: metric.StateReason,
 			JobResources: JobResource{
 				AllocCpus:  float64(metric.Cpu),
 				AllocNodes: map[string]*NodeResource{"0": {Mem: mem}},
@@ -255,6 +269,23 @@ func parsePartitionJobMetrics(jobs []JobMetric) map[string]*PartitionJobMetric {
 	return partitionMetric
 }
 
+type StateReasonMetric struct {
+	pendingStateCount map[string]float64
+}
+
+func parseStateReasonMetric(jobs []JobMetric) *StateReasonMetric {
+	metric := StateReasonMetric{
+		pendingStateCount: make(map[string]float64),
+	}
+
+	for _, job := range jobs {
+		if job.JobState == "PENDING" {
+			metric.pendingStateCount[job.StateReason]++
+		}
+	}
+	return &metric
+}
+
 type FeatureJobMetric struct {
 	allocMem float64
 	allocCpu float64
@@ -298,6 +329,8 @@ type JobsCollector struct {
 	featureJobMemAlloc *prometheus.Desc
 	featureJobCpuAlloc *prometheus.Desc
 	featureJobTotal    *prometheus.Desc
+	// reason metrics
+	pendingReasonTotal *prometheus.Desc
 	// exporter metrics
 	jobScrapeDuration *prometheus.Desc
 	jobScrapeError    prometheus.Counter
@@ -326,6 +359,7 @@ func NewJobsController(config *Config) *JobsCollector {
 		featureJobMemAlloc:      prometheus.NewDesc("slurm_feature_mem_alloc", "alloc mem consumed per feature", []string{"feature"}, nil),
 		featureJobCpuAlloc:      prometheus.NewDesc("slurm_feature_cpu_alloc", "alloc cpu consumed per feature", []string{"feature"}, nil),
 		featureJobTotal:         prometheus.NewDesc("slurm_feature_total", "alloc cpu consumed per feature", []string{"feature"}, nil),
+		pendingReasonTotal:      prometheus.NewDesc("slurm_pending_reason_total", "count of the reason jobs are pending", []string{"reason"}, nil),
 		jobScrapeDuration:       prometheus.NewDesc("slurm_job_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.squeue), nil, nil),
 		jobScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_job_scrape_error",
@@ -347,6 +381,7 @@ func (jc *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.featureJobMemAlloc
 	ch <- jc.featureJobCpuAlloc
 	ch <- jc.featureJobTotal
+	ch <- jc.pendingReasonTotal
 	ch <- jc.jobScrapeDuration
 	ch <- jc.jobScrapeError.Desc()
 }
@@ -413,5 +448,10 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 		if metric.total > 0 {
 			ch <- prometheus.MustNewConstMetric(jc.featureJobTotal, prometheus.GaugeValue, metric.total, feature)
 		}
+	}
+
+	stateReasonMetric := parseStateReasonMetric(jobMetrics)
+	for pendingReason, pendingCount := range stateReasonMetric.pendingStateCount {
+		ch <- prometheus.MustNewConstMetric(jc.pendingReasonTotal, prometheus.GaugeValue, pendingCount, pendingReason)
 	}
 }

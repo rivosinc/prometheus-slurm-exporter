@@ -95,7 +95,7 @@ func TestUserJobMetric(t *testing.T) {
 
 	for user, metric := range parseUserJobMetrics(jms) {
 		if user == expectedUser {
-			assert.Equal(1., metric.totalJobCount)
+			assert.Equal(2., metric.totalJobCount)
 			assert.Equal(1., metric.allocCpu[state])
 			assert.Equal(1., metric.stateJobCount[state])
 			assert.Equal(6.4e+13, metric.allocMemory[state])
@@ -331,4 +331,36 @@ func TestJsonJobFetcherCacheMiss(t *testing.T) {
 	assert.NoError(err)
 	// assert cache hit
 	assert.Equal(2, scraper.CallCount)
+}
+
+func TestParseStateReasonMetric_Fallback(t *testing.T) {
+	assert := assert.New(t)
+	scraper := &MockScraper{fixture: "fixtures/squeue_fallback.txt"}
+	cliFallbackFetcher := &JobCliFallbackFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](0),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
+	}
+	jobMetrics, err := cliFallbackFetcher.FetchMetrics()
+	assert.NotEmpty(jobMetrics)
+	assert.NoError(err)
+	m := parseStateReasonMetric(jobMetrics)
+	assert.NotEmpty(m.pendingStateCount)
+	assert.Equal(m.pendingStateCount["Dependency"], 1.)
+	assert.Equal(m.pendingStateCount["Priority"], 1.)
+}
+func TestParseStateReasonMetric_Json(t *testing.T) {
+	assert := assert.New(t)
+	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
+	JsonFetcher := &JobJsonFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](0),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
+	}
+	jobMetrics, err := JsonFetcher.FetchMetrics()
+	assert.NotEmpty(jobMetrics)
+	assert.NoError(err)
+	m := parseStateReasonMetric(jobMetrics)
+	assert.NotEmpty(m.pendingStateCount)
+	assert.Equal(m.pendingStateCount["Dependency"], 1.)
 }
