@@ -29,10 +29,15 @@ type MessageRpcInfo struct {
 }
 
 type DiagMetric struct {
-	ServerThreadCount int              `json:"server_thread_count"`
-	DBDAgentQueueSize int              `json:"dbd_agent_queue_size"`
-	RpcByUser         []UserRpcInfo    `json:"rpcs_by_user"`
-	RpcByMessageType  []MessageRpcInfo `json:"rpcs_by_message_type"`
+	ServerThreadCount     int              `json:"server_thread_count"`
+	DBDAgentQueueSize     int              `json:"dbd_agent_queue_size"`
+	RpcByUser             []UserRpcInfo    `json:"rpcs_by_user"`
+	RpcByMessageType      []MessageRpcInfo `json:"rpcs_by_message_type"`
+	BackfillJobCount      int              `json:"bf_backfilled_jobs"`
+	BackfillCycleCountSum int              `json:"bf_cycle_sum"`
+	BackfillCycleCounter  int              `json:"bf_cycle_counter"`
+	BackfillLastDepth     int              `json:"bf_last_depth"`
+	BackfillLastDepthTry  int              `json:"bf_last_depth_try"`
 }
 
 type SdiagResponse struct {
@@ -71,21 +76,31 @@ type DiagnosticsCollector struct {
 	slurmTypeRpcAvgTime   *prometheus.Desc
 	slurmTypeRpcTotalTime *prometheus.Desc
 	// daemon metrics
-	slurmCtlThreadCount    *prometheus.Desc
-	slurmDbdAgentQueueSize *prometheus.Desc
+	slurmCtlThreadCount            *prometheus.Desc
+	slurmDbdAgentQueueSize         *prometheus.Desc
+	slurmBackfillJobCount          *prometheus.Desc
+	slurmBackfillCycleCount        *prometheus.Desc
+	slurmBackfillLastDepth         *prometheus.Desc
+	slurmBackfillLastDepthTrySched *prometheus.Desc
+	slurmBackfillCycleCounter      *prometheus.Desc
 }
 
 func NewDiagsCollector(config *Config) *DiagnosticsCollector {
 	cliOpts := config.cliOpts
 	return &DiagnosticsCollector{
-		fetcher:                NewCliScraper(config.cliOpts.sdiag...),
-		slurmUserRpcCount:      prometheus.NewDesc("slurm_rpc_user_count", "slurm rpc count per user", []string{"user"}, nil),
-		slurmUserRpcTotalTime:  prometheus.NewDesc("slurm_rpc_user_total_time", "slurm rpc avg time per user", []string{"user"}, nil),
-		slurmTypeRpcCount:      prometheus.NewDesc("slurm_rpc_msg_type_count", "slurm rpc count per message type", []string{"type"}, nil),
-		slurmTypeRpcAvgTime:    prometheus.NewDesc("slurm_rpc_msg_type_avg_time", "slurm rpc total time consumed per message type", []string{"type"}, nil),
-		slurmTypeRpcTotalTime:  prometheus.NewDesc("slurm_rpc_msg_type_total_time", "slurm rpc avg time per message type", []string{"type"}, nil),
-		slurmCtlThreadCount:    prometheus.NewDesc("slurm_daemon_thread_count", "slurm daemon thread count", nil, nil),
-		slurmDbdAgentQueueSize: prometheus.NewDesc("slurm_dbd_agent_queue_size", "slurmDbd queue size. Number of threads interacting with SlrumDBD. Will grow rapidly if DB is down or under stress", nil, nil),
+		fetcher:                        NewCliScraper(config.cliOpts.sdiag...),
+		slurmUserRpcCount:              prometheus.NewDesc("slurm_rpc_user_count", "slurm rpc count per user", []string{"user"}, nil),
+		slurmUserRpcTotalTime:          prometheus.NewDesc("slurm_rpc_user_total_time", "slurm rpc avg time per user", []string{"user"}, nil),
+		slurmTypeRpcCount:              prometheus.NewDesc("slurm_rpc_msg_type_count", "slurm rpc count per message type", []string{"type"}, nil),
+		slurmTypeRpcAvgTime:            prometheus.NewDesc("slurm_rpc_msg_type_avg_time", "slurm rpc total time consumed per message type", []string{"type"}, nil),
+		slurmTypeRpcTotalTime:          prometheus.NewDesc("slurm_rpc_msg_type_total_time", "slurm rpc avg time per message type", []string{"type"}, nil),
+		slurmCtlThreadCount:            prometheus.NewDesc("slurm_daemon_thread_count", "slurm daemon thread count", nil, nil),
+		slurmDbdAgentQueueSize:         prometheus.NewDesc("slurm_dbd_agent_queue_size", "slurmDbd queue size. Number of threads interacting with SlrumDBD. Will grow rapidly if DB is down or under stress", nil, nil),
+		slurmBackfillJobCount:          prometheus.NewDesc("slurm_backfill_job_count", "slurm number of jobs started thanks to backfilling since last slurm start", nil, nil),
+		slurmBackfillCycleCount:        prometheus.NewDesc("slurm_backfill_cycle_count", "slurm number of Number of backfill scheduling cycles since last reset", nil, nil),
+		slurmBackfillLastDepth:         prometheus.NewDesc("slurm_backfill_last_depth", "slurm number of processed jobs during last backfilling scheduling cycle. It counts every job even if that job can not be started due to dependencies or limits", nil, nil),
+		slurmBackfillLastDepthTrySched: prometheus.NewDesc("slurm_backfill_last_depth_try_sched", "slurm number of processed jobs during last backfilling scheduling cycle. It counts only jobs with a chance to start using available resources", nil, nil),
+		slurmBackfillCycleCounter:      prometheus.NewDesc("slurm_backfill_cycle_counter", "slurm number of backfill scheduling cycles since last reset", nil, nil),
 		diagScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_diag_scrape_error",
 			Help: "slurm diag scrape erro",
@@ -101,8 +116,13 @@ func (sc *DiagnosticsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- sc.slurmTypeRpcAvgTime
 	ch <- sc.slurmTypeRpcTotalTime
 	ch <- sc.slurmCtlThreadCount
-	ch <- sc.slurmDbdAgentQueueSize
 	ch <- sc.diagScrapeDuration
+	ch <- sc.slurmDbdAgentQueueSize
+	ch <- sc.slurmBackfillJobCount
+	ch <- sc.slurmBackfillCycleCount
+	ch <- sc.slurmBackfillLastDepth
+	ch <- sc.slurmBackfillLastDepthTrySched
+	ch <- sc.slurmBackfillCycleCounter
 	ch <- sc.diagScrapeError.Desc()
 }
 
@@ -135,6 +155,11 @@ func (sc *DiagnosticsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(sc.slurmCtlThreadCount, prometheus.GaugeValue, float64(sdiagResponse.Statistics.ServerThreadCount))
 	ch <- prometheus.MustNewConstMetric(sc.slurmDbdAgentQueueSize, prometheus.GaugeValue, float64(sdiagResponse.Statistics.DBDAgentQueueSize))
+	ch <- prometheus.MustNewConstMetric(sc.slurmBackfillJobCount, prometheus.GaugeValue, float64(sdiagResponse.Statistics.BackfillJobCount))
+	ch <- prometheus.MustNewConstMetric(sc.slurmBackfillCycleCount, prometheus.GaugeValue, float64(sdiagResponse.Statistics.BackfillCycleCountSum))
+	ch <- prometheus.MustNewConstMetric(sc.slurmBackfillLastDepth, prometheus.GaugeValue, float64(sdiagResponse.Statistics.BackfillLastDepth))
+	ch <- prometheus.MustNewConstMetric(sc.slurmBackfillLastDepthTrySched, prometheus.GaugeValue, float64(sdiagResponse.Statistics.BackfillLastDepthTry))
+	ch <- prometheus.MustNewConstMetric(sc.slurmBackfillCycleCounter, prometheus.GaugeValue, float64(sdiagResponse.Statistics.BackfillCycleCounter))
 	for _, userRpcInfo := range sdiagResponse.Statistics.RpcByUser {
 		emitNonZero(sc.slurmUserRpcCount, float64(userRpcInfo.Count), userRpcInfo.User)
 		emitNonZero(sc.slurmUserRpcTotalTime, float64(userRpcInfo.TotalTime), userRpcInfo.User)
