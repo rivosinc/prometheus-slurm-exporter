@@ -16,6 +16,9 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+// the pending reason for a job denoting that a requested node is unavailable
+const reqNodeNotAvailReason string = "ReqNodeNotAvail, UnavailableNodes"
+
 type NodeResource struct {
 	Mem float64 `json:"memory"`
 }
@@ -132,7 +135,7 @@ func (jcf *JobCliFallbackFetcher) fetch() ([]JobMetric, error) {
 			jcf.errCounter.Inc()
 			continue
 		}
-		re := regexp.MustCompile(`^\((?P<reason>(\w)+)\)$`)
+		re := regexp.MustCompile(`^\((?P<reason>(.+))\)$`)
 		if metric.JobState == "PENDING" {
 			if matches := re.FindStringSubmatch(metric.StateReason); matches != nil {
 				metric.StateReason = matches[re.SubexpIndex("reason")]
@@ -279,9 +282,17 @@ func parseStateReasonMetric(jobs []JobMetric) *StateReasonMetric {
 	}
 
 	for _, job := range jobs {
-		if job.JobState == "PENDING" {
-			metric.pendingStateCount[job.StateReason]++
+		if job.JobState != "PENDING" {
+			continue
 		}
+		reason := job.StateReason
+		if strings.Contains(reason, reqNodeNotAvailReason) {
+			// consolidate pending node not avail reason to be node agnostic. i.e
+			// from (ReqNodeNotAvail, UnavailableNodes:cs[100,...])
+			// to (ReqNodeNotAvail, UnavailableNodes)
+			reason = fmt.Sprintf("(%s)", reqNodeNotAvailReason)
+		}
+		metric.pendingStateCount[reason]++
 	}
 	return &metric
 }
