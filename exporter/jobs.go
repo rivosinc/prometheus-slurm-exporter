@@ -135,7 +135,7 @@ func (jcf *JobCliFallbackFetcher) fetch() ([]JobMetric, error) {
 			jcf.errCounter.Inc()
 			continue
 		}
-		re := regexp.MustCompile(`^\((?P<reason>(\w)+)\)$`)
+		re := regexp.MustCompile(`^\((?P<reason>(.+))\)$`)
 		if metric.JobState == "PENDING" {
 			if matches := re.FindStringSubmatch(metric.StateReason); matches != nil {
 				metric.StateReason = matches[re.SubexpIndex("reason")]

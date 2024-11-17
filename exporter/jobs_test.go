@@ -5,6 +5,7 @@
 package exporter
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -74,6 +75,13 @@ func TestParseCliFallback(t *testing.T) {
 	metrics, err := cliFallbackFetcher.fetch()
 	assert.Nil(err)
 	assert.NotEmpty(metrics)
+	nodeAvailMetricsCount := 0
+	for _, metric := range metrics {
+		if strings.Contains(metric.StateReason, reqNodeNotAvailReason) {
+			nodeAvailMetricsCount++
+		}
+	}
+	assert.Equal(1, nodeAvailMetricsCount)
 	assert.Equal(2., CollectCounterValue(cliFallbackFetcher.errCounter))
 }
 
