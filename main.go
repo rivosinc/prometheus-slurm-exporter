@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 
 	"github.com/rivosinc/prometheus-slurm-exporter/exporter"
 )

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rivosinc/prometheus-slurm-exporter/exporter"

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 type AccountLimitMetric struct {
@@ -46,12 +46,12 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 	for records, err := reader.Read(); err != io.EOF; records, err = reader.Read() {
 		if err != nil {
 			acf.errorCounter.Inc()
-			slog.Error("failed to scrape account metric row %v", records)
+			slog.Error(fmt.Sprintf("failed to scrape account metric row %v", records))
 			continue
 		}
 		if len(records) != 6 {
 			acf.errorCounter.Inc()
-			slog.Error("failed to scrape account metric row %v", records)
+			slog.Error(fmt.Sprintf("failed to scrape account metric row %v", records))
 			continue
 		}
 		user, account, cpu, mem, runningJobs, totalJobs := records[0], records[1], records[2], records[3], records[4], records[5]
@@ -65,7 +65,7 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 		metric := AccountLimitMetric{Account: account}
 		if mem != "" {
 			if memMb, err := strconv.ParseFloat(mem, 64); err != nil {
-				slog.Error("failed to scrape account metric mem string %s", mem)
+				slog.Error(fmt.Sprintf("failed to scrape account metric mem string %s", mem))
 				acf.errorCounter.Inc()
 			} else {
 				metric.AllocatedMem = memMb * 1e6
@@ -73,7 +73,7 @@ func (acf *AccountCsvFetcher) fetchFromCli() ([]AccountLimitMetric, error) {
 		}
 		if cpu != "" {
 			if cpuCount, err := strconv.ParseFloat(cpu, 64); err != nil {
-				slog.Error("failed to scrape account metric cpu string %s", cpu)
+				slog.Error(fmt.Sprintf("failed to scrape account metric cpu string %s", cpu))
 				acf.errorCounter.Inc()
 			} else {
 				metric.AllocatedCPU = cpuCount
