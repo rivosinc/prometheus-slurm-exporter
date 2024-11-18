@@ -15,7 +15,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/exp/slices"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 type NodeMetric struct {
@@ -60,12 +60,12 @@ func (cmf *NodeJsonFetcher) fetch() ([]NodeMetric, error) {
 		return nil, err
 	}
 	if err := json.Unmarshal(cliJson, squeue); err != nil {
-		slog.Error("Unmarshaling node metrics %q", err)
+		slog.Error(fmt.Sprintf("Unmarshaling node metrics %q", err))
 		return nil, err
 	}
 	if len(squeue.Errors) > 0 {
 		for _, e := range squeue.Errors {
-			slog.Error("Api error response %q", e)
+			slog.Error(fmt.Sprintf("Api error response %q", e))
 		}
 		cmf.errorCounter.Add(float64(len(squeue.Errors)))
 		return nil, errors.New(squeue.Errors[0])

@@ -12,7 +12,7 @@ import (
 
 	"github.com/rivosinc/prometheus-slurm-exporter/cext"
 	"github.com/rivosinc/prometheus-slurm-exporter/exporter"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 var (

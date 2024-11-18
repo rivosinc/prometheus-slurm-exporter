@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // the pending reason for a job denoting that a requested node is unavailable
@@ -69,7 +69,7 @@ func (jjf *JobJsonFetcher) fetch() ([]JobMetric, error) {
 	var squeue squeueResponse
 	err = json.Unmarshal(data, &squeue)
 	if err != nil {
-		slog.Error("Unmarshaling node metrics %q", err)
+		slog.Error(fmt.Sprintf("Unmarshaling node metrics %q", err))
 		return nil, err
 	}
 	for _, j := range squeue.Jobs {
@@ -404,7 +404,7 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	jobMetrics, err := jc.fetcher.FetchMetrics()
 	ch <- prometheus.MustNewConstMetric(jc.jobScrapeDuration, prometheus.GaugeValue, float64(jc.fetcher.ScrapeDuration().Milliseconds()))
 	if err != nil {
-		slog.Error("fetcher failure %q", err)
+		slog.Error(fmt.Sprintf("fetcher failure %q", err))
 		return
 	}
 	userMetrics := parseUserJobMetrics(jobMetrics)
