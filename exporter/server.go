@@ -73,7 +73,7 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	// defaults
 	cliOpts := CliOpts{
 		squeue:       []string{"squeue", "--json"},
-		sinfo:        []string{"sinfo", "--json"},
+		sinfo:        []string{"sinfo", "-N", "--json"},
 		lic:          []string{"scontrol", "show", "lic", "--json"},
 		sdiag:        []string{"sdiag", "--json"},
 		sacctmgr:     []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
