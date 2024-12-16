@@ -19,14 +19,14 @@
   },
   "licenses": [{
     "LicenseName": "AscentLintBase",
-    "Total": 7,
-    "Used": 0,
-    "Free": 7,
-    "Remote": false,
-    "Reserved": 0,
-    "LastConsumed": 0,
-    "LastDeficit": 0,
-    "LastUpdate": 0
+    "Total": 420,
+    "Used": 213,
+    "Free": 205,
+    "Remote": true,
+    "Reserved": 357,
+    "LastConsumed": 218,
+    "LastDeficit": 2,
+    "LastUpdate": "2024-12-16T08:42:16"
   }],
   "warnings": [],
   "errors": []

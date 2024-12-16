@@ -76,7 +76,7 @@ func TestLicCollect_ColectionE(t *testing.T) {
 		licMetrics = append(licMetrics, metric)
 	}
 
-	assert.Equal(3, len(licMetrics))
+	assert.Equal(7, len(licMetrics))
 }
 
 func TestLicDescribe(t *testing.T) {

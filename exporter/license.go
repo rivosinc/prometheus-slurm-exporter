@@ -6,19 +6,21 @@ package exporter
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"log/slog"
 )
 
 type LicenseMetric struct {
-	LicenseName string `json:"LicenseName"`
-	Total       int    `json:"Total"`
-	Used        int    `json:"Used"`
-	Free        int    `json:"Free"`
-	Remote      bool   `json:"Remote"`
-	Reserved    int    `json:"Reserved"`
+	LicenseName  string `json:"LicenseName"`
+	Total        int    `json:"Total"`
+	Used         int    `json:"Used"`
+	Free         int    `json:"Free"`
+	Remote       bool   `json:"Remote"`
+	Reserved     int    `json:"Reserved"`
+	LastConsumed int    `json:"LastConsumed"`
+	LastDeficit  int    `json:"LastDeficit"`
 }
 
 type scontrolLicResponse struct {
@@ -69,12 +71,14 @@ func (cjl *CliJsonLicMetricFetcher) ScrapeError() prometheus.Counter {
 }
 
 type LicCollector struct {
-	fetcher        SlurmMetricFetcher[LicenseMetric]
-	licTotal       *prometheus.Desc
-	licUsed        *prometheus.Desc
-	licFree        *prometheus.Desc
-	licReserved    *prometheus.Desc
-	licScrapeError prometheus.Counter
+	fetcher         SlurmMetricFetcher[LicenseMetric]
+	licTotal        *prometheus.Desc
+	licUsed         *prometheus.Desc
+	licFree         *prometheus.Desc
+	licReserved     *prometheus.Desc
+	licLastConsumed *prometheus.Desc
+	licLastDeficit  *prometheus.Desc
+	licScrapeError  prometheus.Counter
 }
 
 func NewLicCollector(config *Config) *LicCollector {
@@ -88,11 +92,13 @@ func NewLicCollector(config *Config) *LicCollector {
 		}),
 	}
 	return &LicCollector{
-		fetcher:     fetcher,
-		licTotal:    prometheus.NewDesc("slurm_lic_total", "slurm license total", []string{"name"}, nil),
-		licUsed:     prometheus.NewDesc("slurm_lic_used", "slurm license used", []string{"name"}, nil),
-		licFree:     prometheus.NewDesc("slurm_lic_free", "slurm license free", []string{"name"}, nil),
-		licReserved: prometheus.NewDesc("slurm_lic_reserved", "slurm license reserved", []string{"name"}, nil),
+		fetcher:         fetcher,
+		licTotal:        prometheus.NewDesc("slurm_lic_total", "slurm license total", []string{"name"}, nil),
+		licUsed:         prometheus.NewDesc("slurm_lic_used", "slurm license used", []string{"name"}, nil),
+		licFree:         prometheus.NewDesc("slurm_lic_free", "slurm license free", []string{"name"}, nil),
+		licLastConsumed: prometheus.NewDesc("slurm_lic_last_consumed", "slurm license last_consumed", []string{"name"}, nil),
+		licLastDeficit:  prometheus.NewDesc("slurm_lic_last_deficit", "slurm license last_deficit", []string{"name"}, nil),
+		licReserved:     prometheus.NewDesc("slurm_lic_reserved", "slurm license reserved", []string{"name"}, nil),
 		licScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_lic_scrape_error",
 			Help: "slurm license scrape error",
@@ -105,6 +111,8 @@ func (lc *LicCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- lc.licUsed
 	ch <- lc.licFree
 	ch <- lc.licReserved
+	ch <- lc.licLastConsumed
+	ch <- lc.licLastDeficit
 	ch <- lc.licScrapeError.Desc()
 }
 
@@ -130,6 +138,12 @@ func (lc *LicCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		if lic.Reserved > 0 {
 			ch <- prometheus.MustNewConstMetric(lc.licReserved, prometheus.GaugeValue, float64(lic.Reserved), lic.LicenseName)
+		}
+		if lic.LastConsumed > 0 {
+			ch <- prometheus.MustNewConstMetric(lc.licLastConsumed, prometheus.GaugeValue, float64(lic.LastConsumed), lic.LicenseName)
+		}
+		if lic.Reserved > 0 {
+			ch <- prometheus.MustNewConstMetric(lc.licLastDeficit, prometheus.GaugeValue, float64(lic.LastDeficit), lic.LicenseName)
 		}
 	}
 }
