@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,10 +19,39 @@ import (
 	"log/slog"
 )
 
-// cleanup on add if greater than this threshold
 const (
-	cleanupThreshold uint64 = 1_000
-	templateDirName  string = "templates"
+	// cleanup on add if greater than this threshold
+	cleanupThreshold  uint64 = 1_000
+	templateDirName   string = "templates"
+	proctraceTemplate string = `
+<html lang="en">
+    <body>
+        <table>
+            <tr>
+                <th> Job Id </th>
+                <th> Process Id </th>
+                <th> Cpu % </th>
+                <th> I/O Wait  </th>
+                <th> Memory Usage </th>
+                <th> Username </th>
+                <th> Hostname </th>
+            </tr>
+            {{ range . }}
+                <tr>
+                    <td> {{ .JobId  }} </td>
+                    <td> {{ .Pid}} </td>
+                    <td> {{ .Cpus }} </td>
+                    <td> {{ .WriteBytes }}  </td>
+                    <td> {{ .ReadBytes }}  </td>
+                    <td> {{ .Mem }} </td>
+                    <td> {{ .Username }} </td>
+                    <td> {{ .Hostname }} </td>
+                </tr>
+            {{ end }}
+        </table>
+    </body>
+</html>
+`
 )
 
 // store a jobs published proc stats
@@ -94,7 +122,6 @@ type TraceCollector struct {
 	ProcessFetcher *AtomicProcFetcher
 	squeueFetcher  SlurmMetricFetcher[JobMetric]
 	fallback       bool
-	templatesDir   string
 	// actual proc monitoring
 	jobAllocMem  *prometheus.Desc
 	jobAllocCpus *prometheus.Desc
@@ -108,16 +135,10 @@ type TraceCollector struct {
 
 func NewTraceCollector(config *Config) *TraceCollector {
 	traceConfig := config.TraceConf
-	traceDir := detectTraceTemplatePath()
-	if traceDir == "" {
-		log.Fatal("no template found")
-	}
-	slog.Debug("using trace template path: " + traceDir)
 	return &TraceCollector{
 		ProcessFetcher: NewAtomicProFetcher(traceConfig.rate),
 		squeueFetcher:  traceConfig.sharedFetcher,
 		fallback:       config.cliOpts.fallback,
-		templatesDir:   traceDir,
 		// add for job id correlation
 		jobAllocMem:  prometheus.NewDesc("slurm_job_mem_alloc", "running job mem allocated", []string{"jobid"}, nil),
 		jobAllocCpus: prometheus.NewDesc("slurm_job_cpu_alloc", "running job cpus allocated", []string{"jobid"}, nil),
@@ -178,7 +199,8 @@ func (c *TraceCollector) uploadTrace(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if r.Method == http.MethodGet {
-		tmpl := template.Must(template.ParseFiles(filepath.Join(c.templatesDir, "proc_traces.html")))
+
+		tmpl := template.Must(template.New("proc_traces").Parse(proctraceTemplate))
 		procs := c.ProcessFetcher.Fetch()
 		traces := make([]TraceInfo, 0, len(procs))
 		for _, info := range procs {

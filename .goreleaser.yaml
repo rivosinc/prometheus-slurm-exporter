@@ -14,13 +14,6 @@ builds:
 nfpms:
   - vendor: rivosinc
     maintainer: abhinavDhulipala
-    contents:
-      - src: exporter/templates
-        dst: /usr/share/prometheus-slurm-exporter/templates
-        file_info:
-          mode: 0644
-          group: root
-          owner: root
     formats:
       - apk
       - deb
@@ -29,6 +22,3 @@ nfpms:
       - archlinux
 archives:
   - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
-    files:
-      - src: ./exporter/templates/*
-        dst: templates
