@@ -32,6 +32,125 @@ type NodeMetric struct {
 	Weight      float64  `json:"weight"`
 }
 
+type sinfoDataParserResponse struct {
+	Meta struct {
+		Plugins map[string]string `json:"plugins"`
+	} `json:"meta"`
+	SlurmVersion struct {
+		Version struct {
+			Major int `json:"major"`
+			Micro int `json:"micro"`
+			Minor int `json:"minor"`
+		} `json:"version"`
+		Release string `json:"release"`
+	} `json:"Slurm"`
+	Sinfo []struct {
+		Node struct {
+			State []string `json:"state"`
+		} `json:"node"`
+		Nodes struct {
+			Allocated int      `json:"allocated"`
+			Idle      int      `json:"idle"`
+			Other     int      `json:"other"`
+			Total     int      `json:"total"`
+			Nodes     []string `json:"nodes"`
+		} `json:"nodes"`
+		Cpus struct {
+			Allocated int `json:"allocated"`
+			Idle      int `json:"idle"`
+			Other     int `json:"other"`
+			Total     int `json:"total"`
+		}
+		Memory struct {
+			Minimum   int `json:"minimum"`
+			Maximum   int `json:"maximum"`
+			Allocated int `json:"allocated"`
+			Free      struct {
+				Minimum struct {
+					Set    bool `json:"set"`
+					Number int  `json:"number"`
+				} `json:"minimum"`
+				Maximum struct {
+					Set    bool `json:"set"`
+					Number int  `json:"number"`
+				} `json:"maximum"`
+			} `json:"free"`
+		}
+		Partition struct {
+			Name      string `json:"name"`
+			Alternate string `json:"alternate"`
+		} `json:"partition"`
+	} `json:"sinfo"`
+}
+
+type DataParserJsonFetcher struct {
+	scraper      SlurmByteScraper
+	errorCounter prometheus.Counter
+	duration     time.Duration
+	cache        *AtomicThrottledCache[NodeMetric]
+}
+
+func (dpj *DataParserJsonFetcher) fetch() ([]NodeMetric, error) {
+	squeue := new(sinfoDataParserResponse)
+	cliJson, err := dpj.scraper.FetchRawBytes()
+	if err != nil {
+		dpj.errorCounter.Inc()
+		return nil, err
+	}
+	if err := json.Unmarshal(cliJson, squeue); err != nil {
+		dpj.errorCounter.Inc()
+		return nil, err
+	}
+	nodeMetrics := make([]NodeMetric, 0)
+	for _, entry := range squeue.Sinfo {
+		nodes := entry.Nodes
+		// validate single node parse
+		if nodes.Total != 1 {
+			dpj.errorCounter.Inc()
+			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
+		}
+		freeMemSet := entry.Memory.Free.Maximum.Set && entry.Memory.Free.Minimum.Set
+		if freeMemSet && entry.Memory.Free.Minimum.Number != entry.Memory.Free.Maximum.Number {
+			dpj.errorCounter.Inc()
+			slog.Error("unable to scrape free mem set")
+		}
+		if entry.Memory.Minimum != entry.Memory.Maximum {
+			dpj.errorCounter.Inc()
+			return nil, fmt.Errorf("must contain only 1 node per entry, please use the -N option exp. `sinfo -N --json`")
+		}
+		metric := NodeMetric{
+			Hostname:   nodes.Nodes[0],
+			Cpus:       float64(entry.Cpus.Total),
+			RealMemory: float64(entry.Memory.Maximum),
+			FreeMemory: float64(entry.Memory.Free.Maximum.Number),
+			State:      strings.Join(entry.Node.State, "&"),
+		}
+		if !slices.Contains(metric.Partitions, entry.Partition.Name) {
+			metric.Partitions = append(metric.Partitions, entry.Partition.Name)
+		}
+		if entry.Partition.Alternate != "" && !slices.Contains(metric.Partitions, entry.Partition.Alternate) {
+			metric.Partitions = append(metric.Partitions, entry.Partition.Alternate)
+		}
+		nodeMetrics = append(nodeMetrics, metric)
+	}
+	return nodeMetrics, nil
+}
+
+func (dpj *DataParserJsonFetcher) FetchMetrics() ([]NodeMetric, error) {
+	t := time.Now()
+	metrics, err := dpj.cache.FetchOrThrottle(dpj.fetch)
+	dpj.duration = time.Since(t)
+	return metrics, err
+}
+
+func (dpj *DataParserJsonFetcher) ScrapeDuration() time.Duration {
+	return dpj.duration
+}
+
+func (dpj *DataParserJsonFetcher) ScrapeError() prometheus.Counter {
+	return dpj.errorCounter
+}
+
 type sinfoResponse struct {
 	Meta struct {
 		SlurmVersion struct {
