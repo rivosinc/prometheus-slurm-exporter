@@ -10,7 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 var MockNodeInfoScraper = &MockScraper{fixture: "fixtures/sinfo_out.json"}

@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/exp/slices"
 	"log/slog"
+	"slices"
 )
 
 type NodeMetric struct {
