@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 FROM --platform=linux/amd64 ubuntu:20.04
 SHELL ["/bin/bash", "-c"]
-ARG SLURM_VERSION="24-05-5-1"
+ARG SLURM_VERSION="23-02-5-1"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIRBARY_PATH=/usr/lib64/lib/slurm
 ENV PATH=/usr/lib64/bin:/usr/lib64/sbin:/root/.cargo/bin:/usr/local/go/bin:$PATH
