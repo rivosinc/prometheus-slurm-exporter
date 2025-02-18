@@ -1,0 +1,291 @@
+{
+  "statistics": {
+    "parts_packed": 1,
+    "req_time": {
+      "set": true,
+      "infinite": false,
+      "number": 1739832148
+    },
+    "req_time_start": {
+      "set": true,
+      "infinite": false,
+      "number": 1739822537
+    },
+    "server_thread_count": 2,
+    "agent_queue_size": 0,
+    "agent_count": 0,
+    "agent_thread_count": 0,
+    "dbd_agent_queue_size": 0,
+    "gettimeofday_latency": 33,
+    "schedule_cycle_max": 1666,
+    "schedule_cycle_last": 110,
+    "schedule_cycle_sum": 10791,
+    "schedule_cycle_total": 162,
+    "schedule_cycle_mean": 66,
+    "schedule_cycle_mean_depth": 0,
+    "schedule_cycle_per_minute": 1,
+    "schedule_cycle_depth": 0,
+    "schedule_exit": {
+      "end_job_queue": 162,
+      "default_queue_depth": 0,
+      "max_job_start": 0,
+      "max_rpc_cnt": 0,
+      "max_sched_time": 0,
+      "licenses": 0
+    },
+    "schedule_queue_length": 0,
+    "jobs_submitted": 1,
+    "jobs_started": 1,
+    "jobs_completed": 1,
+    "jobs_canceled": 0,
+    "jobs_failed": 0,
+    "jobs_pending": 0,
+    "jobs_running": 0,
+    "job_states_ts": {
+      "set": true,
+      "infinite": false,
+      "number": 1739832137
+    },
+    "bf_backfilled_jobs": 0,
+    "bf_last_backfilled_jobs": 0,
+    "bf_backfilled_het_jobs": 0,
+    "bf_cycle_counter": 0,
+    "bf_cycle_mean": 0,
+    "bf_depth_mean": 0,
+    "bf_depth_mean_try": 0,
+    "bf_cycle_sum": 0,
+    "bf_cycle_last": 0,
+    "bf_cycle_max": 0,
+    "bf_exit": {
+      "end_job_queue": 0,
+      "bf_max_job_start": 0,
+      "bf_max_job_test": 0,
+      "bf_max_time": 0,
+      "bf_node_space_size": 0,
+      "state_changed": 0
+    },
+    "bf_last_depth": 0,
+    "bf_last_depth_try": 0,
+    "bf_depth_sum": 0,
+    "bf_depth_try_sum": 0,
+    "bf_queue_len": 0,
+    "bf_queue_len_mean": 0,
+    "bf_queue_len_sum": 0,
+    "bf_table_size": 0,
+    "bf_table_size_sum": 0,
+    "bf_table_size_mean": 0,
+    "bf_when_last_cycle": {
+      "set": true,
+      "infinite": false,
+      "number": 0
+    },
+    "bf_active": false,
+    "rpcs_by_message_type": [
+      {
+        "type_id": 1002,
+        "message_type": "MESSAGE_NODE_REGISTRATION_STATUS",
+        "count": 6,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 4969,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 828
+        }
+      },
+      {
+        "type_id": 4001,
+        "message_type": "REQUEST_RESOURCE_ALLOCATION",
+        "count": 1,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 17873,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 17873
+        }
+      },
+      {
+        "type_id": 4019,
+        "message_type": "REQUEST_JOB_READY",
+        "count": 1,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 332,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 332
+        }
+      },
+      {
+        "type_id": 5001,
+        "message_type": "REQUEST_JOB_STEP_CREATE",
+        "count": 1,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 6331,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 6331
+        }
+      },
+      {
+        "type_id": 5017,
+        "message_type": "REQUEST_COMPLETE_JOB_ALLOCATION",
+        "count": 1,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 2113,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 2113
+        }
+      },
+      {
+        "type_id": 5016,
+        "message_type": "REQUEST_STEP_COMPLETE",
+        "count": 1,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 739,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 739
+        }
+      },
+      {
+        "type_id": 6012,
+        "message_type": "MESSAGE_EPILOG_COMPLETE",
+        "count": 1,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 635,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 635
+        }
+      },
+      {
+        "type_id": 2035,
+        "message_type": "REQUEST_STATS_INFO",
+        "count": 5,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 1951,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 390
+        }
+      },
+      {
+        "type_id": 2009,
+        "message_type": "REQUEST_PARTITION_INFO",
+        "count": 6,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 1391,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 231
+        }
+      },
+      {
+        "type_id": 2003,
+        "message_type": "REQUEST_JOB_INFO",
+        "count": 3,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 2975,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 991
+        }
+      },
+      {
+        "type_id": 2007,
+        "message_type": "REQUEST_NODE_INFO",
+        "count": 3,
+        "queued": 0,
+        "dropped": 0,
+        "cycle_last": 0,
+        "cycle_max": 0,
+        "total_time": 1051,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 350
+        }
+      }
+    ],
+    "rpcs_by_user": [
+      {
+        "user_id": 0,
+        "user": "root",
+        "count": 29,
+        "total_time": 40360,
+        "average_time": {
+          "set": true,
+          "infinite": false,
+          "number": 1391
+        }
+      }
+    ],
+    "pending_rpcs": [],
+    "pending_rpcs_by_hostlist": []
+  },
+  "meta": {
+    "plugin": {
+      "type": "",
+      "name": "",
+      "data_parser": "data_parser/v0.0.41",
+      "accounting_storage": ""
+    },
+    "client": {
+      "source": "/dev/pts/0",
+      "user": "root",
+      "group": "root"
+    },
+    "command": ["sdiag"],
+    "slurm": {
+      "version": {
+        "major": "24",
+        "micro": "5",
+        "minor": "05"
+      },
+      "release": "24.05.5",
+      "cluster": "default-cluster"
+    }
+  },
+  "errors": [],
+  "warnings": []
+}

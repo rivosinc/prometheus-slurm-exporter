@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 FROM --platform=linux/amd64 ubuntu:20.04
 SHELL ["/bin/bash", "-c"]
-ARG SLURM_VERSION="23-02-5-1"
+ARG SLURM_VERSION="24-05-5-1"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIRBARY_PATH=/usr/lib64/lib/slurm
 ENV PATH=/usr/lib64/bin:/usr/lib64/sbin:/root/.cargo/bin:/usr/local/go/bin:$PATH
@@ -40,9 +40,9 @@ RUN mkdir -p /etc/slurm && \
 # install go deps
 RUN arch=`uname -m` && \
     if [ $arch == "aarch64" ]; then arch="arm64"; elif [ "$arch" == "x86_64" ]; then arch="amd64" ;fi && \
-    wget "https://go.dev/dl/go1.20.12.linux-${arch}.tar.gz" && \
-    tar -C /usr/local -xzf "go1.20.12.linux-${arch}.tar.gz" && \
-    rm "go1.20.12.linux-${arch}.tar.gz" && \
+    wget "https://go.dev/dl/go1.23.1.linux-${arch}.tar.gz" && \
+    tar -C /usr/local -xzf "go1.23.1.linux-${arch}.tar.gz" && \
+    rm "go1.23.1.linux-${arch}.tar.gz" && \
     mkdir /src
 
 # default wrapper deps for e2e tests

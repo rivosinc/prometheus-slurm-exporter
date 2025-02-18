@@ -8,24 +8,58 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"log/slog"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
+type IntFromOptionalStruct int
+
+func (ffoo *IntFromOptionalStruct) UnmarshalJSON(data []byte) error {
+	// in between certain versions of data_parser, certain integer fields
+	// can be given in actual int or in the form
+	// {"average_time": {"set": true, "number": 1234, "infinite": false}}
+	// create type to coerce to int
+	var nativeInt int
+	if err := json.Unmarshal(data, &nativeInt); err == nil {
+		*ffoo = IntFromOptionalStruct(nativeInt)
+		return nil
+	}
+	var numStruct struct {
+		Set      bool `json:"set"`
+		Infinite bool `json:"infinite"`
+		Number   int  `json:"number"`
+	}
+	err := json.Unmarshal(data, &numStruct)
+	if err != nil {
+		return err
+	}
+	if !numStruct.Set {
+		*ffoo = IntFromOptionalStruct(-1)
+		return fmt.Errorf("avg num not set")
+	}
+	if numStruct.Infinite {
+		*ffoo = IntFromOptionalStruct(-1)
+		return fmt.Errorf("num set to infinite")
+	}
+	*ffoo = IntFromOptionalStruct(numStruct.Number)
+	return nil
+}
+
 type UserRpcInfo struct {
-	User      string `json:"user"`
-	UserId    int    `json:"user_id"`
-	Count     int    `json:"count"`
-	AvgTime   int    `json:"average_time"`
-	TotalTime int    `json:"total_time"`
+	User      string                `json:"user"`
+	UserId    int                   `json:"user_id"`
+	Count     int                   `json:"count"`
+	AvgTime   IntFromOptionalStruct `json:"average_time"`
+	TotalTime int                   `json:"total_time"`
 }
 
 type MessageRpcInfo struct {
-	MessageType string `json:"message_type"`
-	TypeId      int    `json:"type_id"`
-	Count       int    `json:"count"`
-	AvgTime     int    `json:"average_time"`
-	TotalTime   int    `json:"total_time"`
+	MessageType string                `json:"message_type"`
+	TypeId      int                   `json:"type_id"`
+	Count       int                   `json:"count"`
+	AvgTime     IntFromOptionalStruct `json:"average_time"`
+	TotalTime   int                   `json:"total_time"`
 }
 
 type DiagMetric struct {
@@ -41,20 +75,27 @@ type DiagMetric struct {
 }
 
 type SdiagResponse struct {
+	// Response coercible between slurm 23 and 24 data versions
 	Meta struct {
-		SlurmVersion struct {
-			Version struct {
-				Major int `json:"major"`
-				Micro int `json:"micro"`
-				Minor int `json:"minor"`
-			} `json:"version"`
-			Release string `json:"release"`
-		} `json:"Slurm"`
-		Plugins map[string]string
+		SlurmVersion SlurmVersion      `json:"Slurm"`
+		Plugins      map[string]string `json:"plugins"`
+		Plugin       map[string]string `json:"plugin"`
 	} `json:"meta"`
 	Statistics DiagMetric
 	Errors     []string `json:"errors"`
 	Warnings   []string `json:"warnings"`
+}
+
+func (sr *SdiagResponse) IsDataParserPlugin() bool {
+	if sr.Meta.Plugins != nil {
+		_, ok := sr.Meta.Plugins["data_parser"]
+		return ok
+	}
+	if sr.Meta.Plugin != nil {
+		_, ok := sr.Meta.Plugin["data_parser"]
+		return ok
+	}
+	return false
 }
 
 func parseDiagMetrics(sdiagResp []byte) (*SdiagResponse, error) {
@@ -138,14 +179,14 @@ func (sc *DiagnosticsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(sc.diagScrapeDuration, prometheus.GaugeValue, float64(sc.fetcher.Duration().Abs().Milliseconds()))
 	sdiagResponse, err := parseDiagMetrics(sdiag)
-	if _, ok := sdiagResponse.Meta.Plugins["data_parser"]; !ok {
-		sc.diagScrapeError.Inc()
-		slog.Error("only the data_parser plugin is supported")
-		return
-	}
 	if err != nil {
 		sc.diagScrapeError.Inc()
 		slog.Error(fmt.Sprintf("diag parse error: %q", err))
+		return
+	}
+	if !sdiagResponse.IsDataParserPlugin() {
+		sc.diagScrapeError.Inc()
+		slog.Error("only the data_parser plugin is supported")
 		return
 	}
 	emitNonZero := func(desc *prometheus.Desc, val float64, label string) {
