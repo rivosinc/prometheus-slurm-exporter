@@ -40,9 +40,9 @@ RUN mkdir -p /etc/slurm && \
 # install go deps
 RUN arch=`uname -m` && \
     if [ $arch == "aarch64" ]; then arch="arm64"; elif [ "$arch" == "x86_64" ]; then arch="amd64" ;fi && \
-    wget "https://go.dev/dl/go1.20.12.linux-${arch}.tar.gz" && \
-    tar -C /usr/local -xzf "go1.20.12.linux-${arch}.tar.gz" && \
-    rm "go1.20.12.linux-${arch}.tar.gz" && \
+    wget "https://go.dev/dl/go1.23.1.linux-${arch}.tar.gz" && \
+    tar -C /usr/local -xzf "go1.23.1.linux-${arch}.tar.gz" && \
+    rm "go1.23.1.linux-${arch}.tar.gz" && \
     mkdir /src
 
 # default wrapper deps for e2e tests

@@ -6,6 +6,7 @@ package exporter
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,12 +17,42 @@ import (
 	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"log/slog"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type SlurmPrimitiveMetric interface {
 	NodeMetric | JobMetric | DiagMetric | LicenseMetric | AccountLimitMetric
+}
+
+type CoercedInt int
+
+func (ci *CoercedInt) UnmarshalJSON(data []byte) error {
+	var nativeInt int
+	if err := json.Unmarshal(data, &nativeInt); err == nil {
+		*ci = CoercedInt(nativeInt)
+		return nil
+	}
+	var stringInt string
+	if err := json.Unmarshal(data, &stringInt); err != nil {
+		return err
+	}
+	convertedInt, err := strconv.ParseInt(stringInt, 10, 64)
+	if err != nil {
+		return err
+	}
+	*ci = CoercedInt(convertedInt)
+	return nil
+}
+
+type SlurmVersion struct {
+	Version struct {
+		Major CoercedInt `json:"major"`
+		Micro CoercedInt `json:"micro"`
+		Minor CoercedInt `json:"minor"`
+	} `json:"version"`
+	Release string `json:"release"`
 }
 
 // interface for getting data from slurm
