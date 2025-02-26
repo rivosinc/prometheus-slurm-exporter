@@ -25,15 +25,8 @@ type LicenseMetric struct {
 
 type scontrolLicResponse struct {
 	Meta struct {
-		SlurmVersion struct {
-			Version struct {
-				Major int `json:"major"`
-				Micro int `json:"micro"`
-				Minor int `json:"minor"`
-			} `json:"version"`
-			Release string `json:"release"`
-		} `json:"Slurm"`
-	} `json:"meta"`
+		SlurmVersion SlurmVersion `json:"meta"`
+	}
 	Licenses []LicenseMetric `json:"licenses"`
 }
 
