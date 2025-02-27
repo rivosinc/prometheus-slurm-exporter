@@ -1,6 +1,6 @@
 module github.com/rivosinc/prometheus-slurm-exporter
 
-go 1.23
+go 1.23.1
 
 require (
 	github.com/prometheus/client_golang v1.20.5
