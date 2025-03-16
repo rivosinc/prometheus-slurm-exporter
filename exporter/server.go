@@ -19,15 +19,16 @@ import (
 )
 
 type CliOpts struct {
-	sinfo        []string
-	squeue       []string
-	sacctmgr     []string
-	lic          []string
-	sdiag        []string
-	licEnabled   bool
-	diagsEnabled bool
-	fallback     bool
-	sacctEnabled bool
+	sinfo         []string
+	squeue        []string
+	sacctmgr      []string
+	lic           []string
+	sdiag         []string
+	licEnabled    bool
+	diagsEnabled  bool
+	fallback      bool
+	sacctEnabled  bool
+	excludeFilter *regexp.Regexp
 }
 
 type TraceConfig struct {
@@ -38,13 +39,12 @@ type TraceConfig struct {
 }
 
 type Config struct {
-	TraceConf                 *TraceConfig
-	PollLimit                 float64
-	LogLevel                  slog.Level
-	ListenAddress             string
-	MetricsPath               string
-	cliOpts                   *CliOpts
-	MetricsExcludeFilterRegex *regexp.Regexp
+	TraceConf     *TraceConfig
+	PollLimit     float64
+	LogLevel      slog.Level
+	ListenAddress string
+	MetricsPath   string
+	cliOpts       *CliOpts
 }
 
 type CliFlags struct {
@@ -76,34 +76,34 @@ var logLevelMap = map[string]slog.Level{
 
 func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	// defaults
+	compiledExcludeRegex, err := regexp.Compile(cliFlags.MetricsExcludeFilterRegex)
+	if err != nil {
+		return nil, err
+	}
 	cliOpts := CliOpts{
-		squeue:       []string{"squeue", "--json"},
-		sinfo:        []string{"sinfo", "--json"},
-		lic:          []string{"scontrol", "show", "lic", "--json"},
-		sdiag:        []string{"sdiag", "--json"},
-		sacctmgr:     []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
-		licEnabled:   cliFlags.SlurmLicEnabled,
-		diagsEnabled: cliFlags.SlurmDiagEnabled,
-		fallback:     cliFlags.SlurmCliFallback,
-		sacctEnabled: cliFlags.SacctEnabled,
+		squeue:        []string{"squeue", "--json"},
+		sinfo:         []string{"sinfo", "--json"},
+		lic:           []string{"scontrol", "show", "lic", "--json"},
+		sdiag:         []string{"sdiag", "--json"},
+		sacctmgr:      []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
+		licEnabled:    cliFlags.SlurmLicEnabled,
+		diagsEnabled:  cliFlags.SlurmDiagEnabled,
+		fallback:      cliFlags.SlurmCliFallback,
+		sacctEnabled:  cliFlags.SacctEnabled,
+		excludeFilter: compiledExcludeRegex,
 	}
 	traceConf := TraceConfig{
 		enabled: cliFlags.TraceEnabled,
 		path:    "/trace",
 		rate:    10,
 	}
-	compiledExcludeRegex, err := regexp.Compile(cliFlags.MetricsExcludeFilterRegex)
-	if err != nil {
-		return nil, err
-	}
 	config := &Config{
-		PollLimit:                 10,
-		LogLevel:                  slog.LevelInfo,
-		ListenAddress:             ":9092",
-		MetricsPath:               "/metrics",
-		TraceConf:                 &traceConf,
-		cliOpts:                   &cliOpts,
-		MetricsExcludeFilterRegex: compiledExcludeRegex,
+		PollLimit:     10,
+		LogLevel:      slog.LevelInfo,
+		ListenAddress: ":9092",
+		MetricsPath:   "/metrics",
+		TraceConf:     &traceConf,
+		cliOpts:       &cliOpts,
 	}
 	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
 		if limit, err := strconv.ParseFloat(lm, 64); err != nil {
@@ -178,6 +178,28 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	return config, nil
 }
 
+func NewPromHTTPServer(metricsExcludeFilter *regexp.Regexp) http.Handler {
+	// Create a handler that filters metrics based on the exclude regex pattern
+	if metricsExcludeFilter == nil || metricsExcludeFilter.String() == "" {
+		return promhttp.Handler()
+	}
+	slog.Info("filtering metrics based on regex: " + metricsExcludeFilter.String())
+	filteredGatherer := prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+		allMetrics, err := prometheus.DefaultGatherer.Gather()
+		if err != nil {
+			return nil, err
+		}
+		var filteredMetrics []*dto.MetricFamily
+		for _, mf := range allMetrics {
+			if !metricsExcludeFilter.MatchString(mf.GetName()) {
+				filteredMetrics = append(filteredMetrics, mf)
+			}
+		}
+		return filteredMetrics, nil
+	})
+	return promhttp.HandlerFor(filteredGatherer, promhttp.HandlerOpts{})
+}
+
 func InitPromServer(config *Config) http.Handler {
 	textHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
@@ -204,23 +226,5 @@ func InitPromServer(config *Config) http.Handler {
 		prometheus.MustRegister(NewLimitCollector(config))
 	}
 
-	// Create a handler that filters metrics based on the exclude regex pattern
-	if config.MetricsExcludeFilterRegex == nil || config.MetricsExcludeFilterRegex.String() == "" {
-		return promhttp.Handler()
-	}
-	slog.Info("filtering metrics based on regex: " + config.MetricsExcludeFilterRegex.String())
-	filteredGatherer := prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
-		allMetrics, err := prometheus.DefaultGatherer.Gather()
-		if err != nil {
-			return nil, err
-		}
-		var filteredMetrics []*dto.MetricFamily
-		for _, mf := range allMetrics {
-			if !config.MetricsExcludeFilterRegex.MatchString(mf.GetName()) {
-				filteredMetrics = append(filteredMetrics, mf)
-			}
-		}
-		return filteredMetrics, nil
-	})
-	return promhttp.HandlerFor(filteredGatherer, promhttp.HandlerOpts{})
+	return NewPromHTTPServer(cliOpts.excludeFilter)
 }

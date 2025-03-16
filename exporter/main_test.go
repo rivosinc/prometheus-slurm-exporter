@@ -32,13 +32,13 @@ func TestMain(m *testing.M) {
 func TestPromServer(t *testing.T) {
 	assert := assert.New(t)
 	cliOpts := &CliOpts{
-		sinfo:  []string{"cat", "fixtures/sinfo_out.json"},
-		squeue: []string{"cat", "fixtures/squeue_out.json"},
+		sinfo:         []string{"cat", "fixtures/sinfo_out.json"},
+		squeue:        []string{"cat", "fixtures/squeue_out.json"},
+		excludeFilter: regexp.MustCompile(""),
 	}
 	config := &Config{
-		PollLimit:                 10,
-		cliOpts:                   cliOpts,
-		MetricsExcludeFilterRegex: regexp.MustCompile(""), // default: accept all metrics
+		PollLimit: 10,
+		cliOpts:   cliOpts,
 		TraceConf: &TraceConfig{
 			enabled: false,
 			sharedFetcher: &JobJsonFetcher{
