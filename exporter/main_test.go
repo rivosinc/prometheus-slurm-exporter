@@ -9,11 +9,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"testing"
+
+	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
-	"log/slog"
 )
 
 // global test setups
@@ -33,10 +35,10 @@ func TestPromServer(t *testing.T) {
 		sinfo:  []string{"cat", "fixtures/sinfo_out.json"},
 		squeue: []string{"cat", "fixtures/squeue_out.json"},
 	}
-
 	config := &Config{
-		PollLimit: 10,
-		cliOpts:   cliOpts,
+		PollLimit:                 10,
+		cliOpts:                   cliOpts,
+		MetricsExcludeFilterRegex: regexp.MustCompile(""), // default: accept all metrics
 		TraceConf: &TraceConfig{
 			enabled: false,
 			sharedFetcher: &JobJsonFetcher{

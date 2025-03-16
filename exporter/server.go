@@ -44,7 +44,7 @@ type Config struct {
 	ListenAddress             string
 	MetricsPath               string
 	cliOpts                   *CliOpts
-	MetricsExcludeFilterRegex string
+	MetricsExcludeFilterRegex *regexp.Regexp
 }
 
 type CliFlags struct {
@@ -92,6 +92,10 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		path:    "/trace",
 		rate:    10,
 	}
+	compiledExcludeRegex, err := regexp.Compile(cliFlags.MetricsExcludeFilterRegex)
+	if err != nil {
+		return nil, err
+	}
 	config := &Config{
 		PollLimit:                 10,
 		LogLevel:                  slog.LevelInfo,
@@ -99,7 +103,7 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		MetricsPath:               "/metrics",
 		TraceConf:                 &traceConf,
 		cliOpts:                   &cliOpts,
-		MetricsExcludeFilterRegex: cliFlags.MetricsExcludeFilterRegex,
+		MetricsExcludeFilterRegex: compiledExcludeRegex,
 	}
 	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
 		if limit, err := strconv.ParseFloat(lm, 64); err != nil {
@@ -201,32 +205,22 @@ func InitPromServer(config *Config) http.Handler {
 	}
 
 	// Create a handler that filters metrics based on the exclude regex pattern
-	var handler http.Handler
-	if config.MetricsExcludeFilterRegex != "" {
-		regex, err := regexp.Compile(config.MetricsExcludeFilterRegex)
-		if err != nil {
-			slog.Error("invalid metrics filter regex", "error", err)
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, "Invalid metrics filter regex", http.StatusInternalServerError)
-			})
-		}
-		filteredGatherer := prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
-			allMetrics, err := prometheus.DefaultGatherer.Gather()
-			if err != nil {
-				return nil, err
-			}
-			var filteredMetrics []*dto.MetricFamily
-			for _, mf := range allMetrics {
-				if !regex.MatchString(mf.GetName()) {
-					filteredMetrics = append(filteredMetrics, mf)
-				}
-			}
-			return filteredMetrics, nil
-		})
-		handler = promhttp.HandlerFor(filteredGatherer, promhttp.HandlerOpts{})
-	} else {
-		handler = promhttp.Handler()
+	if config.MetricsExcludeFilterRegex == nil || config.MetricsExcludeFilterRegex.String() == "" {
+		return promhttp.Handler()
 	}
-
-	return handler
+	slog.Info("filtering metrics based on regex: " + config.MetricsExcludeFilterRegex.String())
+	filteredGatherer := prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+		allMetrics, err := prometheus.DefaultGatherer.Gather()
+		if err != nil {
+			return nil, err
+		}
+		var filteredMetrics []*dto.MetricFamily
+		for _, mf := range allMetrics {
+			if !config.MetricsExcludeFilterRegex.MatchString(mf.GetName()) {
+				filteredMetrics = append(filteredMetrics, mf)
+			}
+		}
+		return filteredMetrics, nil
+	})
+	return promhttp.HandlerFor(filteredGatherer, promhttp.HandlerOpts{})
 }
