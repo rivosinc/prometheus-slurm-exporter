@@ -7,12 +7,15 @@ package exporter
 import (
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
+	"log/slog"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"log/slog"
+	dto "github.com/prometheus/client_model/go"
 )
 
 type CliOpts struct {
@@ -35,31 +38,33 @@ type TraceConfig struct {
 }
 
 type Config struct {
-	TraceConf     *TraceConfig
-	PollLimit     float64
-	LogLevel      slog.Level
-	ListenAddress string
-	MetricsPath   string
-	cliOpts       *CliOpts
+	TraceConf                 *TraceConfig
+	PollLimit                 float64
+	LogLevel                  slog.Level
+	ListenAddress             string
+	MetricsPath               string
+	cliOpts                   *CliOpts
+	MetricsExcludeFilterRegex string
 }
 
 type CliFlags struct {
-	SlurmLicEnabled      bool
-	SlurmDiagEnabled     bool
-	SlurmCliFallback     bool
-	TraceEnabled         bool
-	SacctEnabled         bool
-	SlurmPollLimit       float64
-	LogLevel             string
-	ListenAddress        string
-	MetricsPath          string
-	SlurmSqueueOverride  string
-	SlurmSinfoOverride   string
-	SlurmDiagOverride    string
-	SlurmAcctOverride    string
-	TraceRate            uint64
-	TracePath            string
-	SlurmLicenseOverride string
+	SlurmLicEnabled           bool
+	SlurmDiagEnabled          bool
+	SlurmCliFallback          bool
+	TraceEnabled              bool
+	SacctEnabled              bool
+	SlurmPollLimit            float64
+	LogLevel                  string
+	ListenAddress             string
+	MetricsPath               string
+	SlurmSqueueOverride       string
+	SlurmSinfoOverride        string
+	SlurmDiagOverride         string
+	SlurmAcctOverride         string
+	TraceRate                 uint64
+	TracePath                 string
+	SlurmLicenseOverride      string
+	MetricsExcludeFilterRegex string
 }
 
 var logLevelMap = map[string]slog.Level{
@@ -88,12 +93,13 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		rate:    10,
 	}
 	config := &Config{
-		PollLimit:     10,
-		LogLevel:      slog.LevelInfo,
-		ListenAddress: ":9092",
-		MetricsPath:   "/metrics",
-		TraceConf:     &traceConf,
-		cliOpts:       &cliOpts,
+		PollLimit:                 10,
+		LogLevel:                  slog.LevelInfo,
+		ListenAddress:             ":9092",
+		MetricsPath:               "/metrics",
+		TraceConf:                 &traceConf,
+		cliOpts:                   &cliOpts,
+		MetricsExcludeFilterRegex: cliFlags.MetricsExcludeFilterRegex,
 	}
 	if lm, ok := os.LookupEnv("POLL_LIMIT"); ok {
 		if limit, err := strconv.ParseFloat(lm, 64); err != nil {
@@ -193,5 +199,34 @@ func InitPromServer(config *Config) http.Handler {
 		slog.Info("account limit collection enabled")
 		prometheus.MustRegister(NewLimitCollector(config))
 	}
-	return promhttp.Handler()
+
+	// Create a handler that filters metrics based on the exclude regex pattern
+	var handler http.Handler
+	if config.MetricsExcludeFilterRegex != "" {
+		regex, err := regexp.Compile(config.MetricsExcludeFilterRegex)
+		if err != nil {
+			slog.Error("invalid metrics filter regex", "error", err)
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "Invalid metrics filter regex", http.StatusInternalServerError)
+			})
+		}
+		filteredGatherer := prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+			allMetrics, err := prometheus.DefaultGatherer.Gather()
+			if err != nil {
+				return nil, err
+			}
+			var filteredMetrics []*dto.MetricFamily
+			for _, mf := range allMetrics {
+				if !regex.MatchString(mf.GetName()) {
+					filteredMetrics = append(filteredMetrics, mf)
+				}
+			}
+			return filteredMetrics, nil
+		})
+		handler = promhttp.HandlerFor(filteredGatherer, promhttp.HandlerOpts{})
+	} else {
+		handler = promhttp.Handler()
+	}
+
+	return handler
 }

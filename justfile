@@ -41,6 +41,7 @@ devel: build
   -slurm.diag-cli "cat exporter/fixtures/sdiag.json" \
   -slurm.lic-cli "cat exporter/fixtures/license_out.json" \
   -slurm.sacctmgr-cli "cat exporter/fixtures/sacctmgr.txt"
+  # -metrics.filter-regex "slurm_.*"
 
 prod: build
   {{build_dir}}/slurm_exporter -slurm.cli-fallback -web.listen-address :9093
