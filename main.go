@@ -32,7 +32,7 @@ var (
 	slurmDiagEnabled     = flag.Bool("slurm.collect-diags", false, "Collect daemon diagnostics stats from slurm")
 	slurmSacctEnabled    = flag.Bool("slurm.collect-limits", false, "Collect account and user limits from slurm")
 	slurmCliFallback     = flag.Bool("slurm.cli-fallback", true, "drop the --json arg and revert back to standard squeue for performance reasons")
-	metricsFilterRegex   = flag.String("slurm.exclude-metrics", "", "Regex pattern for metrics to exclude")
+	metricsFilterRegex   = flag.String("metrics.exclude", "", "Regex pattern for metrics to exclude")
 )
 
 func main() {
