@@ -32,27 +32,29 @@ var (
 	slurmDiagEnabled     = flag.Bool("slurm.collect-diags", false, "Collect daemon diagnostics stats from slurm")
 	slurmSacctEnabled    = flag.Bool("slurm.collect-limits", false, "Collect account and user limits from slurm")
 	slurmCliFallback     = flag.Bool("slurm.cli-fallback", true, "drop the --json arg and revert back to standard squeue for performance reasons")
+	metricsFilterRegex   = flag.String("metrics.exclude", "", "Regex pattern for metrics to exclude")
 )
 
 func main() {
 	flag.Parse()
 	cliFlags := exporter.CliFlags{
-		ListenAddress:        *listenAddress,
-		MetricsPath:          *metricsPath,
-		LogLevel:             *logLevel,
-		TraceEnabled:         *traceEnabled,
-		TracePath:            *tracePath,
-		SlurmPollLimit:       *slurmPollLimit,
-		SlurmSinfoOverride:   *slurmSinfoOverride,
-		SlurmSqueueOverride:  *slurmSqueueOverride,
-		SlurmLicenseOverride: *slurmLicenseOverride,
-		SlurmDiagOverride:    *slurmDiagOverride,
-		SlurmLicEnabled:      *slurmLicEnabled,
-		SlurmDiagEnabled:     *slurmDiagEnabled,
-		SacctEnabled:         *slurmSacctEnabled,
-		SlurmCliFallback:     *slurmCliFallback,
-		TraceRate:            *traceRate,
-		SlurmAcctOverride:    *slurmSaactOverride,
+		ListenAddress:             *listenAddress,
+		MetricsPath:               *metricsPath,
+		LogLevel:                  *logLevel,
+		TraceEnabled:              *traceEnabled,
+		TracePath:                 *tracePath,
+		SlurmPollLimit:            *slurmPollLimit,
+		SlurmSinfoOverride:        *slurmSinfoOverride,
+		SlurmSqueueOverride:       *slurmSqueueOverride,
+		SlurmLicenseOverride:      *slurmLicenseOverride,
+		SlurmDiagOverride:         *slurmDiagOverride,
+		SlurmLicEnabled:           *slurmLicEnabled,
+		SlurmDiagEnabled:          *slurmDiagEnabled,
+		SacctEnabled:              *slurmSacctEnabled,
+		SlurmCliFallback:          *slurmCliFallback,
+		TraceRate:                 *traceRate,
+		SlurmAcctOverride:         *slurmSaactOverride,
+		MetricsExcludeFilterRegex: *metricsFilterRegex,
 	}
 	config, err := exporter.NewConfig(&cliFlags)
 	if err != nil {

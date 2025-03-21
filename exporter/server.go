@@ -7,24 +7,28 @@ package exporter
 import (
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
+	"log/slog"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"log/slog"
+	dto "github.com/prometheus/client_model/go"
 )
 
 type CliOpts struct {
-	sinfo        []string
-	squeue       []string
-	sacctmgr     []string
-	lic          []string
-	sdiag        []string
-	licEnabled   bool
-	diagsEnabled bool
-	fallback     bool
-	sacctEnabled bool
+	sinfo         []string
+	squeue        []string
+	sacctmgr      []string
+	lic           []string
+	sdiag         []string
+	licEnabled    bool
+	diagsEnabled  bool
+	fallback      bool
+	sacctEnabled  bool
+	excludeFilter *regexp.Regexp
 }
 
 type TraceConfig struct {
@@ -44,22 +48,23 @@ type Config struct {
 }
 
 type CliFlags struct {
-	SlurmLicEnabled      bool
-	SlurmDiagEnabled     bool
-	SlurmCliFallback     bool
-	TraceEnabled         bool
-	SacctEnabled         bool
-	SlurmPollLimit       float64
-	LogLevel             string
-	ListenAddress        string
-	MetricsPath          string
-	SlurmSqueueOverride  string
-	SlurmSinfoOverride   string
-	SlurmDiagOverride    string
-	SlurmAcctOverride    string
-	TraceRate            uint64
-	TracePath            string
-	SlurmLicenseOverride string
+	SlurmLicEnabled           bool
+	SlurmDiagEnabled          bool
+	SlurmCliFallback          bool
+	TraceEnabled              bool
+	SacctEnabled              bool
+	SlurmPollLimit            float64
+	LogLevel                  string
+	ListenAddress             string
+	MetricsPath               string
+	SlurmSqueueOverride       string
+	SlurmSinfoOverride        string
+	SlurmDiagOverride         string
+	SlurmAcctOverride         string
+	TraceRate                 uint64
+	TracePath                 string
+	SlurmLicenseOverride      string
+	MetricsExcludeFilterRegex string
 }
 
 var logLevelMap = map[string]slog.Level{
@@ -71,16 +76,21 @@ var logLevelMap = map[string]slog.Level{
 
 func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	// defaults
+	compiledExcludeRegex, err := regexp.Compile(cliFlags.MetricsExcludeFilterRegex)
+	if err != nil {
+		return nil, err
+	}
 	cliOpts := CliOpts{
-		squeue:       []string{"squeue", "--json"},
-		sinfo:        []string{"sinfo", "--json"},
-		lic:          []string{"scontrol", "show", "lic", "--json"},
-		sdiag:        []string{"sdiag", "--json"},
-		sacctmgr:     []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
-		licEnabled:   cliFlags.SlurmLicEnabled,
-		diagsEnabled: cliFlags.SlurmDiagEnabled,
-		fallback:     cliFlags.SlurmCliFallback,
-		sacctEnabled: cliFlags.SacctEnabled,
+		squeue:        []string{"squeue", "--json"},
+		sinfo:         []string{"sinfo", "--json"},
+		lic:           []string{"scontrol", "show", "lic", "--json"},
+		sdiag:         []string{"sdiag", "--json"},
+		sacctmgr:      []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
+		licEnabled:    cliFlags.SlurmLicEnabled,
+		diagsEnabled:  cliFlags.SlurmDiagEnabled,
+		fallback:      cliFlags.SlurmCliFallback,
+		sacctEnabled:  cliFlags.SacctEnabled,
+		excludeFilter: compiledExcludeRegex,
 	}
 	traceConf := TraceConfig{
 		enabled: cliFlags.TraceEnabled,
@@ -168,6 +178,28 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	return config, nil
 }
 
+func NewPromHTTPServer(metricsExcludeFilter *regexp.Regexp) http.Handler {
+	// Create a handler that filters metrics based on the exclude regex pattern
+	if metricsExcludeFilter == nil || metricsExcludeFilter.String() == "" {
+		return promhttp.Handler()
+	}
+	slog.Info("filtering metrics based on regex: " + metricsExcludeFilter.String())
+	filteredGatherer := prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
+		allMetrics, err := prometheus.DefaultGatherer.Gather()
+		if err != nil {
+			return nil, err
+		}
+		var filteredMetrics []*dto.MetricFamily
+		for _, mf := range allMetrics {
+			if !metricsExcludeFilter.MatchString(mf.GetName()) {
+				filteredMetrics = append(filteredMetrics, mf)
+			}
+		}
+		return filteredMetrics, nil
+	})
+	return promhttp.HandlerFor(filteredGatherer, promhttp.HandlerOpts{})
+}
+
 func InitPromServer(config *Config) http.Handler {
 	textHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
@@ -193,5 +225,6 @@ func InitPromServer(config *Config) http.Handler {
 		slog.Info("account limit collection enabled")
 		prometheus.MustRegister(NewLimitCollector(config))
 	}
-	return promhttp.Handler()
+
+	return NewPromHTTPServer(cliOpts.excludeFilter)
 }
