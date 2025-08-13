@@ -29,6 +29,7 @@ build:
   mkdir {{build_dir}}
   CGO_ENABLED=0 go build -o {{build_dir}}/slurm_exporter .
 
+# run the exporter with fallback mode using the fixtures provided in exporter fixtures
 devel: build
   {{build_dir}}/slurm_exporter \
   -trace.enabled \
