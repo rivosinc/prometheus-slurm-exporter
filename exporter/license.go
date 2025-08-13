@@ -135,7 +135,7 @@ func (lc *LicCollector) Collect(ch chan<- prometheus.Metric) {
 		if lic.LastConsumed > 0 {
 			ch <- prometheus.MustNewConstMetric(lc.licLastConsumed, prometheus.GaugeValue, float64(lic.LastConsumed), lic.LicenseName)
 		}
-		if lic.Reserved > 0 {
+		if lic.LastDeficit > 0 {
 			ch <- prometheus.MustNewConstMetric(lc.licLastDeficit, prometheus.GaugeValue, float64(lic.LastDeficit), lic.LicenseName)
 		}
 	}
