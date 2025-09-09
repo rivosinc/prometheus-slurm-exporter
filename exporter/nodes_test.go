@@ -6,11 +6,12 @@ package exporter
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
-	"slices"
+	"github.com/stretchr/testify/require"
 )
 
 var MockNodeInfoScraper = &MockScraper{fixture: "fixtures/sinfo_out.json"}
@@ -131,20 +132,20 @@ func TestNodeDescribe(t *testing.T) {
 	assert.NotEmpty(descs)
 }
 
-func TestParseFallbackNodeMetrics(t *testing.T) {
+func TestParseFallbackNodeMetricsCsv(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	byteFetcher := &MockScraper{fixture: "fixtures/sinfo_fallback.txt"}
 	fetcher := NodeCliFallbackFetcher{scraper: byteFetcher, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}), cache: NewAtomicThrottledCache[NodeMetric](1)}
 	metrics, err := fetcher.FetchMetrics()
 	assert.Nil(err)
 	assert.NotEmpty(metrics)
-	cs25idx := slices.IndexFunc(metrics, func(nm NodeMetric) bool { return nm.Hostname == "cs25" })
-	assert.GreaterOrEqual(cs25idx, 0)
-	cs25NodeMetric := metrics[cs25idx]
-	assert.Equal("allocated", cs25NodeMetric.State)
-	assert.Equal(64., cs25NodeMetric.AllocCpus)
-	assert.Equal(89124.*1e6, cs25NodeMetric.FreeMemory)
-	assert.Equal([]string{"hw", "hw-l", "hw-m", "hw-h", "cdn"}, cs25NodeMetric.Partitions)
+	cs222Idx := slices.IndexFunc(metrics, func(m NodeMetric) bool { return m.Hostname == "cs222" })
+	t.Logf("metric %+v\n", metrics[cs222Idx])
+	require.GreaterOrEqual(cs222Idx, 0)
+	cs222Metric := metrics[cs222Idx]
+	assert.Equal(cs222Metric.CpuLoad, 30.23)
+	assert.EqualValues(cs222Metric.Partitions, []string{"hw-h"})
 }
 
 func TestNAbleFloat_NA(t *testing.T) {
@@ -159,7 +160,7 @@ func TestNAbleFloat_Float(t *testing.T) {
 	assert := assert.New(t)
 	n := NAbleFloat(1.5)
 	expected := 3.14
-	data := []byte(fmt.Sprintf(`"%f"`, expected))
+	data := fmt.Appendf(nil, `"%f"`, expected)
 	assert.NoError(n.UnmarshalJSON(data))
 	assert.Equal(expected, float64(n))
 }
