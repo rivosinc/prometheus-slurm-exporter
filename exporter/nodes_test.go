@@ -144,8 +144,8 @@ func TestParseFallbackNodeMetricsCsv(t *testing.T) {
 	t.Logf("metric %+v\n", metrics[cs222Idx])
 	require.GreaterOrEqual(cs222Idx, 0)
 	cs222Metric := metrics[cs222Idx]
-	assert.Equal(cs222Metric.CpuLoad, 30.23)
-	assert.EqualValues(cs222Metric.Partitions, []string{"hw-h"})
+	assert.Equal(cs222Metric.CpuLoad, 28.08)
+	assert.ElementsMatch(cs222Metric.Partitions, []string{"hw-h", "hw-l*", "hw-m", "hw-h-lmt"})
 }
 
 func TestNAbleFloat_NA(t *testing.T) {

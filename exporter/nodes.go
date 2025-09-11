@@ -6,10 +6,10 @@ package exporter
 
 import (
 	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -124,7 +124,6 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		return nil, err
 	}
 	sinfo = bytes.Trim(sinfo, " \n")
-	buffer := bytes.NewBuffer(sinfo)
 	// parse csv from the following CSV format: "StateCompact,Memory,NodeHost,CPUsLoad,Partition,FreeMem,CPUsState,Weight,AllocMem"
 	nodeMetrics := make(map[string]*NodeMetric, 0)
 	type CsvHeader int
@@ -154,29 +153,25 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		State       string     `json:"s"`
 		Weight      float64    `json:"w"`
 	}
+	csvReader := csv.NewReader(bytes.NewReader(sinfo))
+	csvReader.Comma = '|'
+	csvReader.TrimLeadingSpace = true
+	csvReader.FieldsPerRecord = 9
 
-	for readNext := true; readNext; {
-		line, err := buffer.ReadString('\n')
-		if errors.Is(err, io.EOF) {
-			// process last line and exit
-			readNext = false
-		} else if err != nil {
-			return nil, fmt.Errorf("node cli buffer error %q", err)
-		}
+	allRecords, err := csvReader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("node cli buffer error %q", err)
+	}
 
-		// buffered reads includes delim as last char potentially
-		line = strings.TrimRight(line, "\n")
-		var records []string
-		for _, r := range strings.Split(line, " ") {
-			if t := strings.Trim(r, " "); len(t) > 0 {
-				records = append(records, t)
-			}
-		}
+	for _, records := range allRecords {
 		if len(records) != int(CsvSTOP) {
-			// we shouldn't have trailing lines, but maybe random ascii before and after?
-			// log to be safe
-			slog.Warn("node fallback cli record length expectation unmet", slog.Int("expected", int(CsvSTOP)), slog.Int("actual", len(records)))
+			slog.Error(fmt.Sprintf("node fallback cli record length expectation unmet. Expected %d fields, got %+v", int(CsvSTOP), records))
+			cmf.errorCounter.Inc()
 			continue
+		}
+		// santize the records to avoid trailing whitespace
+		for idx, record := range records {
+			records[idx] = strings.TrimSpace(record)
 		}
 		metric := new(CliNodeMetric)
 		metric.Hostname = records[NodeHost]

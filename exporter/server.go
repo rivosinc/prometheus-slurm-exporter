@@ -154,7 +154,8 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 			cliOpts.squeue = []string{"squeue", "--states=all", "-h", "-r", "-o", `{"a": "%a", "id": %A, "end_time": "%e", "u": "%u", "state": "%T", "p": "%P", "cpu": %C, "mem": "%m", "array_id": "%K", "r": "%R"}`}
 		}
 		if cliFlags.SlurmSinfoOverride == "" {
-			cliOpts.sinfo = []string{"sinfo", "-h", "-O", "StateCompact,Memory,NodeHost,CPUsLoad,Partition,FreeMem,CPUsState,Weight,AllocMem"}
+			// set field lengths wide enough to avoid truncation
+			cliOpts.sinfo = []string{"sinfo", "-h", "-O", "StateCompact:12|,Memory:15|,NodeHost:30|,CPUsLoad:12|,Partition:15|,FreeMem:15|,CPUsState:15|,Weight:10|,AllocMem:15"}
 		}
 		// must instantiate the job fetcher here since it is shared between 2 collectors
 		traceConf.sharedFetcher = &JobCliFallbackFetcher{
