@@ -31,6 +31,7 @@ var (
 	slurmLicEnabled      = flag.Bool("slurm.collect-licenses", false, "Collect license info from slurm")
 	slurmDiagEnabled     = flag.Bool("slurm.collect-diags", false, "Collect daemon diagnostics stats from slurm")
 	slurmSacctEnabled    = flag.Bool("slurm.collect-limits", false, "Collect account and user limits from slurm")
+	fairshareEnabled     = flag.Bool("slurm.collect-fairshare", false, "Collect fairshare info per account from slurm")
 	slurmCliFallback     = flag.Bool("slurm.cli-fallback", true, "drop the --json arg and revert back to standard squeue for performance reasons")
 	metricsFilterRegex   = flag.String("metrics.exclude", "", "Regex pattern for metrics to exclude")
 )
@@ -51,6 +52,7 @@ func main() {
 		SlurmLicEnabled:           *slurmLicEnabled,
 		SlurmDiagEnabled:          *slurmDiagEnabled,
 		SacctEnabled:              *slurmSacctEnabled,
+		FairshareEnabled:          *fairshareEnabled,
 		SlurmCliFallback:          *slurmCliFallback,
 		TraceRate:                 *traceRate,
 		SlurmAcctOverride:         *slurmSaactOverride,

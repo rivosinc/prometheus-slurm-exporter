@@ -19,16 +19,17 @@ import (
 )
 
 type CliOpts struct {
-	sinfo         []string
-	squeue        []string
-	sacctmgr      []string
-	lic           []string
-	sdiag         []string
-	licEnabled    bool
-	diagsEnabled  bool
-	fallback      bool
-	sacctEnabled  bool
-	excludeFilter *regexp.Regexp
+	sinfo            []string
+	squeue           []string
+	sacctmgr         []string
+	lic              []string
+	sdiag            []string
+	licEnabled       bool
+	diagsEnabled     bool
+	fallback         bool
+	sacctEnabled     bool
+	fairshareEnabled bool
+	excludeFilter    *regexp.Regexp
 }
 
 type TraceConfig struct {
@@ -53,6 +54,7 @@ type CliFlags struct {
 	SlurmCliFallback          bool
 	TraceEnabled              bool
 	SacctEnabled              bool
+	FairshareEnabled          bool
 	SlurmPollLimit            float64
 	LogLevel                  string
 	ListenAddress             string
@@ -81,16 +83,17 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		return nil, err
 	}
 	cliOpts := CliOpts{
-		squeue:        []string{"squeue", "--json"},
-		sinfo:         []string{"sinfo", "--json"},
-		lic:           []string{"scontrol", "show", "lic", "--json"},
-		sdiag:         []string{"sdiag", "--json"},
-		sacctmgr:      []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
-		licEnabled:    cliFlags.SlurmLicEnabled,
-		diagsEnabled:  cliFlags.SlurmDiagEnabled,
-		fallback:      cliFlags.SlurmCliFallback,
-		sacctEnabled:  cliFlags.SacctEnabled,
-		excludeFilter: compiledExcludeRegex,
+		squeue:           []string{"squeue", "--json"},
+		sinfo:            []string{"sinfo", "--json"},
+		lic:              []string{"scontrol", "show", "lic", "--json"},
+		sdiag:            []string{"sdiag", "--json"},
+		sacctmgr:         []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
+		licEnabled:       cliFlags.SlurmLicEnabled,
+		diagsEnabled:     cliFlags.SlurmDiagEnabled,
+		fallback:         cliFlags.SlurmCliFallback,
+		sacctEnabled:     cliFlags.SacctEnabled,
+		fairshareEnabled: cliFlags.FairshareEnabled,
+		excludeFilter:    compiledExcludeRegex,
 	}
 	traceConf := TraceConfig{
 		enabled: cliFlags.TraceEnabled,
@@ -225,6 +228,10 @@ func InitPromServer(config *Config) http.Handler {
 	if cliOpts.sacctEnabled {
 		slog.Info("account limit collection enabled")
 		prometheus.MustRegister(NewLimitCollector(config))
+	}
+	if cliOpts.fairshareEnabled {
+		slog.Info("fairshare collection enabled")
+		prometheus.MustRegister(NewFairShareCollector(config))
 	}
 
 	return NewPromHTTPServer(cliOpts.excludeFilter)

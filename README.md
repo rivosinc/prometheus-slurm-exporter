@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 [![Go Report Card](https://goreportcard.com/badge/github.com/rivosinc/prometheus-slurm-exporter)](https://goreportcard.com/report/github.com/rivosinc/prometheus-slurm-exporter)
 
 Inspired by the now unmaintained prometheus slurm [exporter](https://github.com/vpenso/prometheus-slurm-exporter). We implement in some form or another, most of the
-metrics from the previously maintained exporter. We have not yet added GPU or fairshare support, although we will be more than happy to accept contributions for those.
+metrics from the previously maintained exporter. We have added fairshare support and will be happy to accept contributions for GPU support.
 This exporter supports `--json` output from cli. Note that the plugin supported is `openapi/v0.0.37` not `data_parser`, which ships with the most modern version of slurm.
 While in production we've found that the cli fallback (defining a custom json format from the slurm cmdline) performs far better and more reliably than parsing with the slurm
 provided json output. Thus, this is now the default mode of deployment as it also doesn't require any compiled plugins. We are keeping the openapi support for slurmrestd
@@ -100,6 +100,7 @@ $ curl localhost:9092/metrics | grep "# HELP"
 # HELP slurm_account_cpu_alloc alloc cpu consumed per account
 # HELP slurm_account_job_state_total total jobs per account per job state
 # HELP slurm_account_mem_alloc alloc mem consumed per account
+# HELP slurm_account_fairshare FairShare value for account (requires -slurm.collect-fairshare)
 # HELP slurm_cpu_load Total cpu load
 # HELP slurm_cpus_idle Total idle cpus
 # HELP slurm_cpus_per_state Cpus per state i.e alloc, mixed, draining, etc.
