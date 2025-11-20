@@ -1,0 +1,1 @@
+SLURM_EXPORTER_ARGS='-web.listen-address=:9341 -slurm.cli-fallback -slurm.collect-fairshare'
