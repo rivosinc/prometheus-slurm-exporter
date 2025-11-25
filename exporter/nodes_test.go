@@ -68,6 +68,8 @@ func TestPartitionMetric(t *testing.T) {
 	assert.Equal(2e+06, metrics["hw"].RealMemory)
 	assert.Equal(252., metrics["hw"].IdleCpus)
 	assert.Equal(4., sumStateMetric(metrics["hw"].StateNodeCount))
+	assert.Equal(2., metrics["hw"].TotalGres["gpu:tesla"])
+	assert.Equal(1., metrics["hw"].AllocGres["gpu:tesla"])
 }
 
 func TestNodeSummaryCpuMetric(t *testing.T) {
@@ -146,6 +148,8 @@ func TestParseFallbackNodeMetricsCsv(t *testing.T) {
 	cs222Metric := metrics[cs222Idx]
 	assert.Equal(cs222Metric.CpuLoad, 28.08)
 	assert.ElementsMatch(cs222Metric.Partitions, []string{"hw-h", "hw-l*", "hw-m", "hw-h-lmt"})
+	assert.Equal("gpu:tesla:2", cs222Metric.Gres)
+	assert.Equal("gpu:tesla:2(IDX:0,1)", cs222Metric.GresUsed)
 }
 
 func TestNAbleFloat_NA(t *testing.T) {
