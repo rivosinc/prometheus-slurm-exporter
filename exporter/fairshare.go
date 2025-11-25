@@ -1,10 +1,16 @@
+// SPDX-FileCopyrightText: 2023 Rivos Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package exporter
 
 import (
+	"bytes"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"log/slog"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,27 +27,33 @@ type FairShareFetcher struct {
 	cache        *AtomicThrottledCache[FairShareMetric]
 }
 
-func (fsf *FairShareFetcher) parseFairShare(output string) ([]FairShareMetric, error) {
-	var metrics []FairShareMetric
-	lines := strings.Split(output, "\n")
+func (fsf *FairShareFetcher) fetchFromCli() ([]FairShareMetric, error) {
+	cliCsv, err := fsf.scraper.FetchRawBytes()
+	if err != nil {
+		fsf.errorCounter.Inc()
+		slog.Error(fmt.Sprintf("failed to scrape fairshare metrics with %q", err))
+		return nil, err
+	}
 
-	for _, line := range lines {
-		// Check if line contains data
-		if !strings.Contains(line, "|") {
+	reader := csv.NewReader(bytes.NewBuffer(cliCsv))
+	reader.Comma = '|'
+	reader.TrimLeadingSpace = true
+
+	fairshareMetrics := make([]FairShareMetric, 0)
+	for records, err := reader.Read(); err != io.EOF; records, err = reader.Read() {
+		if err != nil {
+			fsf.errorCounter.Inc()
+			slog.Error(fmt.Sprintf("failed to scrape fairshare metric row %v", records))
+			continue
+		}
+		if len(records) != 2 {
+			fsf.errorCounter.Inc()
+			slog.Error(fmt.Sprintf("expected 2 fields, got %d in row %v", len(records), records))
 			continue
 		}
 
-		parts := strings.Split(line, "|")
-		if len(parts) < 2 {
-			continue
-		}
+		account, fairshareStr := records[0], records[1]
 
-		account := strings.TrimSpace(parts[0])
-		if account == "" {
-			continue
-		}
-
-		fairshareStr := strings.TrimSpace(parts[1])
 		// Skip empty values and "inf" values
 		if fairshareStr == "" || fairshareStr == "inf" {
 			continue
@@ -50,27 +62,17 @@ func (fsf *FairShareFetcher) parseFairShare(output string) ([]FairShareMetric, e
 		fairshare, err := strconv.ParseFloat(fairshareStr, 64)
 		if err != nil {
 			slog.Warn("Failed to parse fairshare value", "account", account, "value", fairshareStr, "err", err)
+			fsf.errorCounter.Inc()
 			continue
 		}
 
-		metrics = append(metrics, FairShareMetric{
+		fairshareMetrics = append(fairshareMetrics, FairShareMetric{
 			Account:   account,
 			FairShare: fairshare,
 		})
 	}
 
-	return metrics, nil
-}
-
-func (fsf *FairShareFetcher) fetchFromCli() ([]FairShareMetric, error) {
-	output, err := fsf.scraper.FetchRawBytes()
-	if err != nil {
-		fsf.errorCounter.Inc()
-		slog.Error(fmt.Sprintf("failed to scrape fairshare metrics with %q", err))
-		return nil, err
-	}
-
-	return fsf.parseFairShare(string(output))
+	return fairshareMetrics, nil
 }
 
 func (fsf *FairShareFetcher) FetchMetrics() ([]FairShareMetric, error) {
@@ -95,7 +97,7 @@ type FairShareCollector struct {
 func NewFairShareCollector(config *Config) *FairShareCollector {
 	return &FairShareCollector{
 		fetcher: &FairShareFetcher{
-			scraper: NewCliScraper("sshare", "-n", "-P", "-o", "account,levelfs"),
+			scraper: NewCliScraper("sshare", "-n", "-P", "-o", "Account,NormShares"),
 			cache:   NewAtomicThrottledCache[FairShareMetric](config.PollLimit),
 			errorCounter: prometheus.NewCounter(prometheus.CounterOpts{
 				Name: "slurm_fairshare_scrape_error",
