@@ -95,9 +95,10 @@ type FairShareCollector struct {
 }
 
 func NewFairShareCollector(config *Config) *FairShareCollector {
+	cliOpts := config.cliOpts
 	return &FairShareCollector{
 		fetcher: &FairShareFetcher{
-			scraper: NewCliScraper("sshare", "-n", "-P", "-o", "Account,NormShares"),
+			scraper: NewCliScraper(cliOpts.fairshare...),
 			cache:   NewAtomicThrottledCache[FairShareMetric](config.PollLimit),
 			errorCounter: prometheus.NewCounter(prometheus.CounterOpts{
 				Name: "slurm_fairshare_scrape_error",

@@ -24,6 +24,7 @@ type CliOpts struct {
 	sacctmgr         []string
 	lic              []string
 	sdiag            []string
+	fairshare        []string
 	licEnabled       bool
 	diagsEnabled     bool
 	fallback         bool
@@ -63,6 +64,7 @@ type CliFlags struct {
 	SlurmSinfoOverride        string
 	SlurmDiagOverride         string
 	SlurmAcctOverride         string
+	SlurmFairshareOverride    string
 	TraceRate                 uint64
 	TracePath                 string
 	SlurmLicenseOverride      string
@@ -88,6 +90,7 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		lic:              []string{"scontrol", "show", "lic", "--json"},
 		sdiag:            []string{"sdiag", "--json"},
 		sacctmgr:         []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
+		fairshare:        []string{"sshare", "-n", "-P", "-o", "Account,NormShares"},
 		licEnabled:       cliFlags.SlurmLicEnabled,
 		diagsEnabled:     cliFlags.SlurmDiagEnabled,
 		fallback:         cliFlags.SlurmCliFallback,
@@ -141,6 +144,9 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	}
 	if cliFlags.SlurmAcctOverride != "" {
 		cliOpts.sacctmgr = strings.Split(cliFlags.SlurmAcctOverride, " ")
+	}
+	if cliFlags.SlurmFairshareOverride != "" {
+		cliOpts.fairshare = strings.Split(cliFlags.SlurmFairshareOverride, " ")
 	}
 	if cliFlags.TraceRate != 0 {
 		traceConf.rate = cliFlags.TraceRate

@@ -30,17 +30,17 @@ account5|2.25
 	}
 	fairshareMetrics, err := fetcher.fetchFromCli()
 	assert.NoError(err)
-	
+
 	// Should get 4 accounts with numeric values (skipping empty and inf)
 	assert.Len(fairshareMetrics, 4)
-	
+
 	expectedAccounts := map[string]float64{
 		"account1": 1.000000,
 		"account2": 15.5,
 		"account3": 0.5,
 		"account5": 2.25,
 	}
-	
+
 	for _, metric := range fairshareMetrics {
 		expectedValue, exists := expectedAccounts[metric.Account]
 		assert.True(exists, "Unexpected account: %s", metric.Account)
