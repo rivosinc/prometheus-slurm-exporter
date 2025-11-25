@@ -39,7 +39,8 @@ func (fsf *FairShareFetcher) fetchFromCli() ([]FairShareMetric, error) {
 	reader.Comma = '|'
 	reader.TrimLeadingSpace = true
 
-	fairshareMetrics := make([]FairShareMetric, 0)
+	// Use map to deduplicate accounts (keep last seen value)
+	accountMap := make(map[string]float64)
 	for records, err := reader.Read(); err != io.EOF; records, err = reader.Read() {
 		if err != nil {
 			fsf.errorCounter.Inc()
@@ -66,6 +67,13 @@ func (fsf *FairShareFetcher) fetchFromCli() ([]FairShareMetric, error) {
 			continue
 		}
 
+		// Store in map, overwriting any previous value for this account
+		accountMap[account] = fairshare
+	}
+
+	// Convert map to slice
+	fairshareMetrics := make([]FairShareMetric, 0, len(accountMap))
+	for account, fairshare := range accountMap {
 		fairshareMetrics = append(fairshareMetrics, FairShareMetric{
 			Account:   account,
 			FairShare: fairshare,
