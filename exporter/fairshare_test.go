@@ -9,9 +9,11 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFairShareFetch(t *testing.T) {
+	require := require.New(t)
 	assert := assert.New(t)
 	fetcher := FairShareFetcher{
 		scraper: &StringByteScraper{
@@ -29,7 +31,7 @@ account5|2.25
 		cache:        NewAtomicThrottledCache[FairShareMetric](10),
 	}
 	fairshareMetrics, err := fetcher.fetchFromCli()
-	assert.NoError(err)
+	require.NoError(err)
 
 	// Should get 4 accounts with numeric values (skipping empty and inf)
 	assert.Len(fairshareMetrics, 4)
@@ -49,6 +51,7 @@ account5|2.25
 }
 
 func TestFairShareSkipsInf(t *testing.T) {
+	require := require.New(t)
 	assert := assert.New(t)
 	fetcher := FairShareFetcher{
 		scraper: &StringByteScraper{
@@ -58,13 +61,14 @@ func TestFairShareSkipsInf(t *testing.T) {
 		cache:        NewAtomicThrottledCache[FairShareMetric](10),
 	}
 	fairshareMetrics, err := fetcher.fetchFromCli()
-	assert.NoError(err)
+	require.NoError(err)
 	assert.Len(fairshareMetrics, 1)
 	assert.Equal("account2", fairshareMetrics[0].Account)
 	assert.Equal(0.5, fairshareMetrics[0].FairShare)
 }
 
 func TestFairShareSkipsEmpty(t *testing.T) {
+	require := require.New(t)
 	assert := assert.New(t)
 	fetcher := FairShareFetcher{
 		scraper: &StringByteScraper{
@@ -74,13 +78,14 @@ func TestFairShareSkipsEmpty(t *testing.T) {
 		cache:        NewAtomicThrottledCache[FairShareMetric](10),
 	}
 	fairshareMetrics, err := fetcher.fetchFromCli()
-	assert.NoError(err)
+	require.NoError(err)
 	assert.Len(fairshareMetrics, 1)
 	assert.Equal("account2", fairshareMetrics[0].Account)
 	assert.Equal(0.5, fairshareMetrics[0].FairShare)
 }
 
 func TestFairShareInvalidNumber(t *testing.T) {
+	require := require.New(t)
 	assert := assert.New(t)
 	fetcher := FairShareFetcher{
 		scraper: &StringByteScraper{
@@ -90,7 +95,7 @@ func TestFairShareInvalidNumber(t *testing.T) {
 		cache:        NewAtomicThrottledCache[FairShareMetric](10),
 	}
 	fairshareMetrics, err := fetcher.fetchFromCli()
-	assert.NoError(err)
+	require.NoError(err)
 	assert.Len(fairshareMetrics, 1)
 	assert.Equal("account2", fairshareMetrics[0].Account)
 }
