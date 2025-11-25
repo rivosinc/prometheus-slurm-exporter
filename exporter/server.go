@@ -19,16 +19,18 @@ import (
 )
 
 type CliOpts struct {
-	sinfo         []string
-	squeue        []string
-	sacctmgr      []string
-	lic           []string
-	sdiag         []string
-	licEnabled    bool
-	diagsEnabled  bool
-	fallback      bool
-	sacctEnabled  bool
-	excludeFilter *regexp.Regexp
+	sinfo           []string
+	squeue          []string
+	sacctmgr        []string
+	lic             []string
+	sdiag           []string
+	scredits        []string
+	licEnabled      bool
+	diagsEnabled    bool
+	fallback        bool
+	sacctEnabled    bool
+	creditsEnabled  bool
+	excludeFilter   *regexp.Regexp
 }
 
 type TraceConfig struct {
@@ -53,6 +55,7 @@ type CliFlags struct {
 	SlurmCliFallback          bool
 	TraceEnabled              bool
 	SacctEnabled              bool
+	SlurmCreditsEnabled       bool
 	SlurmPollLimit            float64
 	LogLevel                  string
 	ListenAddress             string
@@ -61,6 +64,7 @@ type CliFlags struct {
 	SlurmSinfoOverride        string
 	SlurmDiagOverride         string
 	SlurmAcctOverride         string
+	SlurmCreditsOverride      string
 	TraceRate                 uint64
 	TracePath                 string
 	SlurmLicenseOverride      string
@@ -81,16 +85,18 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		return nil, err
 	}
 	cliOpts := CliOpts{
-		squeue:        []string{"squeue", "--json"},
-		sinfo:         []string{"sinfo", "--json"},
-		lic:           []string{"scontrol", "show", "lic", "--json"},
-		sdiag:         []string{"sdiag", "--json"},
-		sacctmgr:      []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
-		licEnabled:    cliFlags.SlurmLicEnabled,
-		diagsEnabled:  cliFlags.SlurmDiagEnabled,
-		fallback:      cliFlags.SlurmCliFallback,
-		sacctEnabled:  cliFlags.SacctEnabled,
-		excludeFilter: compiledExcludeRegex,
+		squeue:         []string{"squeue", "--json"},
+		sinfo:          []string{"sinfo", "--json"},
+		lic:            []string{"scontrol", "show", "lic", "--json"},
+		sdiag:          []string{"sdiag", "--json"},
+		sacctmgr:       []string{"sacctmgr", "show", "assoc", "format=User,Account,GrpCPU,GrpMem,GrpJobs,GrpSubmit", "--noheader", "--parsable2"},
+		scredits:       []string{"scredits"},
+		licEnabled:     cliFlags.SlurmLicEnabled,
+		diagsEnabled:   cliFlags.SlurmDiagEnabled,
+		fallback:       cliFlags.SlurmCliFallback,
+		sacctEnabled:   cliFlags.SacctEnabled,
+		creditsEnabled: cliFlags.SlurmCreditsEnabled,
+		excludeFilter:  compiledExcludeRegex,
 	}
 	traceConf := TraceConfig{
 		enabled: cliFlags.TraceEnabled,
@@ -147,6 +153,9 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 	}
 	if cliFlags.SlurmLicenseOverride != "" {
 		cliOpts.lic = strings.Split(cliFlags.SlurmLicenseOverride, " ")
+	}
+	if cliFlags.SlurmCreditsOverride != "" {
+		cliOpts.scredits = strings.Split(cliFlags.SlurmCreditsOverride, " ")
 	}
 	if cliOpts.fallback {
 		// we define a custom json format that we convert back into the openapi format
@@ -225,6 +234,10 @@ func InitPromServer(config *Config) http.Handler {
 	if cliOpts.sacctEnabled {
 		slog.Info("account limit collection enabled")
 		prometheus.MustRegister(NewLimitCollector(config))
+	}
+	if cliOpts.creditsEnabled {
+		slog.Info("credits/billing collection enabled")
+		prometheus.MustRegister(NewCreditsCollector(config))
 	}
 
 	return NewPromHTTPServer(cliOpts.excludeFilter)
