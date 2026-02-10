@@ -320,6 +320,26 @@ func parseFeatureMetric(jobs []JobMetric) map[string]*FeatureJobMetric {
 	return featureMap
 }
 
+// JobSummaryMetric provides aggregate metrics from squeue data as an alternative
+// to sinfo-based metrics which can be inconsistent (see issue #130)
+type JobSummaryMetric struct {
+	TotalAllocCpus float64
+	TotalAllocMem  float64
+	StateJobCount  map[string]float64
+}
+
+func parseJobSummaryMetric(jobs []JobMetric) *JobSummaryMetric {
+	metric := &JobSummaryMetric{
+		StateJobCount: make(map[string]float64),
+	}
+	for _, job := range jobs {
+		metric.TotalAllocCpus += job.JobResources.AllocCpus
+		metric.TotalAllocMem += totalAllocMem(&job.JobResources)
+		metric.StateJobCount[job.JobState]++
+	}
+	return metric
+}
+
 type JobsCollector struct {
 	// collector state
 	fetcher      SlurmMetricFetcher[JobMetric]
@@ -342,6 +362,10 @@ type JobsCollector struct {
 	featureJobTotal    *prometheus.Desc
 	// reason metrics
 	pendingReasonTotal *prometheus.Desc
+	// job summary metrics
+	jobsTotalAllocCpus *prometheus.Desc
+	jobsTotalAllocMem  *prometheus.Desc
+	jobsStateCount     *prometheus.Desc
 	// exporter metrics
 	jobScrapeDuration *prometheus.Desc
 	jobScrapeError    prometheus.Counter
@@ -371,7 +395,11 @@ func NewJobsController(config *Config) *JobsCollector {
 		featureJobCpuAlloc:      prometheus.NewDesc("slurm_feature_cpu_alloc", "alloc cpu consumed per feature", []string{"feature"}, nil),
 		featureJobTotal:         prometheus.NewDesc("slurm_feature_total", "alloc cpu consumed per feature", []string{"feature"}, nil),
 		pendingReasonTotal:      prometheus.NewDesc("slurm_pending_reason_total", "count of the reason jobs are pending", []string{"reason"}, nil),
-		jobScrapeDuration:       prometheus.NewDesc("slurm_job_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.squeue), nil, nil),
+		// job summary metrics (squeue-based alternative to sinfo metrics, see issue #130)
+		jobsTotalAllocCpus: prometheus.NewDesc("slurm_jobs_total_alloc_cpus", "total allocated cpus from squeue (alternative to sinfo-based metrics)", nil, nil),
+		jobsTotalAllocMem:  prometheus.NewDesc("slurm_jobs_total_alloc_mem", "total allocated memory from squeue (alternative to sinfo-based metrics)", nil, nil),
+		jobsStateCount:     prometheus.NewDesc("slurm_jobs_state_count", "count of jobs per state from squeue", []string{"state"}, nil),
+		jobScrapeDuration:  prometheus.NewDesc("slurm_job_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.squeue), nil, nil),
 		jobScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_job_scrape_error",
 			Help: "slurm job scrape error",
@@ -393,6 +421,9 @@ func (jc *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.featureJobCpuAlloc
 	ch <- jc.featureJobTotal
 	ch <- jc.pendingReasonTotal
+	ch <- jc.jobsTotalAllocCpus
+	ch <- jc.jobsTotalAllocMem
+	ch <- jc.jobsStateCount
 	ch <- jc.jobScrapeDuration
 	ch <- jc.jobScrapeError.Desc()
 }
@@ -464,5 +495,12 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 	stateReasonMetric := parseStateReasonMetric(jobMetrics)
 	for pendingReason, pendingCount := range stateReasonMetric.pendingStateCount {
 		ch <- prometheus.MustNewConstMetric(jc.pendingReasonTotal, prometheus.GaugeValue, pendingCount, pendingReason)
+	}
+
+	jobSummaryMetric := parseJobSummaryMetric(jobMetrics)
+	ch <- prometheus.MustNewConstMetric(jc.jobsTotalAllocCpus, prometheus.GaugeValue, jobSummaryMetric.TotalAllocCpus)
+	ch <- prometheus.MustNewConstMetric(jc.jobsTotalAllocMem, prometheus.GaugeValue, jobSummaryMetric.TotalAllocMem)
+	for state, count := range jobSummaryMetric.StateJobCount {
+		ch <- prometheus.MustNewConstMetric(jc.jobsStateCount, prometheus.GaugeValue, count, state)
 	}
 }

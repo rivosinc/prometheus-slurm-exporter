@@ -372,3 +372,46 @@ func TestParseStateReasonMetric_Json(t *testing.T) {
 	assert.NotEmpty(m.pendingStateCount)
 	assert.Equal(m.pendingStateCount["Dependency"], 1.)
 }
+
+func TestParseJobSummaryMetric_Json(t *testing.T) {
+	assert := assert.New(t)
+	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
+	JsonFetcher := &JobJsonFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](0),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
+	}
+	jobMetrics, err := JsonFetcher.FetchMetrics()
+	assert.NotEmpty(jobMetrics)
+	assert.NoError(err)
+	m := parseJobSummaryMetric(jobMetrics)
+	// verify aggregate totals are computed
+	assert.NotZero(m.TotalAllocCpus)
+	assert.NotZero(m.TotalAllocMem)
+	assert.NotEmpty(m.StateJobCount)
+	// verify specific state counts
+	assert.Equal(1., m.StateJobCount["RUNNING"])
+	assert.Equal(1., m.StateJobCount["PENDING"])
+}
+
+func TestParseJobSummaryMetric_Fallback(t *testing.T) {
+	assert := assert.New(t)
+	scraper := &MockScraper{fixture: "fixtures/squeue_fallback.txt"}
+	cliFallbackFetcher := &JobCliFallbackFetcher{
+		scraper:    scraper,
+		cache:      NewAtomicThrottledCache[JobMetric](0),
+		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
+	}
+	jobMetrics, err := cliFallbackFetcher.FetchMetrics()
+	assert.NotEmpty(jobMetrics)
+	assert.NoError(err)
+	m := parseJobSummaryMetric(jobMetrics)
+	// verify aggregate totals are computed
+	assert.NotEmpty(m.StateJobCount)
+	// verify state counts match expected job states in fallback fixture
+	totalJobs := 0.
+	for _, count := range m.StateJobCount {
+		totalJobs += count
+	}
+	assert.Equal(float64(len(jobMetrics)), totalJobs)
+}
