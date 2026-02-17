@@ -124,10 +124,9 @@ $ curl localhost:9092/metrics | grep "# HELP"
 # HELP slurm_user_state_total total jobs per state per user
 # HELP slurm_node_count_per_state nodes per state
 
-# Job summary metrics (squeue-based alternative to sinfo metrics, see issue #130)
-# HELP slurm_jobs_total_alloc_cpus total allocated cpus from squeue (alternative to sinfo-based metrics)
-# HELP slurm_jobs_total_alloc_mem total allocated memory from squeue (alternative to sinfo-based metrics)
-# HELP slurm_jobs_state_count count of jobs per state from squeue
+# Partition job metrics (per state, similar to account metrics - see issue #130)
+# HELP slurm_partition_job_state_cpu_alloc alloc cpu consumed per partition per job state
+# HELP slurm_partition_job_state_mem_alloc alloc mem consumed per partition per job state
 
 # Only available for -trace.enabled jobs
 # HELP slurm_proc_cpu_usage actual cpu usage collected from proc monitor

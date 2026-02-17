@@ -184,7 +184,10 @@ func TestParsePartitionJobMetrics(t *testing.T) {
 	assert.Nil(err)
 
 	partitionJobMetrics := parsePartitionJobMetrics(jms)
-	assert.Equal(float64(1), partitionJobMetrics["hw-l"].partitionState["RUNNING"])
+	assert.Equal(float64(1), partitionJobMetrics["hw-l"].stateJobCount["RUNNING"])
+	// verify CPU and memory allocation per state are tracked
+	assert.NotZero(partitionJobMetrics["hw-l"].stateAllocCpu["RUNNING"])
+	assert.NotZero(partitionJobMetrics["hw-l"].stateAllocMem["RUNNING"])
 }
 
 func TestParsePartMetrics(t *testing.T) {
@@ -373,28 +376,7 @@ func TestParseStateReasonMetric_Json(t *testing.T) {
 	assert.Equal(m.pendingStateCount["Dependency"], 1.)
 }
 
-func TestParseJobSummaryMetric_Json(t *testing.T) {
-	assert := assert.New(t)
-	scraper := &MockScraper{fixture: "fixtures/squeue_out.json"}
-	JsonFetcher := &JobJsonFetcher{
-		scraper:    scraper,
-		cache:      NewAtomicThrottledCache[JobMetric](0),
-		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
-	}
-	jobMetrics, err := JsonFetcher.FetchMetrics()
-	assert.NotEmpty(jobMetrics)
-	assert.NoError(err)
-	m := parseJobSummaryMetric(jobMetrics)
-	// verify aggregate totals are computed
-	assert.NotZero(m.TotalAllocCpus)
-	assert.NotZero(m.TotalAllocMem)
-	assert.NotEmpty(m.StateJobCount)
-	// verify specific state counts
-	assert.Equal(1., m.StateJobCount["RUNNING"])
-	assert.Equal(1., m.StateJobCount["PENDING"])
-}
-
-func TestParseJobSummaryMetric_Fallback(t *testing.T) {
+func TestParsePartitionJobMetrics_Fallback(t *testing.T) {
 	assert := assert.New(t)
 	scraper := &MockScraper{fixture: "fixtures/squeue_fallback.txt"}
 	cliFallbackFetcher := &JobCliFallbackFetcher{
@@ -403,15 +385,37 @@ func TestParseJobSummaryMetric_Fallback(t *testing.T) {
 		errCounter: prometheus.NewCounter(prometheus.CounterOpts{Name: "errors"}),
 	}
 	jobMetrics, err := cliFallbackFetcher.FetchMetrics()
-	assert.NotEmpty(jobMetrics)
 	assert.NoError(err)
-	m := parseJobSummaryMetric(jobMetrics)
-	// verify aggregate totals are computed
-	assert.NotEmpty(m.StateJobCount)
-	// verify state counts match expected job states in fallback fixture
-	totalJobs := 0.
-	for _, count := range m.StateJobCount {
-		totalJobs += count
-	}
-	assert.Equal(float64(len(jobMetrics)), totalJobs)
+	m := parsePartitionJobMetrics(jobMetrics)
+	assert.Len(m, 3) // hw-h, hw-l, magma
+
+	// Test "hw-h" partition:
+	hwH := m["hw-h"]
+	assert.NotNil(hwH)
+	assert.Equal(1., hwH.stateJobCount["RUNNING"])
+	assert.Equal(1., hwH.stateAllocCpu["RUNNING"])
+	assert.Equal(128e9, hwH.stateAllocMem["RUNNING"])
+	assert.Equal(3., hwH.stateJobCount["PENDING"])
+	assert.Equal(3., hwH.stateAllocCpu["PENDING"])
+	assert.Equal(3*40000e6, hwH.stateAllocMem["PENDING"]) // 3 jobs * 40000M
+
+	// Test "hw-l" partition:
+	hwL := m["hw-l"]
+	assert.NotNil(hwL)
+	assert.Equal(1., hwL.stateJobCount["RUNNING"])
+	assert.Equal(1., hwL.stateAllocCpu["RUNNING"])
+	assert.Equal(62.5e9, hwL.stateAllocMem["RUNNING"])
+	assert.Zero(hwL.stateJobCount["PENDING"])
+	assert.Zero(hwL.stateAllocCpu["PENDING"])
+	assert.Zero(hwL.stateAllocMem["PENDING"])
+
+	// Test "magma" partition:
+	magma := m["magma"]
+	assert.NotNil(magma)
+	assert.Zero(magma.stateJobCount["RUNNING"])
+	assert.Zero(magma.stateAllocCpu["RUNNING"])
+	assert.Zero(magma.stateAllocMem["RUNNING"])
+	assert.Equal(1., magma.stateJobCount["PENDING"])
+	assert.Equal(24., magma.stateAllocCpu["PENDING"])
+	assert.Equal(118e9, magma.stateAllocMem["PENDING"])
 }
