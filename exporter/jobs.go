@@ -254,7 +254,9 @@ func parseAccountMetrics(jobs []JobMetric) map[string]*AccountMetric {
 }
 
 type PartitionJobMetric struct {
-	partitionState map[string]float64
+	stateJobCount map[string]float64
+	stateAllocCpu map[string]float64
+	stateAllocMem map[string]float64
 }
 
 func parsePartitionJobMetrics(jobs []JobMetric) map[string]*PartitionJobMetric {
@@ -263,11 +265,15 @@ func parsePartitionJobMetrics(jobs []JobMetric) map[string]*PartitionJobMetric {
 		metric, ok := partitionMetric[job.Partition]
 		if !ok {
 			metric = &PartitionJobMetric{
-				partitionState: make(map[string]float64),
+				stateJobCount: make(map[string]float64),
+				stateAllocCpu: make(map[string]float64),
+				stateAllocMem: make(map[string]float64),
 			}
 			partitionMetric[job.Partition] = metric
 		}
-		metric.partitionState[job.JobState]++
+		metric.stateJobCount[job.JobState]++
+		metric.stateAllocCpu[job.JobState] += job.JobResources.AllocCpus
+		metric.stateAllocMem[job.JobState] += totalAllocMem(&job.JobResources)
 	}
 	return partitionMetric
 }
@@ -330,8 +336,10 @@ type JobsCollector struct {
 	userJobStateTotal *prometheus.Desc
 	userJobMemAlloc   *prometheus.Desc
 	userJobCpuAlloc   *prometheus.Desc
-	// partition
-	partitionJobStateTotal *prometheus.Desc
+	// partition metrics
+	partitionJobStateTotal    *prometheus.Desc
+	partitionJobStateCpuAlloc *prometheus.Desc
+	partitionJobStateMemAlloc *prometheus.Desc
 	// account metrics
 	accountJobStateMemAlloc *prometheus.Desc
 	accountJobStateCpuAlloc *prometheus.Desc
@@ -358,20 +366,22 @@ func NewJobsController(config *Config) *JobsCollector {
 		fetcher:  fetcher,
 		fallback: cliOpts.fallback,
 		// individual job metrics
-		jobAllocCpus:            prometheus.NewDesc("slurm_job_alloc_cpus", "amount of cpus allocated per job", []string{"jobid"}, nil),
-		jobAllocMem:             prometheus.NewDesc("slurm_job_alloc_mem", "amount of mem allocated per job", []string{"jobid"}, nil),
-		userJobStateTotal:       prometheus.NewDesc("slurm_user_state_total", "total jobs per state per user", []string{"username", "state"}, nil),
-		userJobMemAlloc:         prometheus.NewDesc("slurm_user_mem_alloc", "total mem alloc per user", []string{"username", "state"}, nil),
-		userJobCpuAlloc:         prometheus.NewDesc("slurm_user_cpu_alloc", "total cpu alloc per user", []string{"username", "state"}, nil),
-		partitionJobStateTotal:  prometheus.NewDesc("slurm_partition_job_state_total", "total jobs per partition per state", []string{"partition", "state"}, nil),
-		accountJobStateMemAlloc: prometheus.NewDesc("slurm_account_job_state_mem_alloc", "alloc mem consumed per account per job state", []string{"account", "state"}, nil),
-		accountJobStateCpuAlloc: prometheus.NewDesc("slurm_account_job_state_cpu_alloc", "alloc cpu consumed per account per job state", []string{"account", "state"}, nil),
-		accountJobStateTotal:    prometheus.NewDesc("slurm_account_job_state_total", "total jobs per account per job state", []string{"account", "state"}, nil),
-		featureJobMemAlloc:      prometheus.NewDesc("slurm_feature_mem_alloc", "alloc mem consumed per feature", []string{"feature"}, nil),
-		featureJobCpuAlloc:      prometheus.NewDesc("slurm_feature_cpu_alloc", "alloc cpu consumed per feature", []string{"feature"}, nil),
-		featureJobTotal:         prometheus.NewDesc("slurm_feature_total", "alloc cpu consumed per feature", []string{"feature"}, nil),
-		pendingReasonTotal:      prometheus.NewDesc("slurm_pending_reason_total", "count of the reason jobs are pending", []string{"reason"}, nil),
-		jobScrapeDuration:       prometheus.NewDesc("slurm_job_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.squeue), nil, nil),
+		jobAllocCpus:              prometheus.NewDesc("slurm_job_alloc_cpus", "amount of cpus allocated per job", []string{"jobid"}, nil),
+		jobAllocMem:               prometheus.NewDesc("slurm_job_alloc_mem", "amount of mem allocated per job", []string{"jobid"}, nil),
+		userJobStateTotal:         prometheus.NewDesc("slurm_user_state_total", "total jobs per state per user", []string{"username", "state"}, nil),
+		userJobMemAlloc:           prometheus.NewDesc("slurm_user_mem_alloc", "total mem alloc per user", []string{"username", "state"}, nil),
+		userJobCpuAlloc:           prometheus.NewDesc("slurm_user_cpu_alloc", "total cpu alloc per user", []string{"username", "state"}, nil),
+		partitionJobStateTotal:    prometheus.NewDesc("slurm_partition_job_state_total", "total jobs per partition per state", []string{"partition", "state"}, nil),
+		partitionJobStateCpuAlloc: prometheus.NewDesc("slurm_partition_job_state_cpu_alloc", "alloc cpu consumed per partition per job state", []string{"partition", "state"}, nil),
+		partitionJobStateMemAlloc: prometheus.NewDesc("slurm_partition_job_state_mem_alloc", "alloc mem consumed per partition per job state", []string{"partition", "state"}, nil),
+		accountJobStateMemAlloc:   prometheus.NewDesc("slurm_account_job_state_mem_alloc", "alloc mem consumed per account per job state", []string{"account", "state"}, nil),
+		accountJobStateCpuAlloc:   prometheus.NewDesc("slurm_account_job_state_cpu_alloc", "alloc cpu consumed per account per job state", []string{"account", "state"}, nil),
+		accountJobStateTotal:      prometheus.NewDesc("slurm_account_job_state_total", "total jobs per account per job state", []string{"account", "state"}, nil),
+		featureJobMemAlloc:        prometheus.NewDesc("slurm_feature_mem_alloc", "alloc mem consumed per feature", []string{"feature"}, nil),
+		featureJobCpuAlloc:        prometheus.NewDesc("slurm_feature_cpu_alloc", "alloc cpu consumed per feature", []string{"feature"}, nil),
+		featureJobTotal:           prometheus.NewDesc("slurm_feature_total", "alloc cpu consumed per feature", []string{"feature"}, nil),
+		pendingReasonTotal:        prometheus.NewDesc("slurm_pending_reason_total", "count of the reason jobs are pending", []string{"reason"}, nil),
+		jobScrapeDuration:         prometheus.NewDesc("slurm_job_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.squeue), nil, nil),
 		jobScrapeError: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "slurm_job_scrape_error",
 			Help: "slurm job scrape error",
@@ -386,6 +396,8 @@ func (jc *JobsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- jc.userJobMemAlloc
 	ch <- jc.userJobCpuAlloc
 	ch <- jc.partitionJobStateTotal
+	ch <- jc.partitionJobStateCpuAlloc
+	ch <- jc.partitionJobStateMemAlloc
 	ch <- jc.accountJobStateMemAlloc
 	ch <- jc.accountJobStateCpuAlloc
 	ch <- jc.accountJobStateTotal
@@ -443,9 +455,9 @@ func (jc *JobsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	partitionJobMetrics := parsePartitionJobMetrics(jobMetrics)
 	for partition, stateTotals := range partitionJobMetrics {
-		for state, totalJobs := range stateTotals.partitionState {
-			ch <- prometheus.MustNewConstMetric(jc.partitionJobStateTotal, prometheus.GaugeValue, totalJobs, partition, state)
-		}
+		emitNonZeroStateConstGuage(jc.partitionJobStateTotal, stateTotals.stateJobCount, partition)
+		emitNonZeroStateConstGuage(jc.partitionJobStateCpuAlloc, stateTotals.stateAllocCpu, partition)
+		emitNonZeroStateConstGuage(jc.partitionJobStateMemAlloc, stateTotals.stateAllocMem, partition)
 	}
 
 	featureJobMetric := parseFeatureMetric(jobMetrics)
