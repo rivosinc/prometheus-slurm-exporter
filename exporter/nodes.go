@@ -32,6 +32,8 @@ type NodeMetric struct {
 	RealMemory  float64  `json:"real_memory"`
 	State       string   `json:"state"`
 	Weight      float64  `json:"weight"`
+	Gres        string   `json:"gres"`
+	GresUsed    string   `json:"gres_used"`
 }
 
 type sinfoResponse struct {
@@ -138,6 +140,9 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		CPUsState
 		Weight
 		AllocMem
+		Gres
+		GresUsed
+		EmptyField
 		// delimits the end of the record
 		CsvSTOP
 	)
@@ -152,11 +157,13 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		CpuLoad     NAbleFloat `json:"l"`
 		State       string     `json:"s"`
 		Weight      float64    `json:"w"`
+		Gres        string     `json:"gres"`
+		GresUsed    string     `json:"gres_used"`
 	}
 	csvReader := csv.NewReader(bytes.NewReader(sinfo))
 	csvReader.Comma = '|'
 	csvReader.TrimLeadingSpace = true
-	csvReader.FieldsPerRecord = 9
+	csvReader.FieldsPerRecord = 12
 
 	allRecords, err := csvReader.ReadAll()
 	if err != nil {
@@ -212,6 +219,10 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 			return nil, err
 		}
 
+
+		metric.Gres = records[Gres]
+		metric.GresUsed = records[GresUsed]
+
 		cpuStates := strings.Split(metric.CpuState, "/")
 		if len(cpuStates) != 4 {
 			cmf.errorCounter.Inc()
@@ -257,7 +268,10 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 				AllocCpus:   allocated,
 				IdleCpus:    idle,
 				Weight:      metric.Weight,
+
 				CpuLoad:     float64(metric.CpuLoad),
+				Gres:        metric.Gres,
+				GresUsed:    metric.GresUsed,
 			}
 		}
 	}
@@ -282,6 +296,8 @@ type PartitionMetric struct {
 	CpuLoad          float64
 	IdleCpus         float64
 	Weight           float64
+	TotalGres        map[string]float64
+	AllocGres        map[string]float64
 }
 
 func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
@@ -294,6 +310,8 @@ func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
 					StateAllocMemory: make(map[string]float64),
 					StateAllocCpus:   make(map[string]float64),
 					StateNodeCount:   make(map[string]float64),
+					TotalGres:        make(map[string]float64),
+					AllocGres:        make(map[string]float64),
 				}
 				partitions[p] = partition
 			}
@@ -306,9 +324,44 @@ func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
 			partition.IdleCpus += node.IdleCpus
 			partition.RealMemory += node.RealMemory
 			partition.Weight += node.Weight
+			
+			nodeGres := parseGres(node.Gres)
+			for name, count := range nodeGres {
+				partition.TotalGres[name] += count
+			}
+			nodeGresUsed := parseGres(node.GresUsed)
+			for name, count := range nodeGresUsed {
+				partition.AllocGres[name] += count
+			}
 		}
 	}
 	return partitions
+}
+
+func parseGres(gres string) map[string]float64 {
+	gresMap := make(map[string]float64)
+	if gres == "(null)" || gres == "" {
+		return gresMap
+	}
+	parts := strings.Split(gres, ",")
+	for _, part := range parts {
+		if idx := strings.Index(part, "("); idx != -1 {
+			part = part[:idx]
+		}
+		subparts := strings.Split(part, ":")
+		if len(subparts) < 2 {
+			continue
+		}
+		name := subparts[0]
+		countStr := subparts[len(subparts)-1]
+		if len(subparts) > 2 {
+			name = name + ":" + subparts[1]
+		}
+		if count, err := strconv.ParseFloat(countStr, 64); err == nil {
+			gresMap[name] += count
+		}
+	}
+	return gresMap
 }
 
 func (cmf *NodeCliFallbackFetcher) ScrapeError() prometheus.Counter {
@@ -388,6 +441,11 @@ type NodesCollector struct {
 	totalRealMemory  *prometheus.Desc
 	totalFreeMemory  *prometheus.Desc
 	totalAllocMemory *prometheus.Desc
+	// gres stats
+	nodeGresTotal      *prometheus.Desc
+	nodeGresAlloc      *prometheus.Desc
+	partitionGresTotal *prometheus.Desc
+	partitionGresAlloc *prometheus.Desc
 	// exporter metrics
 	nodeScrapeDuration *prometheus.Desc
 	nodeScrapeErrors   prometheus.Counter
@@ -428,6 +486,11 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 		totalRealMemory:  prometheus.NewDesc("slurm_mem_real", "Total real mem", nil, nil),
 		totalFreeMemory:  prometheus.NewDesc("slurm_mem_free", "Total free mem", nil, nil),
 		totalAllocMemory: prometheus.NewDesc("slurm_mem_alloc", "Total alloc mem", nil, nil),
+		// gres stats
+		nodeGresTotal:      prometheus.NewDesc("slurm_node_gres_total", "Total GRES per node", []string{"node", "gres"}, nil),
+		nodeGresAlloc:      prometheus.NewDesc("slurm_node_gres_alloc", "Allocated GRES per node", []string{"node", "gres"}, nil),
+		partitionGresTotal: prometheus.NewDesc("slurm_partition_gres_total", "Total GRES per partition", []string{"partition", "gres"}, nil),
+		partitionGresAlloc: prometheus.NewDesc("slurm_partition_gres_alloc", "Allocated GRES per partition", []string{"partition", "gres"}, nil),
 		// exporter stats
 		nodeScrapeDuration: prometheus.NewDesc("slurm_node_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.sinfo), nil, nil),
 		nodeScrapeErrors:   fetcher.ScrapeError(),
@@ -450,6 +513,10 @@ func (nc *NodesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- nc.totalRealMemory
 	ch <- nc.totalFreeMemory
 	ch <- nc.totalAllocMemory
+	ch <- nc.nodeGresTotal
+	ch <- nc.nodeGresAlloc
+	ch <- nc.partitionGresTotal
+	ch <- nc.partitionGresAlloc
 	ch <- nc.nodeScrapeDuration
 	ch <- nc.nodeScrapeErrors.Desc()
 }
@@ -510,6 +577,26 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(nc.totalRealMemory, prometheus.GaugeValue, memMetrics.RealMemory)
 	ch <- prometheus.MustNewConstMetric(nc.totalFreeMemory, prometheus.GaugeValue, memMetrics.FreeMemory)
 	ch <- prometheus.MustNewConstMetric(nc.totalAllocMemory, prometheus.GaugeValue, memMetrics.AllocMemory)
+
+	// gres metrics
+	for _, node := range nodeMetrics {
+		nodeGres := parseGres(node.Gres)
+		for name, count := range nodeGres {
+			ch <- prometheus.MustNewConstMetric(nc.nodeGresTotal, prometheus.GaugeValue, count, node.Hostname, name)
+		}
+		nodeGresUsed := parseGres(node.GresUsed)
+		for name, count := range nodeGresUsed {
+			ch <- prometheus.MustNewConstMetric(nc.nodeGresAlloc, prometheus.GaugeValue, count, node.Hostname, name)
+		}
+	}
+	for partition, metric := range partitionMetrics {
+		for name, count := range metric.TotalGres {
+			ch <- prometheus.MustNewConstMetric(nc.partitionGresTotal, prometheus.GaugeValue, count, partition, name)
+		}
+		for name, count := range metric.AllocGres {
+			ch <- prometheus.MustNewConstMetric(nc.partitionGresAlloc, prometheus.GaugeValue, count, partition, name)
+		}
+	}
 }
 
 func (nc *NodesCollector) SetFetcher(fetcher SlurmMetricFetcher[NodeMetric]) {

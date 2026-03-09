@@ -23,7 +23,7 @@ import (
 )
 
 type SlurmPrimitiveMetric interface {
-	NodeMetric | JobMetric | DiagMetric | LicenseMetric | AccountLimitMetric
+	NodeMetric | JobMetric | DiagMetric | LicenseMetric | AccountLimitMetric | AccountCredits
 }
 
 type CoercedInt int

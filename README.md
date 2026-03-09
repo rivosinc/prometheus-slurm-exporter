@@ -148,6 +148,54 @@ $ curl localhost:9092/metrics | grep "# HELP"
 
 ```
 
+### Optional Collectors
+
+By default, the exporter only collects node and job metrics. Additional collectors can be enabled with command-line flags:
+
+#### Credits/Billing Metrics (`--slurm.collect-credits`)
+
+Collects account credits and billing information from `scredits` command:
+
+```bash
+$ prometheus-slurm-exporter --slurm.collect-credits
+```
+
+**Available metrics:**
+- `slurm_scredits_allocation_total{account}` - Total allocation in SU per account
+- `slurm_scredits_remaining{account}` - Remaining credits in SU per account
+- `slurm_scredits_used{account}` - Used credits in SU per account
+- `slurm_scredits_used_percent{account}` - Percentage of credits used per account
+- `slurm_scredits_scrape_duration` - Time taken to scrape credits data (ms)
+
+**Custom command:**
+```bash
+$ prometheus-slurm-exporter --slurm.collect-credits --slurm.scredits-cli "scredits"
+```
+
+#### License Metrics (`--slurm.collect-licenses`)
+
+Collects license usage information from `scontrol show lic`:
+
+```bash
+$ prometheus-slurm-exporter --slurm.collect-licenses
+```
+
+#### Diagnostic Metrics (`--slurm.collect-diags`)
+
+Collects daemon diagnostic statistics from `sdiag`:
+
+```bash
+$ prometheus-slurm-exporter --slurm.collect-diags
+```
+
+#### Account Limits (`--slurm.collect-limits`)
+
+Collects account and user limits from `sacctmgr`:
+
+```bash
+$ prometheus-slurm-exporter --slurm.collect-limits
+```
+
 ### Exporter Env Var Docs
 
 Env vars can be sepcified in a `.env` file, while using the `just`
