@@ -155,7 +155,7 @@ func NewConfig(cliFlags *CliFlags) (*Config, error) {
 		}
 		if cliFlags.SlurmSinfoOverride == "" {
 			// set field lengths wide enough to avoid truncation
-			cliOpts.sinfo = []string{"sinfo", "-h", "-O", "StateCompact:12|,Memory:15|,NodeHost:30|,CPUsLoad:12|,Partition:15|,FreeMem:15|,CPUsState:15|,Weight:10|,AllocMem:15"}
+			cliOpts.sinfo = []string{"sinfo", "-h", "-O", "StateCompact:15|,Memory:20|,NodeHost:40|,CPUsLoad:15|,Partition:20|,FreeMem:20|,CPUsState:20|,Weight:15|,AllocMem:20|,Gres:30|,GresUsed:40|"}
 		}
 		// must instantiate the job fetcher here since it is shared between 2 collectors
 		traceConf.sharedFetcher = &JobCliFallbackFetcher{
