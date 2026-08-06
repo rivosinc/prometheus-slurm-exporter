@@ -19,6 +19,7 @@ build/
 venv/
 vendor
 .vscode/
+.idea/
 tmp*
 .env
 coverage.html

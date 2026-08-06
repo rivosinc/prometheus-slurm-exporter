@@ -7,6 +7,7 @@ package exporter
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -41,6 +42,9 @@ func TestParseNodeMetrics(t *testing.T) {
 	if len(nodeMetrics) == 0 {
 		t.Fatal("No metrics received")
 	}
+	assert := assert.New(t)
+	assert.Equal([]GresMetric{{Kind: "gpu", Type: "a100", Count: 8}, {Kind: "mps", Count: 20}}, nodeMetrics[0].Gres)
+	assert.Equal([]GresMetric{{Kind: "gpu", Type: "a100", Count: 3}, {Kind: "mps", Count: 10}}, nodeMetrics[0].GresUsed)
 	t.Logf("Node metrics collected %d", len(nodeMetrics))
 }
 
@@ -68,6 +72,21 @@ func TestPartitionMetric(t *testing.T) {
 	assert.Equal(2e+06, metrics["hw"].RealMemory)
 	assert.Equal(252., metrics["hw"].IdleCpus)
 	assert.Equal(4., sumStateMetric(metrics["hw"].StateNodeCount))
+	assert.Equal(14., metrics["hw"].TotalGpus)
+	assert.Equal(6., sumStateMetric(metrics["hw"].StateAllocGpus))
+}
+
+func TestNodeSummaryGpuMetric(t *testing.T) {
+	assert := assert.New(t)
+	fetcher := NodeJsonFetcher{scraper: MockNodeInfoScraper, errorCounter: prometheus.NewCounter(prometheus.CounterOpts{}), cache: NewAtomicThrottledCache[NodeMetric](1)}
+	nodeMetrics, err := fetcher.FetchMetrics()
+	assert.NoError(err)
+	metrics := fetchNodeTotalGpuMetrics(nodeMetrics)
+	assert.Equal(14., metrics.Total)
+	assert.Equal(6., metrics.Alloc)
+	assert.Equal(8., metrics.Idle)
+	assert.Equal(&PerTypeMetric{Total: 12, Alloc: 4, Idle: 8}, metrics.PerType["a100"])
+	assert.Equal(&PerTypeMetric{Total: 2, Alloc: 2, Idle: 0}, metrics.PerType["h100"])
 }
 
 func TestNodeSummaryCpuMetric(t *testing.T) {
@@ -112,6 +131,17 @@ func TestNodeCollector(t *testing.T) {
 		t.Logf("Received metric %s", m.Desc().String())
 	}
 	assert.NotEmpty(metrics)
+	metricDescs := make([]string, 0, len(metrics))
+	for _, metric := range metrics {
+		metricDescs = append(metricDescs, metric.Desc().String())
+	}
+	for _, name := range []string{
+		"slurm_gpus_total", "slurm_gpus_idle", "slurm_gpus_alloc",
+		"slurm_gpus_total_per_type", "slurm_gpus_alloc_per_type", "slurm_gpus_idle_per_type",
+		"slurm_partition_total_gpus", "slurm_partition_alloc_gpus",
+	} {
+		assert.True(slices.ContainsFunc(metricDescs, func(desc string) bool { return strings.Contains(desc, name) }), "missing %s", name)
+	}
 }
 
 func TestNodeDescribe(t *testing.T) {
@@ -129,7 +159,7 @@ func TestNodeDescribe(t *testing.T) {
 	for desc, ok := <-ch; ok; desc, ok = <-ch {
 		descs = append(descs, desc)
 	}
-	assert.NotEmpty(descs)
+	assert.Len(descs, 26)
 }
 
 func TestParseFallbackNodeMetricsCsv(t *testing.T) {
@@ -146,6 +176,8 @@ func TestParseFallbackNodeMetricsCsv(t *testing.T) {
 	cs222Metric := metrics[cs222Idx]
 	assert.Equal(cs222Metric.CpuLoad, 28.08)
 	assert.ElementsMatch(cs222Metric.Partitions, []string{"hw-h", "hw-l*", "hw-m", "hw-h-lmt"})
+	assert.Equal([]GresMetric{{Kind: "gpu", Type: "a100", Count: 8}}, cs222Metric.Gres)
+	assert.Equal([]GresMetric{{Kind: "gpu", Type: "a100", Count: 3}}, cs222Metric.GresUsed)
 }
 
 func TestNAbleFloat_NA(t *testing.T) {

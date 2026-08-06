@@ -21,17 +21,27 @@ import (
 )
 
 type NodeMetric struct {
-	AllocMemory float64  `json:"alloc_memory"`
-	AllocCpus   float64  `json:"alloc_cpus"`
-	Cpus        float64  `json:"cpus"`
-	CpuLoad     float64  `json:"cpu_load"`
-	FreeMemory  float64  `json:"free_memory"`
-	Hostname    string   `json:"hostname"`
-	IdleCpus    float64  `json:"idle_cpus"`
-	Partitions  []string `json:"partitions"`
-	RealMemory  float64  `json:"real_memory"`
-	State       string   `json:"state"`
-	Weight      float64  `json:"weight"`
+	AllocMemory float64      `json:"alloc_memory"`
+	AllocCpus   float64      `json:"alloc_cpus"`
+	Cpus        float64      `json:"cpus"`
+	CpuLoad     float64      `json:"cpu_load"`
+	FreeMemory  float64      `json:"free_memory"`
+	Hostname    string       `json:"hostname"`
+	IdleCpus    float64      `json:"idle_cpus"`
+	Partitions  []string     `json:"partitions"`
+	RealMemory  float64      `json:"real_memory"`
+	State       string       `json:"state"`
+	Weight      float64      `json:"weight"`
+	GresRaw     string       `json:"gres"`
+	GresUsedRaw string       `json:"gres_used"`
+	Gres        []GresMetric `json:"-"`
+	GresUsed    []GresMetric `json:"-"`
+}
+
+type GresMetric struct {
+	Kind  string
+	Type  string
+	Count float64
 }
 
 type sinfoResponse struct {
@@ -71,6 +81,10 @@ func (cmf *NodeJsonFetcher) fetch() ([]NodeMetric, error) {
 		}
 		cmf.errorCounter.Add(float64(len(squeue.Errors)))
 		return nil, errors.New(squeue.Errors[0])
+	}
+	for i := range squeue.Nodes {
+		squeue.Nodes[i].Gres = ParseGres(squeue.Nodes[i].GresRaw)
+		squeue.Nodes[i].GresUsed = ParseGres(squeue.Nodes[i].GresUsedRaw)
 	}
 	return squeue.Nodes, nil
 }
@@ -124,10 +138,10 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		return nil, err
 	}
 	sinfo = bytes.Trim(sinfo, " \n")
-	// parse csv from the following CSV format: "StateCompact,Memory,NodeHost,CPUsLoad,Partition,FreeMem,CPUsState,Weight,AllocMem"
+	// parse csv from the following CSV format: "StateCompact,Memory,NodeHost,CPUsLoad,Partition,FreeMem,CPUsState,Weight,AllocMem,Gres,GresUsed"
 	nodeMetrics := make(map[string]*NodeMetric, 0)
 	type CsvHeader int
-	// csv header: StateCompact,Memory,NodeHost,CPUsLoad,Partition,FreeMem,CPUsState,Weight,AllocMem
+	// csv header: StateCompact,Memory,NodeHost,CPUsLoad,Partition,FreeMem,CPUsState,Weight,AllocMem,Gres,GresUsed
 	const (
 		State CsvHeader = iota
 		RealMemory
@@ -138,6 +152,8 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		CPUsState
 		Weight
 		AllocMem
+		Gres
+		GresUsed
 		// delimits the end of the record
 		CsvSTOP
 	)
@@ -152,11 +168,13 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 		CpuLoad     NAbleFloat `json:"l"`
 		State       string     `json:"s"`
 		Weight      float64    `json:"w"`
+		Gres        string
+		GresUsed    string
 	}
 	csvReader := csv.NewReader(bytes.NewReader(sinfo))
 	csvReader.Comma = '|'
 	csvReader.TrimLeadingSpace = true
-	csvReader.FieldsPerRecord = 9
+	csvReader.FieldsPerRecord = 11
 
 	allRecords, err := csvReader.ReadAll()
 	if err != nil {
@@ -204,6 +222,8 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 			return nil, err
 		}
 		metric.State = records[State]
+		metric.Gres = records[Gres]
+		metric.GresUsed = records[GresUsed]
 		if weight, err := strconv.ParseFloat(records[Weight], 64); err == nil {
 			metric.Weight = weight
 		} else {
@@ -258,6 +278,8 @@ func (cmf *NodeCliFallbackFetcher) fetch() ([]NodeMetric, error) {
 				IdleCpus:    idle,
 				Weight:      metric.Weight,
 				CpuLoad:     float64(metric.CpuLoad),
+				Gres:        ParseGres(metric.Gres),
+				GresUsed:    ParseGres(metric.GresUsed),
 			}
 		}
 	}
@@ -274,10 +296,12 @@ func (cmf *NodeCliFallbackFetcher) FetchMetrics() ([]NodeMetric, error) {
 
 type PartitionMetric struct {
 	TotalCpus        float64
+	TotalGpus        float64
 	RealMemory       float64
 	FreeMemory       float64
 	StateAllocMemory map[string]float64
 	StateAllocCpus   map[string]float64
+	StateAllocGpus   map[string]float64
 	StateNodeCount   map[string]float64
 	CpuLoad          float64
 	IdleCpus         float64
@@ -293,11 +317,22 @@ func fetchNodePartitionMetrics(nodes []NodeMetric) map[string]*PartitionMetric {
 				partition = &PartitionMetric{
 					StateAllocMemory: make(map[string]float64),
 					StateAllocCpus:   make(map[string]float64),
+					StateAllocGpus:   make(map[string]float64),
 					StateNodeCount:   make(map[string]float64),
 				}
 				partitions[p] = partition
 			}
 			partition.StateAllocCpus[node.State] += node.AllocCpus
+			for _, gres := range node.Gres {
+				if gres.Kind == "gpu" {
+					partition.TotalGpus += gres.Count
+				}
+			}
+			for _, gres := range node.GresUsed {
+				if gres.Kind == "gpu" {
+					partition.StateAllocGpus[node.State] += gres.Count
+				}
+			}
 			partition.StateAllocMemory[node.State] += node.AllocMemory
 			partition.StateNodeCount[node.State] += 1
 			partition.TotalCpus += node.Cpus
@@ -355,6 +390,50 @@ type MemSummaryMetric struct {
 	RealMemory  float64
 }
 
+type PerTypeMetric struct {
+	Total float64
+	Alloc float64
+	Idle  float64
+}
+
+type GpuSummaryMetric struct {
+	Total   float64
+	Idle    float64
+	Alloc   float64
+	PerType map[string]*PerTypeMetric
+}
+
+func fetchNodeTotalGpuMetrics(nodes []NodeMetric) *GpuSummaryMetric {
+	summary := &GpuSummaryMetric{PerType: make(map[string]*PerTypeMetric)}
+	for _, node := range nodes {
+		for _, gres := range node.Gres {
+			if gres.Kind != "gpu" {
+				continue
+			}
+			summary.Total += gres.Count
+			if summary.PerType[gres.Type] == nil {
+				summary.PerType[gres.Type] = new(PerTypeMetric)
+			}
+			summary.PerType[gres.Type].Total += gres.Count
+		}
+		for _, gres := range node.GresUsed {
+			if gres.Kind != "gpu" {
+				continue
+			}
+			summary.Alloc += gres.Count
+			if summary.PerType[gres.Type] == nil {
+				summary.PerType[gres.Type] = new(PerTypeMetric)
+			}
+			summary.PerType[gres.Type].Alloc += gres.Count
+		}
+	}
+	summary.Idle = summary.Total - summary.Alloc
+	for _, metric := range summary.PerType {
+		metric.Idle = metric.Total - metric.Alloc
+	}
+	return summary
+}
+
 func fetchNodeTotalMemMetrics(nodes []NodeMetric) *MemSummaryMetric {
 	memSummary := new(MemSummaryMetric)
 	for _, node := range nodes {
@@ -374,6 +453,8 @@ type NodesCollector struct {
 	partitionFreeMemory  *prometheus.Desc
 	partitionAllocMemory *prometheus.Desc
 	partitionAllocCpus   *prometheus.Desc
+	partitionTotalGpus   *prometheus.Desc
+	partitionAllocGpus   *prometheus.Desc
 	partitionNodeCount   *prometheus.Desc
 	partitionIdleCpus    *prometheus.Desc
 	partitionWeight      *prometheus.Desc
@@ -388,6 +469,13 @@ type NodesCollector struct {
 	totalRealMemory  *prometheus.Desc
 	totalFreeMemory  *prometheus.Desc
 	totalAllocMemory *prometheus.Desc
+	// gpu stats
+	totalGpus        *prometheus.Desc
+	totalGpusIdle    *prometheus.Desc
+	totalGpusAlloc   *prometheus.Desc
+	gpusTotalPerType *prometheus.Desc
+	gpusAllocPerType *prometheus.Desc
+	gpusIdlePerType  *prometheus.Desc
 	// exporter metrics
 	nodeScrapeDuration *prometheus.Desc
 	nodeScrapeErrors   prometheus.Counter
@@ -414,6 +502,8 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 		partitionFreeMemory:  prometheus.NewDesc("slurm_partition_free_mem", "Free mem per partition", []string{"partition"}, nil),
 		partitionAllocMemory: prometheus.NewDesc("slurm_partition_alloc_mem", "Alloc mem per partition per state", []string{"partition", "state"}, nil),
 		partitionAllocCpus:   prometheus.NewDesc("slurm_partition_alloc_cpus", "Alloc cpus per partition per state", []string{"partition", "state"}, nil),
+		partitionTotalGpus:   prometheus.NewDesc("slurm_partition_total_gpus", "Total GPUs per partition", []string{"partition"}, nil),
+		partitionAllocGpus:   prometheus.NewDesc("slurm_partition_alloc_gpus", "Allocated GPUs per partition per state", []string{"partition", "state"}, nil),
 		partitionNodeCount:   prometheus.NewDesc("slurm_partition_node_count", "Node count per partition per state", []string{"partition", "state"}, nil),
 		partitionIdleCpus:    prometheus.NewDesc("slurm_partition_idle_cpus", "Idle cpus per partition", []string{"partition"}, nil),
 		partitionWeight:      prometheus.NewDesc("slurm_partition_weight", "Total node weight per partition??", []string{"partition"}, nil),
@@ -428,6 +518,13 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 		totalRealMemory:  prometheus.NewDesc("slurm_mem_real", "Total real mem", nil, nil),
 		totalFreeMemory:  prometheus.NewDesc("slurm_mem_free", "Total free mem", nil, nil),
 		totalAllocMemory: prometheus.NewDesc("slurm_mem_alloc", "Total alloc mem", nil, nil),
+		// node gpu stats
+		totalGpus:        prometheus.NewDesc("slurm_gpus_total", "Total GPUs", nil, nil),
+		totalGpusIdle:    prometheus.NewDesc("slurm_gpus_idle", "Total idle GPUs", nil, nil),
+		totalGpusAlloc:   prometheus.NewDesc("slurm_gpus_alloc", "Total allocated GPUs", nil, nil),
+		gpusTotalPerType: prometheus.NewDesc("slurm_gpus_total_per_type", "Total GPUs per type", []string{"type"}, nil),
+		gpusAllocPerType: prometheus.NewDesc("slurm_gpus_alloc_per_type", "Allocated GPUs per type", []string{"type"}, nil),
+		gpusIdlePerType:  prometheus.NewDesc("slurm_gpus_idle_per_type", "Idle GPUs per type", []string{"type"}, nil),
 		// exporter stats
 		nodeScrapeDuration: prometheus.NewDesc("slurm_node_scrape_duration", fmt.Sprintf("how long the cmd %v took (ms)", cliOpts.sinfo), nil, nil),
 		nodeScrapeErrors:   fetcher.ScrapeError(),
@@ -436,6 +533,8 @@ func NewNodeCollecter(config *Config) *NodesCollector {
 
 func (nc *NodesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- nc.partitionAllocCpus
+	ch <- nc.partitionTotalGpus
+	ch <- nc.partitionAllocGpus
 	ch <- nc.partitionAllocMemory
 	ch <- nc.partitionNodeCount
 	ch <- nc.partitionCpus
@@ -446,10 +545,17 @@ func (nc *NodesCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- nc.partitionWeight
 	ch <- nc.totalCpus
 	ch <- nc.totalIdleCpus
+	ch <- nc.totalCpuLoad
 	ch <- nc.cpusPerState
 	ch <- nc.totalRealMemory
 	ch <- nc.totalFreeMemory
 	ch <- nc.totalAllocMemory
+	ch <- nc.totalGpus
+	ch <- nc.totalGpusIdle
+	ch <- nc.totalGpusAlloc
+	ch <- nc.gpusTotalPerType
+	ch <- nc.gpusAllocPerType
+	ch <- nc.gpusIdlePerType
 	ch <- nc.nodeScrapeDuration
 	ch <- nc.nodeScrapeErrors.Desc()
 }
@@ -475,10 +581,14 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	partitionMetrics := fetchNodePartitionMetrics(nodeMetrics)
 	for partition, metric := range partitionMetrics {
 		emitStateVal(partition, metric.StateAllocCpus, nc.partitionAllocCpus)
+		emitStateVal(partition, metric.StateAllocGpus, nc.partitionAllocGpus)
 		emitStateVal(partition, metric.StateAllocMemory, nc.partitionAllocMemory)
 		emitStateVal(partition, metric.StateNodeCount, nc.partitionNodeCount)
 		if metric.TotalCpus > 0 {
 			ch <- prometheus.MustNewConstMetric(nc.partitionCpus, prometheus.GaugeValue, metric.TotalCpus, partition)
+		}
+		if metric.TotalGpus > 0 {
+			ch <- prometheus.MustNewConstMetric(nc.partitionTotalGpus, prometheus.GaugeValue, metric.TotalGpus, partition)
 		}
 		if metric.CpuLoad > 0 {
 			ch <- prometheus.MustNewConstMetric(nc.partitionCpuLoad, prometheus.GaugeValue, metric.CpuLoad, partition)
@@ -504,6 +614,16 @@ func (nc *NodesCollector) Collect(ch chan<- prometheus.Metric) {
 	for state, psm := range nodeCpuMetrics.PerState {
 		ch <- prometheus.MustNewConstMetric(nc.cpusPerState, prometheus.GaugeValue, psm.Cpus, state)
 		ch <- prometheus.MustNewConstMetric(nc.nodeCountPerState, prometheus.GaugeValue, psm.Count, state)
+	}
+	// node GPU summary set
+	nodeGpuMetrics := fetchNodeTotalGpuMetrics(nodeMetrics)
+	ch <- prometheus.MustNewConstMetric(nc.totalGpus, prometheus.GaugeValue, nodeGpuMetrics.Total)
+	ch <- prometheus.MustNewConstMetric(nc.totalGpusIdle, prometheus.GaugeValue, nodeGpuMetrics.Idle)
+	ch <- prometheus.MustNewConstMetric(nc.totalGpusAlloc, prometheus.GaugeValue, nodeGpuMetrics.Alloc)
+	for gpuType, metric := range nodeGpuMetrics.PerType {
+		ch <- prometheus.MustNewConstMetric(nc.gpusTotalPerType, prometheus.GaugeValue, metric.Total, gpuType)
+		ch <- prometheus.MustNewConstMetric(nc.gpusAllocPerType, prometheus.GaugeValue, metric.Alloc, gpuType)
+		ch <- prometheus.MustNewConstMetric(nc.gpusIdlePerType, prometheus.GaugeValue, metric.Idle, gpuType)
 	}
 	// node mem summary set
 	memMetrics := fetchNodeTotalMemMetrics(nodeMetrics)

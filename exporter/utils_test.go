@@ -11,8 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"log/slog"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const chars string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -148,4 +149,13 @@ func TestConvertMemToFloat_Sad(t *testing.T) {
 	n, err := MemToFloat("afal")
 	assert.Error(err)
 	assert.Equal(-1., n)
+}
+
+func TestParseGres(t *testing.T) {
+	assert := assert.New(t)
+	assert.Empty(ParseGres(""))
+	assert.Equal([]GresMetric{{Kind: "gpu", Type: "a100", Count: 8}}, ParseGres("gpu:a100:8"))
+	assert.Equal([]GresMetric{{Kind: "gpu", Type: "a100", Count: 8}}, ParseGres("gpu:a100:8(S:0-1)"))
+	assert.Equal([]GresMetric{{Kind: "gpu", Type: "a100", Count: 4}, {Kind: "gpu", Type: "h100", Count: 2}, {Kind: "mps", Count: 20}}, ParseGres("gpu:a100:4,gpu:h100:2,mps:20"))
+	assert.Equal([]GresMetric{{Kind: "gpu", Type: "a100_80gb", Count: 6}, {Kind: "gpu", Type: "a100", Count: 2}}, ParseGres("gpu:a100_80gb:6(IDX:N/A),gpu:a100:2(IDX:N/A)"))
 }

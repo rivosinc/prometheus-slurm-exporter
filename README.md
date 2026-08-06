@@ -10,7 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 [![Go Report Card](https://goreportcard.com/badge/github.com/rivosinc/prometheus-slurm-exporter)](https://goreportcard.com/report/github.com/rivosinc/prometheus-slurm-exporter)
 
 Inspired by the now unmaintained prometheus slurm [exporter](https://github.com/vpenso/prometheus-slurm-exporter). We implement in some form or another, most of the
-metrics from the previously maintained exporter. We have not yet added GPU or fairshare support, although we will be more than happy to accept contributions for those.
+metrics from the previously maintained exporter. GPU support is available; fairshare support has not yet been added, although we will be more than happy to accept contributions for those.
 This exporter supports `--json` output from cli. Note that the plugin supported is `openapi/v0.0.37` not `data_parser`, which ships with the most modern version of slurm.
 While in production we've found that the cli fallback (defining a custom json format from the slurm cmdline) performs far better and more reliably than parsing with the slurm
 provided json output. Thus, this is now the default mode of deployment as it also doesn't require any compiled plugins. We are keeping the openapi support for slurmrestd
@@ -104,6 +104,12 @@ $ curl localhost:9092/metrics | grep "# HELP"
 # HELP slurm_cpus_idle Total idle cpus
 # HELP slurm_cpus_per_state Cpus per state i.e alloc, mixed, draining, etc.
 # HELP slurm_cpus_total Total cpus
+# HELP slurm_gpus_alloc Total allocated GPUs
+# HELP slurm_gpus_alloc_per_type Allocated GPUs per type
+# HELP slurm_gpus_idle Total idle GPUs
+# HELP slurm_gpus_idle_per_type Idle GPUs per type
+# HELP slurm_gpus_total Total GPUs
+# HELP slurm_gpus_total_per_type Total GPUs per type
 # HELP slurm_job_scrape_duration how long the cmd [cat fixtures/squeue_out.json] took (ms)
 # HELP slurm_job_scrape_error slurm job scrape error
 # HELP slurm_mem_alloc Total alloc mem
@@ -112,12 +118,14 @@ $ curl localhost:9092/metrics | grep "# HELP"
 # HELP slurm_node_scrape_duration how long the cmd [cat fixtures/sinfo_out.json] took (ms)
 # HELP slurm_node_scrape_error slurm node info scrape errors
 # HELP slurm_partition_alloc_cpus Alloc cpus per partition
+# HELP slurm_partition_alloc_gpus Allocated GPUs per partition per state
 # HELP slurm_partition_alloc_mem Alloc mem per partition
 # HELP slurm_partition_cpu_load Total cpu load per partition
 # HELP slurm_partition_idle_cpus Idle cpus per partition
 # HELP slurm_partition_job_state_total total jobs per partition per state
 # HELP slurm_partition_real_mem Real mem per partition
 # HELP slurm_partition_total_cpus Total cpus per partition
+# HELP slurm_partition_total_gpus Total GPUs per partition
 # HELP slurm_partition_weight Total node weight per partition??
 # HELP slurm_user_cpu_alloc total cpu alloc per user
 # HELP slurm_user_mem_alloc total mem alloc per user

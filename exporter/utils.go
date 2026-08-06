@@ -184,3 +184,32 @@ func MemToFloat(mem string) (float64, error) {
 	memunit := memUnits[matches[re.SubexpIndex("memunit")]]
 	return num * memunit, err
 }
+
+// ParseGres parses Slurm's comma-separated generic resource format, such as
+// "gpu:a100:8(S:0-1)". Malformed entries are ignored.
+func ParseGres(raw string) []GresMetric {
+	var metrics []GresMetric
+	for _, entry := range strings.Split(raw, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" || entry == "N/A" {
+			continue
+		}
+		if suffix := strings.IndexByte(entry, '('); suffix >= 0 {
+			entry = entry[:suffix]
+		}
+		parts := strings.Split(entry, ":")
+		if len(parts) != 2 && len(parts) != 3 {
+			continue
+		}
+		count, err := strconv.ParseFloat(parts[len(parts)-1], 64)
+		if err != nil {
+			continue
+		}
+		metric := GresMetric{Kind: parts[0], Count: count}
+		if len(parts) == 3 {
+			metric.Type = parts[1]
+		}
+		metrics = append(metrics, metric)
+	}
+	return metrics
+}
